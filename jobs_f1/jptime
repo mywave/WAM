@@ -1,0 +1,29 @@
+#!/usr/bin/ksh -l
+#
+#==>  WAM post-processing ptime
+#
+#     Arno Behrens (March 2014)
+#
+#PBS -q xc_normal
+#PBS -l select=1
+#PBS -l place=pack
+#PBS -l walltime=00:02:00
+#PBS -j oe
+#PBS -N Ptime
+#
+set -k
+WAMDIR=/e/uhome/gkssbeh/WAM
+WORK=/e/uhome/gkssbeh/WAM/workdir
+cd ${WORK}/tempsg
+cp ${WAMDIR}/const/Fine_1/Time_User .
+cp ${WAMDIR}/abs/ptime ptime.exe
+#
+./ptime.exe
+mv Time_Prot ${WAMDIR}/dayfiles/ptime_prot_f1
+rm Time_User ptime.exe 
+#
+# ===================================================================
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PTIME.
+# ===================================================================
+#

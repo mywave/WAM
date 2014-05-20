@@ -1,0 +1,11 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/preproc.mk $OBJDIR
+cd $OBJDIR
+make -f preproc.mk preproc
+mv preproc $EXECDIR
+rm -f preproc.mk

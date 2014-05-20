@@ -1,0 +1,17 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/mod
+
+module load intel
+module load openmpi_ib
+module load netcdf
+
+modfile="wam_mpi_comp_module"
+
+cd $path_o
+   rm -f ${code}.f90 ${code}.o
+   cp ${path_f}/wam_mpi_comp_module.f90 ${path_o}/wam_mpi_comp_module.f90
+   mpif90 -c wam_mpi_comp_module.f90
+   rm -f wam_mpi_comp_module.f90

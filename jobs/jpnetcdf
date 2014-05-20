@@ -1,0 +1,31 @@
+#!/usr/bin/ksh -l
+#
+#==>  WAM post-processing pnetcdf
+#
+#     Arno Behrens (March 2014)
+#
+#PBS -q xc_normal
+#PBS -l select=1
+#PBS -l place=pack
+#PBS -l walltime=00:10:00
+#PBS -j oe
+#PBS -N Pnetcdf
+#
+set -k
+WAMDIR=/e/uhome/gkssbeh/WAM
+WORK=/e/uhome/gkssbeh/WAM/workdir
+cd ${WORK}/tempsg
+#
+cp ${WAMDIR}/const/Coarse_Grid/nlnetcdf NETCDF_User
+cp ${WAMDIR}/abs/pnetcdf pnetcdf.exe
+#
+./pnetcdf.exe
+mv pnetcdf_prot ${WAMDIR}/dayfiles/pnetcdf_prot_c
+mv WAVE* ..
+rm NETCDF_User pnetcdf.exe
+#
+# ===================================================================
+#  NETCDF FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PNETCDF.
+# ===================================================================
+#

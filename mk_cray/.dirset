@@ -1,0 +1,4 @@
+#/bin/ksh &
+#++
+PRODADMDIR=/e/uhome/gkssbeh/WAM
+export PRODADMDIR

@@ -1,0 +1,17 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/box
+path_a=${PRODADMDIR}/abs
+
+modfile="make_wam_userin"
+
+cd $path_o
+
+rm -f ${code}.f90 ${code}.o
+cp ${path_f}/make_wam_userin.f90 ${path_o}/make_wam_userin.f90
+pgf90 make_wam_userin.f90 -o ${path_a}/make_wam_userin
+rm -f make_wam_userin.f90
+cd ../mk
+

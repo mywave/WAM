@@ -1,0 +1,17 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/preproc
+
+modfile="preproc read_topography read_preproc_user"
+
+cd $path_o
+
+for code in $modfile
+do
+   rm -f ${code}.f90 ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f90
+   sxmpif90 -c ${code}.f90 -sx9 -Wf,"-Nfusion -pvctl nomsg vr256 noassume loopcnt=300000 vwork=stack vworksz=100M novlchk noverrchk chgpwr"
+   rm -f ${code}.f90
+done

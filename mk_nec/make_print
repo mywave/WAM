@@ -1,0 +1,20 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/print
+
+modfile="print_grid_file print_radiation_file print_spectra_file \
+print_time read_grid_file read_grid_user read_radiation_file \
+read_radiation_user read_spectra_file read_spectra_user \
+read_time_user"
+
+cd $path_o
+
+for code in $modfile
+do
+   rm -f ${code}.f90 ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f90
+   sxmpif90 -c ${code}.f90 -Wf,"-Nfusion -pvctl nomsg vr256 noassume loopcnt=65257 vwork=stack vworksz=100M novlchk noverrchk chgpwr" -Wf,"-M setall fxovf flovf inv zdiv" -Wf,"-init stack=zero heap=zero"
+   rm -f ${code}.f90
+done

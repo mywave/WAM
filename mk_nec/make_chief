@@ -1,0 +1,19 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/chief
+
+modfile="chief wavemdl initmdl read_wam_user print_wam_status read_wind_input \
+read_current_input wamodel read_boundary_input read_ice_input jafu \
+read_topo_input readsat"
+
+cd $path_o
+
+for code in $modfile
+do
+   rm -f ${code}.f90 ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f90
+   sxmpif90 -c ${code}.f90 -sx9 -Wf,"-Nfusion -pvctl nomsg vr256 noassume loopcnt=300000 vwork=stack vworksz=100M novlchk noverrchk chgpwr"
+   rm -f ${code}.f90
+done

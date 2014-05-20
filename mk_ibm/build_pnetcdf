@@ -1,0 +1,11 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/pnetcdf.mk $OBJDIR
+cd $OBJDIR
+make -f pnetcdf.mk pnetcdf
+mv pnetcdf $EXECDIR
+rm -f pnetcdf.mk

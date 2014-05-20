@@ -1,0 +1,11 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/pspec.mk $OBJDIR
+cd $OBJDIR
+make -f pspec.mk pspec
+mv pspec $EXECDIR
+rm -f pspec.mk

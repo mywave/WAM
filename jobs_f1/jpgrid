@@ -1,0 +1,30 @@
+#!/usr/bin/ksh -l
+#
+#==>  WAM post-processing pgrid
+#
+#     Arno Behrens (March 2014)
+#
+#PBS -q xc_normal
+#PBS -l select=1
+#PBS -l place=pack
+#PBS -l walltime=00:02:00
+#PBS -j oe
+#PBS -N Pgrid
+#
+set -k
+WAMDIR=/e/uhome/gkssbeh/WAM
+WORK=/e/uhome/gkssbeh/WAM/workdir
+cd ${WORK}/tempsg
+#
+cp ${WAMDIR}/const/Fine_1/Grid_User .
+cp ${WAMDIR}/abs/pgrid pgrid.exe
+#
+./pgrid.exe
+mv Grid_Prot ${WAMDIR}/dayfiles/pgrid_prot_f1
+rm Grid_User pgrid.exe
+#
+# ===================================================================
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PGRID.
+# ===================================================================
+#

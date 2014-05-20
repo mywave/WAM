@@ -1,0 +1,4 @@
+#/bin/ksh &
+#++
+PRODADMDIR=/data/behrens/Heinz/WAM_Benja
+export PRODADMDIR

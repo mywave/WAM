@@ -1,0 +1,36 @@
+#!/usr/bin/ksh -l
+#
+#==>  WAM model run
+#
+#     Arno Behrens (March 2014)
+#
+#PBS -q xc_normal
+#PBS -l select=1
+#PBS -l place=pack
+#PBS -l walltime=00:10:00
+#PBS -j oe
+#PBS -N WAM
+#
+set +k
+cdir=/e/uhome/gkssbeh/WAM
+work=/e/uhome/gkssbeh/WAM/workdir
+#
+cd ${work}/tempsg
+cp ${cdir}/const/Coarse_Grid/WAM_User_1 WAM_User
+#cp ${cdir}/const/Coarse_Grid/ICE_INPUT.DAT .
+#cp ${cdir}/const/Coarse_Grid/CURRCAT.DAT .
+cp ${cdir}/const/Coarse_Grid/OBS* .
+cp ${work}/work/Grid_info_COARSE_GRID .
+cp ${cdir}/const/WIND_INPUT.DAT .
+#
+cp ${cdir}/abs/wam wam.exe
+
+export ATP_ENABLED=1
+export OMP_NUM_THREADS=1
+
+aprun -n 4 -N 4 -j 1 -d 1 -m 1000M wam.exe
+#
+cp logfile.0 ${cdir}/dayfiles/wam_prot_c
+mv BLS* MAP* OUT* RAD* C* ..
+rm wam.exe WAM_User WAM_Prot w2* Grid_info_SWAMP
+#

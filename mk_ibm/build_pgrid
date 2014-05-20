@@ -1,0 +1,11 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/pgrid.mk $OBJDIR
+cd $OBJDIR
+make -f pgrid.mk pgrid
+mv pgrid $EXECDIR
+rm -f pgrid.mk

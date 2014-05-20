@@ -1,0 +1,87 @@
+C                                                                               
+C            INPUT OF PROGRAM PRINT_GRID_FILE                                    
+C            ================================  
+C                                                                               
+C        USER INFORMATION IS BEING READ BY SUB. READ__WAM_USER
+C        WITH THE PRESUMPTIONS THAT:
+C         1. EVERY LINE STARTING WITH 'C' OR 'c' IS A COMMENT LINE
+C         2. VALUES ARE PUT IN BELOW POSITIONS INDICATED WITH '-'
+C         3. IF VALUES ARE NOT SPECIFIED DEFAULT VALUES WILL BE USED.
+C         4. VALUES MARKED BY C => MUST BE DEFINED BY THE USER.
+C         5. DEFAULT VALUES ARE DEFINED BY SUB. CLEAR_PRINT_USER_MODULE
+C            CONTAINED IN WAM_PRINT_USER_MODULE.
+C
+C ------------------------------------------------------------------------------
+C
+C           **** PERIOD OF MODEL RUN ****
+C
+C =>    CDATEA  START DATE OF  RUN  (YYYYMMDDHHMMSS)
+C =>    CDATEE  END   DATE OF  RUN  (YYYYMMDDHHMMSS)
+C       IDELDO  OUTPUT TIME STEP                       DEFAULT 1
+C       U       TIME UNIT: M OR m MINUTE; H OR h HOUR; DEFAULT H.
+C                                                                               
+C        CDATEA          CDATEE   IDELDO  U
+C--------------  --------------  -------  -
+ 19780906060000  19780908060000        3  H
+C                                                                               
+C ------------------------------------------------------------------------------
+C
+C           **** OUTPUT AT GIVE TIMES ****
+C
+C   SPECIFY A LIST WITH UP TO 20 DATES (YYYYMMDDHHMMSS) AND CLOSE THE
+C   LIST BY 'END'. IF THE LIST INCLUDES ANYTHING ELSE THAN 'END'
+C   THE OUTPUT TIME STEPS IDELINT AND IDELSPT SPECIFIED ABOVE ARE IGNORED.
+C
+CYYYYMMDDHHMMSS  YYYYMMDDHHMMSS  YYYYMMDDHHMMSS  YYYYMMDDHHMMSS
+C--------------  --------------  --------------  --------------
+C                                                                               
+ END      THE INPUT LIST HAS TO BE CLOSED BY THIS END LINE                                                      
+C                                                                               
+C ------------------------------------------------------------------------------
+C                                                                               
+C           **** PARAMETERS TO BE PRINTED ****                                      
+C                                                                               
+C      P  PRINT OUTPUT:    N  OR n : NO OUTPUT ,      DEFAULT Y : OUTPUT
+C                                                                               
+CP                                   P
+C-                                   -
+ Y   RADIATION STRESS TENSOR SXX     Y   RADIATION STRESS TENSOR SYY
+ Y   RADIATION STRESS TENSOR SXY     N   DUMMY
+ Y   X-COMP. RADIATION STRESS        Y   Y-COMP. RADIATION STRESS
+ Y   X-COMP. STOKES DRIFT            Y   Y-COMP. STOKES DRIFT
+C
+C ------------------------------------------------------------------------------
+C
+C   REGULAR  INTEROPLATE REDUCED TO REGULAR GRID:
+C            N  OR n :  NO INTERPOLATION      DEFAULT: Y: INTERPOLATION
+C
+C   REGULAR
+C----------
+     Y
+C
+C ------------------------------------------------------------------------------
+C                                                                               
+C                 **** INPUT DATA FILE ****
+C                                                                               
+C  =>   CDATEF  DATE OF FIRST FILE NAME (YYYYMMDDHHMMSS)                      
+C       IDELFI  FILE TIME STEP (IF <=0 A NEW FILE IS NOT USED);  DEFAULT 24
+C       U       TIME UNIT: M OR m MINUTE; H OR h HOUR;           DEFAULT H.
+C                                                                               
+C        CDATEF   IDELFI  U                                                   
+C--------------  -------  -                                                  
+ 19780906060000        3  H                                                 
+C                                                                               
+C           **** INPUT AND OUTPUT FILE NAMES ****    
+C
+C    THE PROGRAM OPENS AUTOMATICALLY THE FOLLOWING FILES, WHICH ARE 
+C    DEFINED IN "PRINT_RADIATION_FILE.f90":
+C
+C       FILE05 = 'Radiation_User' TO READ THIS INPUT FILE.
+C       FILE06 = 'Radiation_Prot' TO WRITE A PROTOCOL.
+C    
+C  => RADIATION DATA FILE IDENTIFIER (UNIT = IU01, UNFORMATED INPUT)
+C---------+---------+---------+---------+---------+---------+---------+         
+ ../RAD
+C ------------------------------------------------------------------------------
+C         END OF USER INPUT PROGRAM PRINT_GRID.                                      
+C ------------------------------------------------------------------------------

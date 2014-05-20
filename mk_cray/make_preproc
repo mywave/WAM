@@ -1,0 +1,17 @@
+#!/usr/bin/ksh -l
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/preproc
+
+modfile="preproc read_topography read_preproc_user"
+
+cd ${path_o}
+
+for code in ${modfile}
+do
+   rm -f ${code}.f90 ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f90
+   ftn -O3 -hfp3 -G 2 -c ${code}.f90
+   rm -f ${code}.f90
+done

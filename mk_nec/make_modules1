@@ -1,0 +1,22 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/mod
+
+modfile="wam_file_module wam_mpi_module wam_coordinate_module \
+wam_general_module wam_timopt_module wam_fre_dir_module \
+wam_interface_module wam_grid_module wam_model_module wam_current_module \
+wam_ice_module wam_special_module wam_wind_module \
+wam_output_set_up_module wam_nest_module \
+wam_mpi_comp_module wam_boundary_module wam_assi_set_up_module"
+
+cd $path_o
+
+for code in $modfile
+do
+   rm -f ${code}.f90 ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f90
+   sxmpif90 -c ${code}.f90 -sx9 -Wf,"-Nfusion -pvctl nomsg vr256 noassume loopcnt=300000 vwork=stack vworksz=100M novlchk noverrchk chgpwr"
+   rm -f ${code}.f90
+done

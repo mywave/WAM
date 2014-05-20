@@ -1,0 +1,19 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/opti
+
+modfile="wam_interface_module wam_mpi_comp_module \
+wam_output_module wam_propagation_module wam_radiation_module \
+wam_restart_module wam_source_module wam_assi_module"
+
+cd $path_o
+
+for code in $modfile
+do
+   rm -f ${code}.f ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f
+   mpxlf90 -c ${code}.f -O3 -qhot -qstrict -qarch=pwr6 -qtune=pwr6 -qmaxmem=-1 -lmass
+   rm -f ${code}.f
+done

@@ -1,0 +1,11 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/ptime.mk $OBJDIR
+cd $OBJDIR
+make -f ptime.mk ptime
+mv ptime $EXECDIR
+rm -f ptime.mk

@@ -1,0 +1,36 @@
+#!/usr/bin/ksh -l
+#
+#==>  WAM pre-processing preproc
+#
+#     Arno Behrens (March 2014)
+#
+#PBS -q xc_normal
+#PBS -l select=1
+#PBS -l place=pack
+#PBS -l walltime=00:02:00
+#PBS -j oe
+#PBS -N Preproc
+#
+set +k
+WAMDIR=/e/uhome/gkssbeh/WAM
+WORK=/e/uhome/gkssbeh/WAM/workdir
+cd ${WORK}/tempsg
+cp ${WORK}/work/Grid_info_COARSE_GRID .
+cp ${WAMDIR}/const/TOPOCAT.DAT .
+cp ${WAMDIR}/const/Fine_1/Preproc_User .
+cp ${WAMDIR}/abs/preproc preproc.exe
+#
+export ATP_ENABLED=1
+export OMP_NUM_THREADS=1
+
+aprun -n 1 -N 1 -j 1 -d 1 -m 1000M preproc.exe
+#
+mv Preproc_Prot ${WAMDIR}/dayfiles/preproc_prot_f1
+mv Grid_info_fine_1_GRID ../work
+rm Preproc_User preproc.exe TOPOCAT.DAT
+#
+# ===================================================================
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PREPROC.
+# ===================================================================
+#

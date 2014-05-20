@@ -1,0 +1,22 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/print
+
+modfile="wam_netcdf_module make_netcdf" 
+
+cd $path_o
+cp ${HOME}/wam_netcdf/src/box/netcdf.inc .
+cp ${HOME}/wam_netcdf/src/box/netcdf.mod .
+
+for code in $modfile
+do
+   rm -f ${code}.f ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f
+   mpxlf90 -c ${code}.f -O3 -qhot -qstrict -qarch=pwr6 -qtune=pwr6 -qmaxmem=-1 -lmass \
+           -qextname -q64 -L/sw/aix61/netcdf-4.1.1-rc1/lib -lnetcdf \
+                          -L/sw/aix61/hdf5-1.8.4-patch1/lib -lhdf5 -lhdf5_hl  \
+                          -L/sw/aix53/szip-2.1/lib -lsz -L/sw/aix53/zlib-1.2.3/lib -lz -lm
+   rm -f ${code}.f
+done

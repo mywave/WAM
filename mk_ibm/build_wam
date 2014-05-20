@@ -1,0 +1,11 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/chief.mk $OBJDIR
+cd $OBJDIR
+make -f chief.mk chief
+mv chief $EXECDIR/wam
+rm -f chief.mk

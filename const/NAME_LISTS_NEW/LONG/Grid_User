@@ -1,0 +1,23 @@
+$PRINT_NAMELIST
+ START_DATE = 19780906060000,
+ END_DATE = 19780908060000,
+ ITEST =   0,
+ OUTPUT_TIMESTEP =   3,
+ OUTPUT_TIMESTEP_UNIT =  H,
+ INPUT_FILE_NAME = MAP,
+ INPUT_FILE_DATE = 19780906060000,
+ INPUT_FILE_UNIT =   20,
+ INPUT_FILE_TIMESTEP =   24,
+ INPUT_FILE_TIMESTEP_UNIT =  H,
+ CFLAG_P =  T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+ CFLAG_S =  T, T, T, T,
+ CFLAG_R =  T, T, T, T, T, T, T, T,
+ COUTT = ' ',' ',' ',' ',' ',' ',
+         ' ',' ',' ',' ',' ',' ',
+         ' ',' ',' ',' ',' ',' ',
+         ' ',' ',
+ OUTLONG = ' '
+ OUTLAT = ' '	   
+ NAME = ' '
+ REGULAR =  T,
+$END

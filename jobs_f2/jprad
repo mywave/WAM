@@ -1,0 +1,30 @@
+#!/usr/bin/ksh -l
+#
+#==>  WAM post-processing prad
+#
+#     Arno Behrens (March 2014)
+#
+#PBS -q xc_normal
+#PBS -l select=1
+#PBS -l place=pack
+#PBS -l walltime=00:02:00
+#PBS -j oe
+#PBS -N Prad
+#
+set -k
+WAMDIR=/e/uhome/gkssbeh/WAM
+WORK=/e/uhome/gkssbeh/WAM/workdir
+cd ${WORK}/tempsg
+#
+cp ${WAMDIR}/const/Fine_2/Radiation_User .
+cp ${WAMDIR}/abs/prad prad.exe
+#
+./prad.exe
+mv Radiation_Prot ${WAMDIR}/dayfiles/prad_prot_f2
+rm Radiation_User prad.exe
+#
+# ===================================================================
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PGRID.
+# ===================================================================
+#
