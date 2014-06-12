@@ -5,6 +5,8 @@
 !#                                                      #
 !#      Wolfgang Koch  GKSS    July 2009                #
 !#      Arno Behrens   GKSS    October 2010             #
+!#      Arno Behrens   HZG     June 2014                #
+!#                             additional parameters    #
 !#							#
 !########################################################
 !
@@ -16,7 +18,7 @@ use wam_output_set_up_module, only: idelint
     
 implicit none
 private
-integer, parameter :: nf=32             !! maximum number of fields
+integer, parameter :: nf=40             !! maximum number of fields
 integer, save :: nc = -1
 logical, save :: fc = .true.		!! erster Aufruf
 integer, save :: no = -1		!! Offset beim schreiben
@@ -243,7 +245,7 @@ IF (ncid(0)<0) THEN
    
    vl(1,29) = 'tm2_swell'
    vl(2,29) = 'sea_surface_swell_wave_mean_period_from_variance_spectral_density_second_frequency_moment'
-   vl(3,29) = 'Swell m2-period'
+   vl(3,29) = 'Swell tm2-period'
    vl(4,29) = 's'
    vmin(29) = 1.
    vmax(29) = 25.
@@ -261,6 +263,55 @@ IF (ncid(0)<0) THEN
    vl(4,31) = 'degree'
    vmin(31) = 0.
    vmax(31) = 120.
+
+   vl(1,33) = 'goda'
+   vl(2,33) = 'goda_peakness_parameter'
+   vl(3,33) = 'goda peakness parameter'
+   vl(4,33) = ''
+   vmin(33) = 0.
+   vmax(33) = 15.
+
+   vl(1,34) = 'kurtosis'
+   vl(2,34) = 'kurtosis'
+   vl(3,34) = 'kurtosis'
+   vl(4,34) = ''
+   vmin(34) = 0.
+   vmax(34) = 1.
+
+   vl(1,35) = 'BFI'
+   vl(2,35) = 'Benjamin_Feir_index'
+   vl(3,35) = 'Benjamin Feir index'
+   vl(4,35) = ''
+   vmin(35) = -10.
+   vmax(35) = 10.
+
+   vl(1,36) = 'mHs'
+   vl(2,36) = 'normalized_maximum_wave_height'
+   vl(3,36) = 'normalized maximum wave height'
+   vl(4,36) = 'm'
+   vmin(36) = 0.
+   vmax(36) = 40.
+
+   vl(1,37) = 'mwp'
+   vl(2,37) = 'maximum_wave_period'
+   vl(3,37) = 'maximum wave period'
+   vl(4,37) = 's'
+   vmin(37) = 1.
+   vmax(37) = 30.
+
+   vl(1,38) = 'TpI'
+   vl(2,38) = 'interpolated_peak_frequency'
+   vl(3,38) = 'interpolated peak frequency'
+   vl(4,38) = 's'
+   vmin(38) = 0.
+   vmax(38) = 0.8
+
+   vl(1,39) = 'msqs'
+   vl(2,39) = 'mean_square_slope'
+   vl(3,39) = 'mean square slope'
+   vl(4,39) = ''
+   vmin(39) = 0.
+   vmax(39) = 1.
     
    flg = 1                   !! prepare table for required parameters only
    do loop=1,nf

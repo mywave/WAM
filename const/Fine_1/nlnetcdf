@@ -2,7 +2,7 @@
 cdatea = '19780906060000',
 cdatee = '19780908060000',
 ideldo = 3,                 !! output time step
-cflag_p = T,T,T,T,F,F,F,F,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,F,T,T,T,T,T,T,T,F,
+cflag_p = T,T,T,T,F,F,F,F,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,F,T,T,T,T,T,T,T,F,T,T,T,T,T,T,T,F,
 cdtfile = '19780906060000',
 idfile = 24,                !! MAP-file time step
 file01 = '../MAP1',
