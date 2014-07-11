@@ -191,7 +191,7 @@ CP F                                   P F
 C- -                                   - -
  F T   WIND SPEED U10                  F T   WIND DIRECTION
  F T   FRICTION VELOCITY               F T   DRAG COEFFICIENT
- F T   WATER DEPTH                     F F   DUMMY
+ F T   CHARNOCK PARAMETER              F T   WATER DEPTH
  F T   CURRENT SPEED                   F T   CURRENT DIRECTION
 C
  F T   SIGNIFICANT WAVE HEIGHT         F T   WAVE PEAK PERIOD
@@ -212,7 +212,7 @@ C
  F T   GODA PEAKEDNESS PARAMETER       F T   KURTOSIS
  F T   BENJAMIN-FEIR INDEX             F T   NORMALIZED MAXIMUM WAVE HEIGHT
  F T   MAXIMUM WAVE PERIOD             F T   PEAK FREQUENCY (INTERPOLATED)
- F T   MEAN SQUARE SLOPE               F F   DUMMY
+ F T   PEAK DIRECTION                  F T   MEAN SQUARE SLOPE
 C
  F T   SPECTRA OF TOTAL SEA            F T   SEA SPECTRA
  F T   SWELL SPECTRA                   F F   DUMMY
@@ -354,7 +354,7 @@ C---------+---------+---------+---------+---------+---------+---------+---------
 C
 CPATH FOR READYFILES
 C---------+---------+---------+---------+---------+---------+---------+---------
- /data/behrens/Heinz/WAM_Benja/workdir/wind/ready
+ /data/behrens/Heinz/workdir/wind/ready
 C
 CREADY output FILES
 C---------+---------+---------+---------+---------+---------+---------+---------
@@ -362,7 +362,7 @@ C---------+---------+---------+---------+---------+---------+---------+---------
 C
 CPATH FOR READY output FILES
 C---------+---------+---------+---------+---------+---------+---------+---------
- /data/behrens/Heinz/WAM_Benja/workdir/ready
+ /data/behrens/Heinz/workdir/ready
 C ------------------------------------------------------------------------------
 C
 C      *ispec2d*   ==> 2d-spectral information

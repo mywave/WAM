@@ -23,7 +23,7 @@ USE WAM_FRE_DIR_MODULE, ONLY: ML, KL, FR, CO, TH, DELTH, SINTH, COSTH,         &
 &                             DF, DF_FR, DF_FR2,                               &
 &                             DFIM, DFIMOFR, DFIM_FR, DFIM_FR2,                &
 &                             MO_TAIL, MM1_TAIL, MP1_TAIL, MP2_TAIL,           &
-&                             TFAK
+&                             TFAK, TFAC_ST
 
 USE WAM_GENERAL_MODULE, ONLY: G, PI, ZPI, DKMAX, ZPISQRT,                      &
 &                             BF2MAX, BF2MIN, C4MAX, C4MIN
@@ -46,7 +46,12 @@ REAL      :: EMIN = 1.0E-12    !! REPLACES THE INTRINSIC TINY
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
-INTERFACE FEMEAN                           !! MEAN FREQUENCY AND WAVE NUMBER.
+INTERFACE CHARNOCK_PAR                     !! CHARNOCK PARAMETER.
+MODULE PROCEDURE CHARNOCK_PAR
+END INTERFACE
+PUBLIC CHARNOCK_PAR
+
+INTERFACE FEMEAN                           !! MEAN FREQUENCY.
    MODULE PROCEDURE FEMEAN
 END INTERFACE
 PUBLIC FEMEAN
@@ -135,6 +140,54 @@ PUBLIC TRANSF2
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 CONTAINS
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE CHARNOCK_PAR (USTAR, Z0, BETA)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!   CHARNOCK_PAR - DETERMINES THE CHARNOCK PARAMETER.                          !
+!                                                                              !
+!     P.JANSSEN      KNMI/ECMWF  JANUARY 1992                                  !
+!     J.BIDLOT       ECMWF       FEBRUARY 1996  MESSAGE PASSING                !
+!     J.BIDLOT       ECMWF       AUGUST 2008  REMOVE MESSAGE PASSING           !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!                                                                              !
+!       COMPUTES THE CHARNOCK PARAMETER FOR ATMOSPHERIC MODEL.                 !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)            :: USTAR(:)      !! FRICTION VELOCITY IN M/S.
+REAL,    INTENT(IN)            :: Z0(:)         !! ROUGHNESS LENGTH IN M.
+REAL,    INTENT(OUT)           :: BETA(:)       !! CHARNOCK PARAMETER.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------                                                         !
+
+REAL, PARAMETER :: EPSUS = 1.0E-6
+
+! ---------------------------------------------------------------------------- !
+
+BETA(:) = G*Z0(:)/MAX(USTAR(:)**2,EPSUS)
+
+END SUBROUTINE CHARNOCK_PAR
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
@@ -979,12 +1032,12 @@ SUBROUTINE STOKES_DRIFT (F3, UST, VST, IN)
 !                                                                              !
 !     METHOD.                                                                  !
 !     -------                                                                  !
-!        METHOD PROPOSED BY Alastair Jenkins                                   !
+!        METHOD PROPOSED BY Kern E. Kenton                                     !
 !                                                                              !
 !     REFERENCES.                                                              !
 !      -----------                                                             !
 !                                                                              !
-!       NONE.                                                                  !
+!       JGR, Vol 74 NO 28, 1969                                                !
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1002,7 +1055,6 @@ INTEGER, OPTIONAL, INTENT(IN)  :: IN(:)      !! SHALLOW WATER TABLE INDEX
 !     ----------------                                                         !
 
 REAL, PARAMETER :: FAK_DEEP = 16.*PI**3/G
-REAL, PARAMETER :: FAK_SHALLOW = 4.*PI
 REAL            :: FAK, TAILFAC
 REAL            :: FAKT(1:SIZE(F3,1))
 REAL            :: SI(1:SIZE(F3,1)), CI(1:SIZE(F3,1))
@@ -1023,8 +1075,8 @@ VST(:) = 0.
 
 IF (PRESENT(IN)) THEN     !! SHALLOW WATER
    FREQ_LOOP1: DO M = 1,ML
-      FAKT(:)  = FAK_SHALLOW * FR(M) * TFAK(IN(:),M) * DFIM(M)
-      DO IJ=1,SIZE(F3,1)   
+      FAKT(:)  = TFAC_ST(IN(:),M) * DFIM(M)
+      DO IJ=1,SIZE(F3,1)
          SI(IJ) = F3(IJ,1,M)*SINTH(1)
          CI(IJ) = F3(IJ,1,M)*COSTH(1)
       END DO
@@ -1766,7 +1818,7 @@ END SUBROUTINE WM1_WM2_WAVENUMBER_1
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE KURTOSIS (F3, DEPTH, C4, BF2, QP, FP, HMAX, TMAX)
+SUBROUTINE KURTOSIS (F3, DEPTH, C4, BF2, QP, FP, THMAX, HMAX, TMAX)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1838,6 +1890,7 @@ REAL,    INTENT(OUT)           :: C4(:)      !! KURTOSIS.
 REAL,    INTENT(OUT)           :: BF2(:)     !! BENJAMIN-FEIR INDEX.
 REAL,    INTENT(OUT)           :: QP(:)      !! GODA'S QUALITY FACTOR.
 REAL,    INTENT(OUT)           :: FP(:)      !! PEAK FREQUENCY.
+REAL,    INTENT(OUT)           :: THMAX(:)   !! PEAK DIRECTION.
 REAL,    INTENT(OUT)           :: HMAX(:)    !! MAXIMUM WAVE HEIGHT.
 REAL,    INTENT(OUT)           :: TMAX(:)    !! MAXIMUM WAVE PERIOD.
 
@@ -1896,7 +1949,7 @@ END DO
 !     2. DETERMINE PEAK PARAMETERS FP,SIG_OM AND SIG_TH.                       !
 !        -----------------------------------------------                       !
 
-CALL PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, SIG_TH)
+CALL PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, THMAX, SIG_TH)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1997,7 +2050,7 @@ END SUBROUTINE KURTOSIS
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, SIG_TH)
+SUBROUTINE PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, THMAX, SIG_TH)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -2026,9 +2079,10 @@ SUBROUTINE PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, SIG_TH)
 REAL,    INTENT(IN)    :: F1D(:,:)   !! FREQUENCY SPECTRA
 REAL,    INTENT(IN)    :: F1A(:,:)   !! DIRECTIONAL SPECTRA
 REAL,    INTENT(OUT)   :: XMAX(:)    !! MAX FREQ SPECTRA
-REAL,    INTENT(OUT)   :: FP(:)      !! PEAK FREQUENCY
+REAL,    INTENT(OUT)   :: FP(:)      !! PEAK FREQUENCY (HZ)
 REAL,    INTENT(OUT)   :: SIG_OM(:)  !! RELATIVE WIDTH IN FREQUENCY
 REAL,    INTENT(OUT)   :: YMAX(:)    !! MAX DIRECTIONAL SPECTRUM
+REAL,    INTENT(OUT)   :: THMAX(:)   !! PEAK DIRECTION (RAD)
 REAL,    INTENT(OUT)   :: SIG_TH(:)  !! RELATIVE WIDTH IN DIRECTION
 
 ! ---------------------------------------------------------------------------- !
@@ -2045,7 +2099,6 @@ REAL :: A, B, C, XP1, XM1, F1P1, F1M1, SIG_TH2
 REAL :: SUM1(SIZE(F1A,1))
 REAL :: SUM2(SIZE(F1A,1))
 REAL :: SIG_TH1(SIZE(F1A,1))
-REAL :: THMAX(SIZE(F1A,1))
 
 ! ---------------------------------------------------------------------------- !
 !

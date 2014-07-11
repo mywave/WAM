@@ -110,8 +110,8 @@ CHARACTER(LEN=60), DIMENSION(NOUT_P) :: TITL_P = (/                  &
 & ' WIND DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !!  2
 & ' FRICTION VELOCITY ( METRES/SECOND )                        ',    &   !!  3
 & ' DRAG COEFFICIENT ( PROMILLE )                              ',    &   !!  4
-& ' WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) ',    &   !!  5
-& ' DUMMY                                                      ',    &   !!  6
+& ' CHARNOCK PARAMETER                                         ',    &   !!  5
+& ' WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) ',    &   !!  6
 & ' CURRENT SPEED ( METRES/SECOND )                            ',    &   !!  7
 & ' CURRENT DIRECTION ( DEGREE FROM NORTH TO )                 ',    &   !!  8
 & ' SIGNIFICANT WAVE HEIGHT ( METRES )                         ',    &   !!  9
@@ -144,8 +144,8 @@ CHARACTER(LEN=60), DIMENSION(NOUT_P) :: TITL_P = (/                  &
 & ' NORMALIZED MAXIMUM WAVE HEIGHT                             ',    &   !! 36
 & ' MAXIMUM WAVE PERIOD ( SECONDS )                            ',    &   !! 37
 & ' PEAK FREQUENCY (INTERPOLATED) ( HZ )                       ',    &   !! 38
-& ' MEAN SQUARE SLOPE                                          ',    &   !! 39
-& ' DUMMY                                                      '/)       !! 40
+& ' PEAK DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !! 39
+& ' MEAN SQUARE SLOPE                                          '/)       !! 40
 
 CHARACTER(LEN=60), DIMENSION(NOUT_S) :: TITL_S = (/                  &
 & ' SPECTRUM                                                   ',    &   !!  1
@@ -163,7 +163,7 @@ REAL, PARAMETER, DIMENSION(NOUT_P) :: SCAL_P = (/                              &
 &                      1.            ,    &   !!  2
 &                    100.            ,    &   !!  3
 &                  10000.            ,    &   !!  4
-&                      1.            ,    &   !!  5
+&                  10000.            ,    &   !!  5
 &                      1.            ,    &   !!  6
 &                    100.            ,    &   !!  7
 &                      1.            ,    &   !!  8
@@ -197,8 +197,8 @@ REAL, PARAMETER, DIMENSION(NOUT_P) :: SCAL_P = (/                              &
 &                     10.            ,    &   !! 36
 &                     10.            ,    &   !! 37
 &                   1000.            ,    &   !! 38
-&                   1000.            ,    &   !! 39
-&                      1.            /)       !! 40
+&                      1.            ,    &   !! 39
+&                   1000.            /)       !! 40
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -392,15 +392,11 @@ END IF
 PFLAG_P = PF
 FFLAG_P = FF
 
-FFLAG_P(6)  = .FALSE.    !! CORRECT DUMMY PARAMETER.
-FFLAG_P(24) = .FALSE.
+FFLAG_P(24) = .FALSE.    !! CORRECT DUMMY PARAMETER.
 FFLAG_P(32) = .FALSE.
-FFLAG_P(40) = .FALSE.
 
-PFLAG_P(6)  = .FALSE.
 PFLAG_P(24) = .FALSE.
 PFLAG_P(32) = .FALSE.
-PFLAG_P(40) = .FALSE.
 
 CFLAG_P = FFLAG_P.OR.PFLAG_P
 FFLAG20 = ANY(FFLAG_P(:))
@@ -531,8 +527,8 @@ INTEGER :: J, NW, ISHIFT, IW(1:NOUTT)
 !        ---------------------------------------------------------             !
 
 IF (.NOT.SHALLOW_RUN) THEN
-   FFLAG_P(5) = .FALSE.
-   PFLAG_P(5) = .FALSE.
+   FFLAG_P(6) = .FALSE.
+   PFLAG_P(6) = .FALSE.
 END IF
 IF (.NOT.REFRACTION_C_RUN) THEN
    FFLAG_P(7:8) = .FALSE.
@@ -696,7 +692,7 @@ END IF
 ! IF SPECTRA OUTPUT COMPUTE SOME INTEGRATED PARAMETERS.
 
 CFLAG_P( 1: 3) = CFLAG_P( 1: 3) .OR. CFLAG25     !! WIND
-CFLAG_P(    5) = CFLAG_P(    5) .OR. CFLAG25     !! DEPTH
+CFLAG_P(    6) = CFLAG_P(    6) .OR. CFLAG25     !! DEPTH
 CFLAG_P( 7: 8) = CFLAG_P( 7: 8) .OR. CFLAG25     !! CURRENT
 CFLAG_P( 9:15) = CFLAG_P( 9:15) .OR. CFLAG_S(1)  !! PARATETER OF TOTAL SPECTRUM
 CFLAG_P(17:23) = CFLAG_P(17:23) .OR. CFLAG_S(2)  !! PARATETER OF SEA   SPECTRUM

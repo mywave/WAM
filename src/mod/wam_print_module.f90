@@ -75,8 +75,8 @@ CHARACTER(LEN=60), DIMENSION(NOUT_P) :: TITL_P = (/                  &
 & ' WIND DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !!  2
 & ' FRICTION VELOCITY ( METRES/SECOND )                        ',    &   !!  3
 & ' DRAG COEFFICIENT ( PROMILLE )                              ',    &   !!  4
-& ' WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) ',    &   !!  5
-& ' DUMMY                                                      ',    &   !!  6
+& ' CHARNOCK PARAMETER                                         ',    &   !!  5
+& ' WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) ',    &   !!  6
 & ' CURRENT SPEED ( METRES/SECOND )                            ',    &   !!  7
 & ' CURRENT DIRECTION ( DEGREE FROM NORTH TO )                 ',    &   !!  8
 & ' SIGNIFICANT WAVE HEIGHT ( METRES )                         ',    &   !!  9
@@ -109,15 +109,15 @@ CHARACTER(LEN=60), DIMENSION(NOUT_P) :: TITL_P = (/                  &
 & ' NORMALIZED MAXIMUM WAVE HEIGHT                             ',    &   !! 36
 & ' MAXIMUM WAVE PERIOD ( SECONDS )                            ',    &   !! 37
 & ' PEAK FREQUENCY (INTERPOLATED) ( HZ )                       ',    &   !! 38
-& ' MEAN SQUARE SLOPE                                          ',    &   !! 39
-& ' DUMMY                                                      '/)       !! 40
+& ' PEAK DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !! 39
+& ' MEAN SQUARE SLOPE                                          '/)       !! 40
 
 REAL, PARAMETER, DIMENSION(NOUT_P) :: SCAL_P = (/                              &
 &                     10.            ,    &   !!  1
 &                      1.            ,    &   !!  2
 &                    100.            ,    &   !!  3
 &                  10000.            ,    &   !!  4
-&                      1.            ,    &   !!  5
+&                  10000.            ,    &   !!  5
 &                      1.            ,    &   !!  6
 &                    100.            ,    &   !!  7
 &                      1.            ,    &   !!  8
@@ -151,8 +151,8 @@ REAL, PARAMETER, DIMENSION(NOUT_P) :: SCAL_P = (/                              &
 &                     10.            ,    &   !! 36
 &                     10.            ,    &   !! 37
 &                   1000.            ,    &   !! 38
-&                   1000.            ,    &   !! 39
-&                      1.            /)       !! 40
+&                      1.            ,    &   !! 39
+&                   1000.            /)       !! 40
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -567,7 +567,6 @@ END IF
 
 CFLAG_P = PF
 
-CFLAG_P(6)  = .FALSE.    !! CORRECT DUMMY PARAMETER.
 CFLAG_P(24) = .FALSE.
 CFLAG_P(32) = .FALSE.
 

@@ -110,6 +110,13 @@ IF (ncid(0)<0) THEN
    vmin(4)  = 0.
    vmax(4)  = 0.01
 
+   vl(1, 5) = 'CP'
+   vl(2, 5) = 'Charnock_parameter'
+   vl(3, 5) = 'Charnock parameter'
+   vl(4, 5) = ''
+   vmin(5)  = 0.
+   vmax(5)  = 0.1
+
    vl(1, 9) = 'hs'
    vl(2, 9) = 'sea_surface_wave_significant_height'
    vl(3, 9) = 'Total significant wave height'
@@ -305,13 +312,20 @@ IF (ncid(0)<0) THEN
    vl(4,38) = 's'
    vmin(38) = 0.
    vmax(38) = 0.8
-
-   vl(1,39) = 'msqs'
-   vl(2,39) = 'mean_square_slope'
-   vl(3,39) = 'mean square slope'
-   vl(4,39) = ''
+ 
+   vl(1,39) = 'Pdir'
+   vl(2,39) = 'peak_direction'
+   vl(3,39) = 'peak direction'
+   vl(4,39) = 'degree'
    vmin(39) = 0.
-   vmax(39) = 1.
+   vmax(39) = 360.
+
+   vl(1,40) = 'msqs'
+   vl(2,40) = 'mean_square_slope'
+   vl(3,40) = 'mean square slope'
+   vl(4,40) = ''
+   vmin(40) = 0.
+   vmax(40) = 1.
     
    flg = 1                   !! prepare table for required parameters only
    do loop=1,nf

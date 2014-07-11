@@ -50,7 +50,7 @@ USE WAM_FRE_DIR_MODULE, ONLY: KL, ML, FR, CO, TH, DELTH, DELTR, COSTH, SINTH,  &
 &                             DF, DF_FR2, DF_FR,                               &
 &                             DFIM, DFIMOFR, DFIM_FR2, DFIM_FR, FR5, FRM5,     &
 &                             FMIN, MO_TAIL, MM1_TAIL, MP1_TAIL, MP2_TAIL,     &
-&                             NDEPTH, TCGOND, TSIHKD, TFAK
+&                             NDEPTH, TCGOND, TSIHKD, TFAK, TFAC_ST
 
 USE WAM_GRID_MODULE,    ONLY: HEADER, NX, NY, NSEA, NLON_RG,                   &
 &                             XDELLA, DELLAM, XDELLO, ZDELLO, DELPHI,          &
@@ -590,8 +590,9 @@ READ (IU07) KLAT, KLON, DEPTH_B
 IF ( .NOT.ALLOCATED(TCGOND) ) ALLOCATE( TCGOND(NDEPTH,ML) )
 IF ( .NOT.ALLOCATED(TFAK)   ) ALLOCATE( TFAK(NDEPTH,ML)   )
 IF ( .NOT.ALLOCATED(TSIHKD) ) ALLOCATE( TSIHKD(NDEPTH,ML) )
+IF ( .NOT.ALLOCATED(TFAC_ST)) ALLOCATE( TFAC_ST(NDEPTH,ML))
 
-READ (IU07) TCGOND, TFAK, TSIHKD
+READ (IU07) TCGOND, TFAK, TSIHKD, TFAC_ST
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !

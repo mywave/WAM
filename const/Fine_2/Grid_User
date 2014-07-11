@@ -50,7 +50,7 @@ CP                                   P
 C-                                   -
  Y   WIND SPEED U10                  Y   WIND DIRECTION
  Y   FRICTION VELOCITY               Y   DRAG COEFFICIENT
- Y   WATER DEPTH                     N   DUMMY
+ Y   CHARNOCK PARAMETER              Y   WATER DEPTH
  Y   CURRENT SPEED                   Y   CURRENT DIRECTION
 C
  Y   SIGNIFICANT WAVE HEIGHT         Y   WAVE PEAK PERIOD
@@ -71,7 +71,7 @@ C
  Y   GODA PEAKEDNESS PARAMETER       Y   KURTOSISY
  Y   BENJAMIN-FEIR INDEX             Y   NORMALIZED MAXIMUM WAVE HEIGHT                             
  Y   MAXIMUM WAVE PERIOD             Y   PEAK FREQUENCY (INTERPOLATED)                       
- Y   MEAN SQUARE SLOPE               N   DUMMY                                                      
+ Y   PEAK DIRECTION                  Y   MEAN SQUARE SLOPE
 C
 C ------------------------------------------------------------------------------
 C

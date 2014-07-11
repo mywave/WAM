@@ -243,7 +243,7 @@ SITE: DO IS = 1,NOUTP
 &                 3(5F6.2,2F5.0))' )                                           &
 &         COUTT(IT),                                                           &
 &         SERIE(IT,1:3,IS), SERIE(IT,4,IS)*1000, SERIE(IT,16,IS),              &
-&         SERIE(IT,5,IS), MAX(SERIE(IT,7,IS),-9.99), SERIE(IT,8,IS),           &
+&         SERIE(IT,6,IS), MAX(SERIE(IT,7,IS),-9.99), SERIE(IT,8,IS),           &
 &         SERIE(IT,9:15,IS), SERIE(IT,17:23,IS), SERIE(IT,25:31,IS)
 
    END DO

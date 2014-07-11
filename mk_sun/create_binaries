@@ -9,6 +9,7 @@
 ./make_chief
 ./make_print
 ./make_netcdf
+./make_netcdf_rad
 #
 # create binaries
 #
@@ -19,4 +20,5 @@
 ./build_ptime
 ./build_prad
 ./build_pnetcdf
+./build_pnetcdf_rad
 #

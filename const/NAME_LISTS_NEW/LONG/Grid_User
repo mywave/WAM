@@ -13,8 +13,8 @@
            T,  !T  31   WIND DIRECTION ( DEGREE FROM NORTH TO )
            T,  !T  120  FRICTION VELOCITY ( 0.01 METRES/SECOND )
            F,  !T  0    DRAG COEFFICIENT ( 0.1 *PROMILLE )
+           T,  !T  0    CHARNOCK PARAMETER
            F,  !F  0    WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999)
-           F,  !F  0    DUMMY
            F,  !F  0    CURRENT SPEED ( 0.01 METRES/SECOND )
            F,  !F  0    CURRENT DIRECTION ( DEGREE FROM NORTH TO )
            T,  !T  100  SIGNIFICANT WAVE HEIGHT ( 0.1 METRES )
@@ -47,8 +47,8 @@
            F,  !T  0    NORMALIZED MAXIMUM WAVE HEIGHT
            F,  !T  0    MAXIMUM WAVE PERIOD
            F,  !T  0    PEAK FREQUENCY (INTERPOLATED)
+           T,  !T  0    PEAK DIRECTION ( DEGREE FROM NORTH TO )
            F,  !T  0    MEAN SQUARE SLOPE
-           F,  !T  0    DUMMY
  CFLAG_S =  T, T, T, T,
  CFLAG_R =  T, T, T, T, T, T, T, T,
  COUTT = ' ',' ',' ',' ',' ',' ',

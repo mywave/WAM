@@ -44,7 +44,7 @@ USE WAM_FRE_DIR_MODULE, ONLY: KL, ML, FR, CO, TH, DELTH, DELTR, COSTH, SINTH,  &
 &                             DF, DF_FR, DF_FR2,                               &
 &                             DFIM, DFIMOFR, DFIM_FR, DFIM_FR2, FR5, FRM5,     &
 &                             FMIN, MO_TAIL, MM1_TAIL, MP1_TAIL, MP2_TAIL,     &
-&                             NDEPTH, TCGOND, TSIHKD, TFAK
+&                             NDEPTH, TCGOND, TSIHKD, TFAK, TFAC_ST
 
 USE WAM_GRID_MODULE,    ONLY: HEADER, NX, NY, NSEA, NLON_RG, IPER,             &
 &                             AMOWEP, AMOSOP, AMOEAP, AMONOP,                  &
@@ -510,7 +510,7 @@ IF (.NOT.ERROR) THEN
     END IF
     IF (NY.EQ.1 .OR. XDELLA.EQ.0 .OR. AMOSOP.EQ.AMONOP) THEN
       NY = 1
-      XDELLA = 0
+      XDELLA = M_S_PER
       AMONOP = AMOSOP
     END IF
 END IF
@@ -1134,7 +1134,7 @@ WRITE (IU07) KLAT, KLON, DEPTH_B
 !     8. WRITE SHALLOW WATER TABLES.                                           !
 !        ---------------------------                                           !
 
-WRITE (IU07) TCGOND, TFAK, TSIHKD
+WRITE (IU07) TCGOND, TFAK, TSIHKD, TFAC_ST
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !

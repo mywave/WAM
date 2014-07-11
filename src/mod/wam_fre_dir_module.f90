@@ -79,9 +79,11 @@ INTEGER, PARAMETER :: NDEPTH = 69   !! LENGTH OF SHALLOW WATER TABLES.
 REAL,    PARAMETER :: DEPTHA = 1.0  !! MINIMUM DEPTH FOR TABLES [M].
 REAL,    PARAMETER :: DEPTHD = 1.1  !! DEPTH RATIO.
 
-REAL,   ALLOCATABLE, DIMENSION(:,:) :: TCGOND !! SHALLOW WATER GROUP VELOCITY.
-REAL,   ALLOCATABLE, DIMENSION(:,:) :: TFAK   !! SHALLOW WATER WAVE NUMBER.
-REAL,   ALLOCATABLE, DIMENSION(:,:) :: TSIHKD !! TABLE FOR OMEGA/SINH(2KD).
+REAL,   ALLOCATABLE, DIMENSION(:,:) :: TCGOND  !! SHALLOW WATER GROUP VELOCITY.
+REAL,   ALLOCATABLE, DIMENSION(:,:) :: TFAK    !! SHALLOW WATER WAVE NUMBER.
+REAL,   ALLOCATABLE, DIMENSION(:,:) :: TSIHKD  !! TABLE FOR OMEGA/SINH(2KD).
+REAL,   ALLOCATABLE, DIMENSION(:,:) :: TFAC_ST !! TABLE FOR 2*G*K**2/
+!                                                           (OMEGA*TANH(2KD)).
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -186,6 +188,7 @@ IF (ALLOCATED (FRM5)    ) DEALLOCATE (FRM5)
 IF (ALLOCATED (TCGOND)  ) DEALLOCATE (TCGOND)
 IF (ALLOCATED (TFAK)    ) DEALLOCATE (TFAK)
 IF (ALLOCATED (TSIHKD)  ) DEALLOCATE (TSIHKD)
+IF (ALLOCATED (TFAC_ST) ) DEALLOCATE (TFAC_ST)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -328,6 +331,8 @@ IF (ALLOCATED(TSIHKD)) THEN
          WRITE (IU06,'(1X,13F10.5)') TFAK(I,1:ML)
          WRITE (IU06,'('' OMEGA/SINH(2KD) IN 1./SECOND'')')
          WRITE (IU06,'(1X,13F10.5)') TSIHKD(I,1:ML)
+         WRITE (IU06,'('' 2*G*K**2/(OMEGA*TANH(2KD)) IN 1./(METRE*SECOND)'')')
+         WRITE (IU06,'(1X,13F10.5)') TFAC_ST(I,1:ML)
       END DO
    END IF
 ELSE
@@ -502,6 +507,7 @@ REAL           :: GH, OM, AD, AK, AKD
 IF (.NOT.ALLOCATED (TFAK))    ALLOCATE (TFAK  (NDEPTH,ML))
 IF (.NOT.ALLOCATED (TCGOND))  ALLOCATE (TCGOND(NDEPTH,ML))
 IF (.NOT.ALLOCATED (TSIHKD))  ALLOCATE (TSIHKD(NDEPTH,ML))
+IF (.NOT.ALLOCATED (TFAC_ST)) ALLOCATE (TFAC_ST(NDEPTH,ML))
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -519,9 +525,11 @@ DO M = 1,ML                             !! LOOP OVER FREQUENCIES.
       IF (AKD.LE.10.0) THEN
          TCGOND(JD,M) = 0.5*SQRT(G*TANH(AKD)/AK) * (1.0+2.0*AKD/SINH(2.*AKD))
          TSIHKD(JD,M) = OM/SINH(2.*AKD)
+         TFAC_ST(JD,M) = 2.*G*AK**2/(OM*TANH(2.*AKD))
       ELSE
          TCGOND(JD,M) = GH/FR(M)
          TSIHKD(JD,M) = 0.
+         TFAC_ST(JD,M) = 2./G*OM**3
       END IF
    END DO
 END DO

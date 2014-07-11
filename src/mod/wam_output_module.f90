@@ -26,10 +26,12 @@ USE WAM_INTERFACE_MODULE, ONLY:  &
 &       TM1_TM2_PERIODS,         &  !! COMPUTATION OF TM1 AND/OR TM2 PERIOD.
 &       TOTAL_ENERGY,            &  !! COMPUTATION OF TOTAL ENERGY.
 &       MEANSQS,                 &  !! COMPUTATION OF TMEAN SQUARE SLOPE.
-&       KURTOSIS                    !! COMPUTATION OF KURTOSIS, 
+&       CHARNOCK_PAR,            &  !! COMPUTATION OF CHARNOCK_PARAMETER,
+&       KURTOSIS                    !! COMPUTATION OF KURTOSIS,
                                     !! BENJAMIN-FEIR INDEX,
                                     !! GODA'S PEAKEDNESS PARAMETER,
                                     !! PEAK FREQUENCY (INTERPOLATED),
+                                    !! PEAK DIRECTION (INTERPOLATED),
                                     !! NORMALIZED MAXIMUM WAVE HEIGHT,
                                     !! MAXIMUM WAVE PERIOD
 
@@ -60,7 +62,7 @@ use wam_special_module, only:    &
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
-USE WAM_GENERAL_MODULE,ONLY: G, ZPI, DEG
+USE WAM_GENERAL_MODULE,ONLY: G, ZPI, DEG, RCHAR
 
 USE WAM_FRE_DIR_MODULE,ONLY: KL, ML, CO, FR, C, DFIM, TH, COSTH, SINTH, TFAK
 
@@ -70,7 +72,7 @@ USE WAM_GRID_MODULE,   ONLY: NX, NY, NLON_RG, AMOWEP, AMOSOP, AMOEAP, AMONOP,  &
 USE WAM_FILE_MODULE,   ONLY: IU06, ITEST, IU20, IU25, FILE20, FILE25,          &
 &                            area, iu67
 
-USE WAM_MODEL_MODULE,  ONLY: FL3, U10, UDIR, USTAR, TAUW, DEPTH, INDEP, U, V
+USE WAM_MODEL_MODULE,  ONLY: FL3, U10, UDIR, USTAR, TAUW, Z0, DEPTH, INDEP, U, V
 
 USE WAM_TIMOPT_MODULE, ONLY: IDELPRO, CDTPRO,                                  &
 &                            SHALLOW_RUN, REFRACTION_C_RUN, cdatea
@@ -218,7 +220,7 @@ END IF
 
 !  ARRAY FOR SWELL-SEA SEPARATION
 
-IF (ANY(CFLAG_P(17:NOUT_P)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
+IF (ANY(CFLAG_P(17:32)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
    ALLOCATE (FL(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3)))
 END IF
 
@@ -500,7 +502,6 @@ REAL,    INTENT(OUT) :: FL (:,:,:)  !! BLOCK OF SWELL SPECTRA.
 !     ----------------                                                         !
 
 REAL  :: TAU(NIJS:NIJL)
-REAL  :: Z0 (NIJS:NIJL)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -522,11 +523,13 @@ IF (CFLAG_P(4).OR.CFLAG_P(16)) THEN
    IF (CFLAG_P(16)) BLOCK(NIJS:NIJL,16) = TAUW(:)/TAU(:)
 END IF
 
-IF (CFLAG_P(5)) THEN
+IF (CFLAG_P(5)) CALL CHARNOCK_PAR (USTAR, Z0, BLOCK(NIJS:NIJL,5))
+
+IF (CFLAG_P(6)) THEN
    IF (SHALLOW_RUN) THEN
-      BLOCK(NIJS:NIJL,5) = DEPTH(NIJS:NIJL)
+      BLOCK(NIJS:NIJL,6) = DEPTH(NIJS:NIJL)
    ELSE
-      BLOCK(NIJS:NIJL,5) = 999.
+      BLOCK(NIJS:NIJL,6) = 999.
    END IF
 END IF
 
@@ -542,13 +545,13 @@ IF (CFLAG_P(9).OR.ANY(CFLAG_P(11:13)).OR.CFLAG_P(39)) THEN
    CALL TOTAL_ENERGY (FL3, BLOCK(NIJS:NIJL,9))
    IF (CFLAG_P(11).OR.CFLAG_P(39)) THEN
       CALL FEMEAN (FL3,  BLOCK(NIJS:NIJL,9), FM=BLOCK(NIJS:NIJL,11))
-      IF (CFLAG_P(39)) THEN
+      IF (CFLAG_P(40)) THEN
          IF (SHALLOW_RUN) THEN
             CALL MEANSQS (FL3, USTAR, FM=BLOCK(NIJS:NIJL,11),                 &
-&                         SM=BLOCK(NIJS:NIJL,39), INDEP = INDEP(NIJS:NIJL))
+&                         SM=BLOCK(NIJS:NIJL,40), INDEP = INDEP(NIJS:NIJL))
          ELSE
             CALL MEANSQS (FL3, USTAR, FM=BLOCK(NIJS:NIJL,11),                 &
-&                           SM=BLOCK(NIJS:NIJL,39))
+&                           SM=BLOCK(NIJS:NIJL,40))
          END IF
       END IF
       IF (CFLAG_P(11)) BLOCK(NIJS:NIJL,11) = 1./BLOCK(NIJS:NIJL,11)
@@ -579,14 +582,16 @@ IF (CFLAG_P(14)) BLOCK(NIJS:NIJL,14) = BLOCK(NIJS:NIJL,14)*DEG
 IF (CFLAG_P(15)) BLOCK(NIJS:NIJL,15) = BLOCK(NIJS:NIJL,15)*DEG
 
 
-IF (ANY(CFLAG_P(33:38))) THEN
+IF (ANY(CFLAG_P(33:39))) THEN
    CALL KURTOSIS (FL3, DEPTH(NIJS:NIJL), BLOCK(NIJS:NIJL,34),                  &
 &                                        BLOCK(NIJS:NIJL,35),                  &
 &                                        BLOCK(NIJS:NIJL,33),                  &
 &                                        BLOCK(NIJS:NIJL,38),                  &
+&                                        BLOCK(NIJS:NIJL,39),                  &
 &                                        BLOCK(NIJS:NIJL,36),                  &
 &                                        BLOCK(NIJS:NIJL,37))
 END IF
+IF (CFLAG_P(39)) BLOCK(NIJS:NIJL,39) = DEG * BLOCK(NIJS:NIJL,39)
 
 IF (ITEST.GE.3)   WRITE(IU06,*)                                                &
 & '      SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED'
@@ -597,7 +602,7 @@ IF (ITEST.GE.3)   WRITE(IU06,*)                                                &
 !     2. WINDSEA SWELL SEPARATION.                                             !
 !        -------------------------                                             !
 
-IF (ANY(CFLAG_P(17:NOUT_P)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
+IF (ANY(CFLAG_P(17:32)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
    CALL SWELL_SEPARATION (FL3, FL)
    IF (ITEST.GE.3) THEN
       WRITE(IU06,*) '      SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE'
@@ -921,11 +926,16 @@ DO IP = 1,NOUT_P
 
    if (irank==i_out_par) then
 
-      IF ( (ICE_RUN .OR. N_DRY.GT.0 ) .AND.                                    &
-&          (IP.EQ.3 .OR.IP.EQ.4 .OR.IP.GT.8) ) THEN
-         IF (ICE_RUN)    CALL PUT_ICE (BLOCK_TOTAL(:), ZMISS_ICE)
-         IF (N_DRY.GT.0) CALL PUT_DRY (BLOCK_TOTAL(:), ZMISS_DRY)
-      END IF
+      IF ( ICE_RUN .OR. N_DRY.GT.0 ) THEN
+         IF (IP.EQ.3 .OR.IP.EQ.4 .OR.IP.GT.8) THEN
+            IF (ICE_RUN)    CALL PUT_ICE (BLOCK_TOTAL(:), ZMISS_ICE)
+            IF (N_DRY.GT.0) CALL PUT_DRY (BLOCK_TOTAL(:), ZMISS_DRY)
+         END IF
+         IF (IP.EQ.5) THEN
+            IF (ICE_RUN)    CALL PUT_ICE (BLOCK_TOTAL(:), RCHAR)
+            IF (N_DRY.GT.0) CALL PUT_DRY (BLOCK_TOTAL(:), RCHAR)
+END IF
+     END IF
 
 !     2.2 MAKE GRID FIELD.                                                     !
 !        -----------------                                                     !
@@ -1048,7 +1058,7 @@ if (irank==i_out_spec) then
          WRITE(IU25) XLON, XLAT, CDTPRO, XANG, XFRE, TH0, FR(1), CO
          WRITE(IU25) FFLAG_S(1:NOUT_S)
          WRITE(IU25) Block_sp(IJ,1), Block_sp(IJ,2), Block_sp(IJ,3),           &
-&                    Block_sp(IJ,5), Block_sp(IJ,7), Block_sp(IJ,8)
+&                    Block_sp(IJ,6), Block_sp(IJ,7), Block_sp(IJ,8)
 
 !     1.1.1 TOTAL SPECTRUM.                                                    !
 !           ---------------                                                    !
@@ -1087,7 +1097,7 @@ if (irank==i_out_spec) then
             TEXT(1:40) = TITL_S(1)(1:20)//NAME(ij)
             CALL PRINT_SPECTRUM (IU06, CDTPRO, XLON, XLAT, TEXT, FR, TH, SPEC, &
 &                 Block_sp(IJ, 1), Block_sp(IJ, 2), Block_sp(IJ, 3),           &
-&                 Block_sp(IJ, 5), Block_sp(IJ, 7), Block_sp(IJ, 8),           &
+&                 Block_sp(IJ, 6), Block_sp(IJ, 7), Block_sp(IJ, 8),           &
 &                 Block_sp(IJ, 9), Block_sp(IJ,10), Block_sp(IJ,11),           &
 &                 Block_sp(IJ,12), Block_sp(IJ,13), Block_sp(IJ,14),           &
 &                 Block_sp(IJ,15))
@@ -1102,7 +1112,7 @@ if (irank==i_out_spec) then
             TEXT(1:40) = TITL_S(2)(1:20)//NAME(ij)
             CALL PRINT_SPECTRUM (IU06, CDTPRO, XLON, XLAT, TEXT, FR, TH, SPEC, &
 &                 Block_sp(IJ, 1), Block_sp(IJ, 2), Block_sp(IJ, 3),           &
-&                 Block_sp(IJ, 5), Block_sp(IJ, 7), Block_sp(IJ, 8),           &
+&                 Block_sp(IJ, 6), Block_sp(IJ, 7), Block_sp(IJ, 8),           &
 &                 Block_sp(IJ,17), Block_sp(IJ,18), Block_sp(IJ,19),           &
 &                 Block_sp(IJ,20), Block_sp(IJ,21), Block_sp(IJ,22),           &
 &                 Block_sp(IJ,23))
@@ -1117,7 +1127,7 @@ if (irank==i_out_spec) then
             TEXT(1:40) = TITL_S(3)(1:20)//NAME(ij)
             CALL PRINT_SPECTRUM (IU06, CDTPRO, XLON, XLAT, TEXT, FR, TH, SPEC, &
 &                 Block_sp(IJ, 1), Block_sp(IJ, 2), Block_sp(IJ, 3),           &
-&                 Block_sp(IJ, 5), Block_sp(IJ, 7), Block_sp(IJ, 8),           &
+&                 Block_sp(IJ, 6), Block_sp(IJ, 7), Block_sp(IJ, 8),           &
 &                 Block_sp(IJ,25), Block_sp(IJ,26), Block_sp(IJ,27),           &
 &                 Block_sp(IJ,28), Block_sp(IJ,29), Block_sp(IJ,30),           &
 &                 Block_sp(IJ,31))

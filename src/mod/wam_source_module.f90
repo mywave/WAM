@@ -329,21 +329,12 @@ IF (PHILLIPS_RUN) THEN
 END IF
 CALL STRESSO (FL3, SL, USTAR, UDIR, Z0, TAUW)
 
-!
-!The use of denormalized numbers (<1.1e-38) significantly slows down
-!the apllication. If the compiler is not set to flush denormalzed numbers
-!to zero, or if the MPI implementaion overrides this setting, all small 
-!components in FL3 should be filtered out to avoid denormalized numbers
-!
-!where(fl3<1e-10) fl3=0.0
-!
-
 CALL SNONLIN (FL3, SL, FL, DEPTH, AKMEAN)
 CALL SDISSIP (FL3, SL, FL, EMEAN, F1MEAN, XKMEAN, INDEP)
 
 IF (SHALLOW_RUN) THEN
    CALL SBOTTOM (FL3, SL, FL, DEPTH, INDEP)
-   IF (WAVE_BREAKING_RUN) CALL SFBRK (FL3, SL, FL, EMEAN, AKMEAN, DEPTH)
+   IF (WAVE_BREAKING_RUN) CALL SFBRK (FL3, SL, FL, EMEAN, FMEAN, DEPTH)
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -1032,7 +1023,7 @@ END SUBROUTINE SDISSIP
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE SFBRK (F, SL, FL, EMEAN, AKMEAN, DEPTH)
+SUBROUTINE SFBRK (F, SL, FL, EMEAN, FMEAN, DEPTH)
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -1062,7 +1053,7 @@ REAL, INTENT(IN)     :: F (:, :, :)  !! SPECTRUM.
 REAL, INTENT(INOUT)  :: SL(:, :, :)  !! TOTAL SOURCE FUNCTION ARRAY
 REAL, INTENT(INOUT)  :: FL(:, :, :)  !! DIAGONAL MATRIX OF FUNC. DERIVATIVE.
 REAL, INTENT(IN)     :: EMEAN (:)    !! TOTAL ENERGY
-REAL, INTENT(IN)     :: AKMEAN(:)    !! MEAN WAVE NUMBER
+REAL, INTENT(IN)     :: FMEAN(:)     !! MEAN FREQUENCY
 REAL, INTENT(IN)     :: DEPTH(:)     !! WATER DEPTH
 
 ! ---------------------------------------------------------------------------- !
@@ -1074,8 +1065,8 @@ REAL, PARAMETER :: GAMD  = 0.8
 REAL, PARAMETER :: ALPHA = 1.0
 
 INTEGER :: M, K
-REAL :: HMAX(SIZE(F,1)), HRMS(SIZE(F,1)), QB(SIZE(F,1)), WM(SIZE(F,1))
-REAL :: SBR(SIZE(F,1))
+REAL :: HMAX(SIZE(F,1)), HRMS(SIZE(F,1)), QB(SIZE(F,1)), BB(SIZE(F,1))
+REAL :: SBR(SIZE(F,1)),DSBR(SIZE(F,1))
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1084,16 +1075,25 @@ REAL :: SBR(SIZE(F,1))
 
 HMAX = GAMD*DEPTH              !! compute Hmax
 HRMS = SQRT(8.*EMEAN)          !! compute Hrms
-WM = SQRT(G*AKMEAN*TANH(AKMEAN*DEPTH))
 
 CALL CMPQB(HRMS, HMAX, QB)
 
 QB = MIN(1.,QB)
-SBR = -(ALPHA*QB*WM*HMAX*HMAX/(8.*PI))/EMEAN
+SBR = -ALPHA*2.*FMEAN
+
+BB = (HRMS/HMAX)**2
+WHERE (BB.LE.1.) SBR = SBR*QB/BB
+
+WHERE (BB .LT. 1. .AND. ABS(BB - QB) .GT. 0.)
+   DSBR = SBR * (1. - QB) / (BB - QB)
+ELSEWHERE
+   DSBR = 0.
+ENDWHERE
+
 DO M = 1,SIZE(F,3)
   DO K = 1,SIZE(F,2)
       SL(:,K,M) = SL(:,K,M)+SBR*F(:,K,M)
-      FL(:,K,M) = FL(:,K,M)+SBR
+      FL(:,K,M) = FL(:,K,M)+DSBR
    END DO
 END DO
 
@@ -1171,11 +1171,9 @@ WHERE (B.GE.0.5) Q0 = (2.*B-1.)**2
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 
-DO I = 1,2
-   WHERE (HRMS.LT.HMAX) 
-      Q0 = Q0 - B**2*(Q0 - exp((Q0-1.)/B**2))/(B**2-exp((Q0-1.)/B**2))
-   END WHERE
-END DO
+WHERE (HRMS.LT.HMAX)
+   Q0 = Q0 - B**2*(Q0 - exp((Q0-1.)/B**2))/(B**2-exp((Q0-1.)/B**2))
+END WHERE
 
 WHERE (HRMS.LT.HMAX) QB = Q0
 
