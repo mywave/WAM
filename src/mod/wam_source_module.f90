@@ -270,6 +270,7 @@ INTEGER, INTENT(IN)    :: INDEP (:)      !! DEPTH TABLE INDEX.
 !     LOCAL VARIABLES.                                                         !
 
 INTEGER :: K, M, KL, ML, IJ
+REAL, PARAMETER  :: GAMD = 0.8
 REAL    :: DELT, FPMH, CM
 
 REAL    :: FL(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3))  !! DIAGONAL MATRIX OF
@@ -305,7 +306,27 @@ CALL AIRSEA (U10, TAUW, USTAR, Z0)
 !     2. COMPUTE MEAN PARAMETERS.                                              !
 !        ------------------------                                              !
 
+!     2.1 Total wave energy.                                                   !
+!         ------------------                                                   !
+
 CALL TOTAL_ENERGY (FL3, EMEAN)
+
+!     2.2 Reduce wave energy if larger than depth limited wave height.         !
+!         ------------------------------------------------------------         !
+
+IF (WAVE_BREAKING_RUN) THEN
+   TEMP(:,1) = MIN ((0.25*GAMD*DEPTH(:))**2/EMEAN(:), 1.)
+   DO M=1,ML
+      DO K=1,KL
+         FL3(:,K,M) = TEMP(:,1)*FL3(:,K,M)
+      END DO
+   END DO
+   EMEAN(:) = TEMP(:,1) * EMEAN(:)
+ENDIF
+
+!     2.3 Mean fequencies and wave numbers.                                    !
+!         ---------------------------------                                    !
+
 CALL FEMEAN (FL3, EMEAN, FMEAN)
 CALL TM1_TM2_PERIODS (FL3, EMEAN, TM1=F1MEAN)
 F1MEAN = 1./F1MEAN

@@ -33,7 +33,7 @@ USE WAM_FILE_MODULE,      ONLY: IU06, ITEST, IU10, FILE10
 USE WAM_GRID_MODULE,      ONLY: NX, NY, NSEA, NLON_RG, XDELLA, XDELLO, ZDELLO, &
 &                               AMOWEP, AMOSOP, AMOEAP, AMONOP, IPER, IXLG,    &
 &                               KXLT, L_S_MASK
-
+    
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
 !     C.  MODULE DATA.                                                         !
@@ -591,10 +591,10 @@ INTEGER, DIMENSION(4) :: C_NEST_I, C_NEST_K
 NUMBER = 1
 IF (AMOSOP .GT. SOUTH .OR. NORTH .GT. AMONOP .OR. SOUTH .GE. NORTH) NUMBER = 0
 
-IF ((.NOT.IPER) .AND.                                                          &
-&   (AMOWEP.GT.WEST      .OR. WEST.GT.AMOEAP     )  .AND.                      &
-&   (AMOWEP.GT.WEST+360. .OR. EAST+360..GT.AMOEAP)  .AND.                      &
-&   (AMOWEP.GT.WEST-360. .OR. EAST-360..GT.AMOEAP) ) NUMBER = 0
+IF ((.NOT.IPER) .AND. &
+&   (AMOWEP.GT.WEST      .OR. WEST.GT.AMOEAP     ) .AND.                      &
+&   (AMOWEP.GT.WEST+M_S_PER .OR. EAST+M_S_PER.GT.AMOEAP) .AND.                &
+&   (AMOWEP.GT.WEST-M_S_PER .OR. EAST-M_S_PER.GT.AMOEAP) ) NUMBER = 0
 
 IF (NUMBER .EQ. 0) THEN
    WRITE (IU06,*) '++++++++++++++++++++++++++++++++++++++++++++++++++++++'
@@ -1148,7 +1148,7 @@ FINE: DO I = 1, NBOUNF
 
 !     1.3.2 FINED NEAREST COARSE GP OPPOSITE TO FINE GP ON THE SAME LATITUDE.
 
-      ID2 = NINT(1.5 * REAL(ZDEL_C(M1))) - ID1
+      ID2 = NINT(1.55 * REAL(ZDEL_C(M1))) - ID1
       ID1 = LON_C(M1)-BLNGF(I)
       DO M = 1, NBINP
          IF (M.EQ.M1) CYCLE
@@ -1184,7 +1184,7 @@ FINE: DO I = 1, NBOUNF
 !     1.4.2 FINED NEAREST COARSE GP OPPOSITE TO FINE GP ON THE SAME LONGITUDE.
 
 
-      ID2 = NINT(1.5 * REAL(DPHIAC)) - ID1
+      ID2 = NINT(1.55 * REAL(DPHIAC)) - ID1
       ID1 = LAT_C(M1)-BLATF(I)
       DO M = 1, NBINP
          IF (M.EQ.M1) CYCLE
