@@ -146,7 +146,7 @@ C     U        CHARACTER  TIME UNIT: M OR m MINUTE; H OR h HOUR; DEFAULT SECOND.
 C
 C IDELWO U   IDELWI U   IDELTO U   IDELTI U   IDELCO U   IDELCI U   IDELII U
 C------- -  ------- -  ------- -  ------- -  ------- -  ------- -  ------- -
-      12 H       24 H        0 M        0 H        0 M       0  H        0 H                                     
+      12 H       24 H        0 M        0 H        0 M       0  H        0 H
 C
 C ------------------------------------------------------------------------------
 C
@@ -176,7 +176,6 @@ CYYYYMMDDHHMMSS  YYYYMMDDHHMMSS  YYYYMMDDHHMMSS  YYYYMMDDHHMMSS
 C--------------  --------------  --------------  --------------
 C 19780906060000  19780906090000  19780906120000  19780906180000  
 C 19780907000000  19780907060000  19780907120000  19780907180000
-C 19780908000000  19780908060000                                                                             
 C
  END      THE INPUT LIST HAS TO BE CLOSED BY THIS END LINE
 C

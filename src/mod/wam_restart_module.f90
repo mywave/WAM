@@ -391,8 +391,6 @@ integer :: ierr
 !        ------------------------                                              !
 
 if (irank==i_out_restart) then
-   call open_file (iu06, iu17, file17, cdtpro, 'unknown', ifail)
-   if (ifail/=0) call abort1
 
    allocate (rfl(1:nsea,1:kl,1:ml))
    allocate (ru10(1:nsea), rudir(1:nsea), rtauw(1:nsea))
@@ -408,6 +406,8 @@ if (irank==i_out_restart) then
 
    REWIND IU17
    if (ispecode==1) then                                   !! asci code
+      call open_file (iu06, iu17, file17, cdtpro, 'unknown', ifail,'formatted')
+      if (ifail/=0) call abort1
       if (cdta==' ') cdta = 'xxxxxxxxxxxxxx'
       if (cdca==' ') cdca = 'xxxxxxxxxxxxxx'
       write (iu17,'(i8,5(2x,a14))') nsea, cdtpro, cdtsou, cda, cdta, cdca
@@ -420,6 +420,8 @@ if (irank==i_out_restart) then
       if (cdta=='xxxxxxxxxxxxxx') cdta = ' '
       if (cdca=='xxxxxxxxxxxxxx') cdca = ' '
    else                                                    !! binary code
+      call open_file (iu06, iu17, file17, cdtpro, 'unknown', ifail)
+      if (ifail/=0) call abort1
       WRITE (IU17) NSEA, CDTPRO, CDTSOU, CDA, CDTA, CDCA
       WRITE (IU17) ru10
       WRITE (IU17) rudir
