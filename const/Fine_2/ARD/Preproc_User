@@ -1,0 +1,176 @@
+C
+C       USER INPUT OF PREPROC.           CREATED 20/8/2011
+C       ======================
+C
+C
+C        USER INFORMATION IS BEING READ BY SUB. READ__PREPROC_USER
+C        WITH THE PRESUMPTIONS THAT:
+C         1. EVERY LINE STARTING WITH 'C' OR 'c' IS A COMMENT LINE
+C         2. VALUES ARE PUT IN BELOW POSITIONS INDICATED WITH '-'
+C         3. IF VALUES ARE NOT SPECIFIED DEFAULT VALUES WILL BE USED.
+C         4. VALUES MARKED BY C => MUST BE DEFINED BY THE USER.
+C         5. DEFAULT VALUES ARE DEFINED BY SUB. CLEAR_PREPROC_USER_MODULE
+C            CONTAINED IN PREPROC_USER_MODULE.
+C
+C ------------------------------------------------------------------------------
+C
+C           **** HEADER OF MODEL RUN   ****
+C
+C     HEADER  CHARACTER*80  TEXT TO BE PRINTED
+C
+CHEADER
+C---------+---------+---------+---------+---------+---------+---------+---------
+ SWAMP WAVE MODEL RUN  FINE GRID 2       
+C
+C ------------------------------------------------------------------------------
+C
+C    1. FREQUENCY AND DIRECTION GRID DEFINITIONS
+C
+C     ML        INTEGER    NUMBER OF FREQUENCIES.  (DEFAULT 25)
+C     KL        INTEGER    NUMBER OF DIRECTIONS.   (DEFAULT 24)
+C     FR(1)     REAL       LOWEST FREQUENCY [HZ].  (DEFAULT .04177248)
+C     IREF      INTEGER    FREQUENCY BIN NUMBER OF REFERENCE FREQU. (DEFAULT 1)
+C
+C   ML    KL      FR(1)  IREF
+C----- ----- ---------- -----
+    25    12  .04177248      
+C                                                                               
+C ------------------------------------------------------------------------------
+C
+C    2. SHALLOW WATER DEPTH TABLE DEFINITIONS.
+C
+C    N_DEPTH        INTEGER  LENGTH OF SHALLOW WATER TABLES. (DEFAULT 69)
+C    DEPTH_S        REAL     MINIMUM DEPTH FOR TABLES [M].   (DEFAULT 1.0)
+C    DEPTH_I        REAL     DEPTH INCREMENT [%]             (DEFAULT 1.1)
+C
+C   N_DEPTH    DEPTH_S    DEPTH_I
+C---------- ---------- ----------                                                      
+
+C
+C ------------------------------------------------------------------------------
+C
+C    2. OUTPUT GRID DEFINITIONS.
+C
+C      REDURCED  F : THE LONGITUTE INCREMENT IS CONSTANT    (DEFAULT)
+C                T : THE LONGITUTE INCREMENT IS INCREASED WITH LATITUDE. 
+C    L_INTERPOL  T : MODEL DEPTH IS NEAREST NEIGHBOUR DEPTH OF INPUT TOPOGRAPHY (DEFAULT)
+C                F : MODEL DEPTH IS MEAN OF INPUT TOPOGRAPH DEPTH IN GRID CELL.
+C  L_OBSTRUCTION F : OBSTRUCTION FACTORS DUE TO SUB-GRID FEATURES
+C                    ARE NOT USED    (DEFAULT)
+C                T : OBSTRUCTIONN FACTORS DUE TO SUB-GRID FEATURES
+C                    ARE USED. INPUT TOPOGRAPHY HAS BE
+C                    etopo2_2006apr.dat and reference_levels.
+C
+C  REDUCED  L_INTERPOL L_OBSTRUCTION
+C---------- ---------- ----------
+     F          t         F
+C
+C     DEFAULT: IF ALL VALUES ARE BLANK, THE GRID OF THE TOPOGRAPHY DATA SET
+C     IS USED AS MODEL GRID.
+C     SOUTH     SOUTHERN LONGITUDE OF GRID
+C     NORTH     NORTHERN LONGITUDE OF GRID
+C     WEST      WESTERN LATITUDE OF GRID
+C     EAST      EASTERN LATITUDE OF GRID
+C     COORDINATE FORMAT:  REAL F13.8 [DEG]   OR
+C                         TEXTSTRING -DDD:MM:SS.SS OR +DDD:MM:SS.SS
+C
+C        SOUTH         NORTH          WEST          EAST
+C------------- ------------- ------------- -------------
+       1.000       6.000         8.000         13.000
+C
+C     NX        INTEGER   NUMBER OF LATITUDES.
+C     NY        INTEGER   NUMBER OF LONGITUDES.
+C     XDELLA    GRID INCREMENT FOR LATITUDE.
+C     XDELLO    GRID INCREMENT FOR LONGITUDE.
+C     COORDINATE FORMAT:  REAL F13.8 [DEG]   OR
+C                         TEXTSTRING -DDD:MM:SS.SS OR +DDD:MM:SS.SS
+C
+C       NX          NY              XDELLA        XDELLO
+C------------- ------------- ------------- -------------
+                                   0.125        0.125
+C
+C     LAND      REAL    DEPTH >= LAND ARE SEAPOINTS [M]. (DEFAULT 0)
+C
+C      LAND
+C----------
+        10.
+C
+C ------------------------------------------------------------------------------
+C
+C    3. AREAS TO BE CHANGED IN GRID:
+C
+C           SPECIFY A LIST WITH UP TO 20 AREAS.
+C
+C     XOUTS     SOUTHERN-MOST LATITUDE.
+C     XOUTN     NORTHERN-MOST LATITUDE.
+C     XOUTW     WESTERN-MOST LONGITUDE.
+C     XOUTE     EASTERN-MOST LONGITUDE.
+C     COORDINATE FORMAT:  REAL F13.8 [DEG]   OR
+C                         TEXTSTRING -DDD:MM:SS.SS OR +DDD:MM:SS.SS
+C     XOUTD     REAL   NEW DEPTH [M] (VALUES >= LAND ARE SEA POINTS) 
+C
+C        XOUTS         XOUTN         XOUTW         XOUTE      XOUTD
+C------------- ------------- ------------- ------------- ----------
+      -9.500      10.500         0.500        19.500       15.0
+C
+ END      THE INPUT LIST HAS TO BE CLOSED BY THIS END LINE
+C
+C ------------------------------------------------------------------------------
+C
+C    4. MODEL OPTIONS:
+C
+C         ITEST  INTEGER  TEST OUTPUT LEVEL (DEFAULT 0)
+C
+C ITEST
+C------
+     10
+C
+C ------------------------------------------------------------------------------
+C
+C    5. NESTED GRIDS:
+C
+C   FOR A COARSE GRID RUN SPECIFY FOR EACH NEST:
+C     SOUTH      SOUTHERN LONGITUDE OF NEST.
+C     NORTH      NORTHERN LONGITUDE OF NEST.
+C     WEST       WESTERN LATITUDE OF NEST.
+C     EAST       EASTERN LATITUDE OF NEST.
+C     COORDINATE FORMAT:  REAL F13.8 [DEG]   OR
+C                         TEXTSTRING -DDD:MM:SS.SS OR +DDD:MM:SS.SS
+C     NEST_NAME  CHARACTER NAME OF NEST
+C     AOB        INTEGER  (I3) ascii (1) or binary (DEFLAUT) OUTPUT
+C
+C     SOUTH      NORTH          WEST            EAST     NEST_NAME           AOB
+C------------- ------------- ------------- ------------- ---------+---------+--+
+ END      THE INPUT LIST HAS TO BE CLOSED BY THIS END LINE
+C
+C   FOR A FINE GRID RUN SPECIFY:
+C      PREPROC OUTPUT FILE NAME FROM THE COARSE GRID PREPROC.
+C      IF A BLANK LINE IS GIVEN A FINE GRID IS NOT GENERATED.
+C
+C  PREPROC OUTPUT FILE NAME FROM THE COARSE GRID PREPROC.
+C---------+---------+---------+---------+---------+---------+---------+---------
+ Grid_info_COARSE_GRID
+C
+C ------------------------------------------------------------------------------
+C
+C    6. INPUT AND OUTPUT FILE NAMES:
+C
+C    THE PROGRAM OPENS AUTOMATICALLY THE FOLLOWING FILES, WHICH ARE
+C    DEFINED IN PROGRAM PREPROC:
+C
+C    UNIT = IU05 = 5  FILE = 'Preproc_User' TO READ THIS INPUT FILE.
+C    UNIT = IU06 = 6  FILE = 'Preproc_Prot' TO WRITE A PROTOCOL.
+C
+C    ALL THE FOLLOWING FILES HAVE TO BE DEFINED BELOW.
+C
+C => TOPOGRAPHIC DATA FILE NAME (DEFAULT: -NONE-).
+C---------+---------+---------+---------+---------+---------+---------+---------
+ TOPOCAT.DAT
+C
+C   PREPROC OUTPUT FILE NAME (DEFAULT: 'Grid_Info').
+C---------+---------+---------+---------+---------+---------+---------+---------
+ Grid_info_fine_2_GRID
+C
+C ------------------------------------------------------------------------------
+C                 END OF USER INPUT OF PREPROC
+C ------------------------------------------------------------------------------

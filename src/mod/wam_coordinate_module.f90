@@ -419,13 +419,13 @@ IF (SOUTH.EQ.COOR_UNDEF) ERROR = .TRUE.
 
 IF (NORTH.EQ.COOR_UNDEF) THEN
    IF (DY.GT.COOR_UNDEF .AND. NY.GT.1) THEN
-      NORTH = SOUTH + (NY-1)*DY !! EAST LONGITUDE OF GRID [M_SEC].
+      NORTH = SOUTH + (NY-1)*DY !! EAST LATITUDE OF GRID [M_SEC].
    ELSE
       ERROR = .TRUE.
    END IF
 ELSE IF (DY.EQ.COOR_UNDEF) THEN
    IF (NY.GT.1) THEN
-      DY = (NORTH-SOUTH+(NY-1)/2)/(NY-1) !! LONGITUDE INCREMENT [M_SEC].
+      DY = (NORTH-SOUTH+(NY-1)/2)/(NY-1) !! LATITUDE INCREMENT [M_SEC].
    ELSE
       ERROR = .TRUE.
    END IF
@@ -740,8 +740,7 @@ INTEGER, INTENT(IN) :: N     !! NUMBER OF LONGITUDES.
 !                                                                              !
 !  1. CORRECT BORDERS.                                                         !
 !     ----------------                                                         !
-
-L = ABS(WEST - EAST - DEL + M_S_PER) .LT. N/2
+L = ABS(WEST - EAST - DEL + M_S_PER) .LE. N/2
 
 
 END FUNCTION PERIODIC

@@ -22,7 +22,6 @@ USE WAM_PRINT_MODULE,         ONLY: &
 &       SET_INPUT_FILE,             & !! INTEGRATED DATA FILE (UNFORM. OUTPUT).
 &       SET_PARAMETER_OUTPUT_FLAGS, & 
 &       SET_SPECTRA_OUTPUT_FLAGS,   & 
-&       SET_RADIATION_OUTPUT_FLAGS, & 
 &       SET_INTERPOLATION
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -67,7 +66,7 @@ CHARACTER (LEN=1)  :: INPUT_FILE_TIMESTEP_UNIT
 
 ! ---------------------------------------------------------------------------- !
 
-INTEGER, PARAMETER         :: NOUT_P = 40
+INTEGER, PARAMETER         :: NOUT_P = 70
 LOGICAL, DIMENSION(NOUT_P) :: CFLAG_P         !! PARAMETER OUTPUT FLAG.
 
 ! ---------------------------------------------------------------------------- !
@@ -77,12 +76,7 @@ LOGICAL, DIMENSION(NOUT_S) :: CFLAG_S         !! SPECTRA OUTPUT FLAG.
 
 ! ---------------------------------------------------------------------------- !
 
-INTEGER, PARAMETER         :: NOUT_R = 8
-LOGICAL, DIMENSION(NOUT_R) :: CFLAG_R         !! RADIATION OUTPUT FLAG.
-
-! ---------------------------------------------------------------------------- !
-
-INTEGER, PARAMETER                        :: MOUTP   = 20
+INTEGER, PARAMETER                        :: MOUTP   = 200
 CHARACTER(LEN=LEN_COOR), DIMENSION(MOUTP) :: OUTLAT 
 CHARACTER(LEN=LEN_COOR), DIMENSION(MOUTP) :: OUTLONG   
 CHARACTER (LEN=20),      DIMENSION(MOUTP) :: NAME
@@ -100,7 +94,7 @@ NAMELIST /PRINT_NAMELIST/                                                      &
 &       INPUT_FILE_NAME,  INPUT_FILE_DATE, INPUT_FILE_UNIT,                    &
 &       INPUT_FILE_TIMESTEP,  INPUT_FILE_TIMESTEP_UNIT,                        &
 &       COUTT,                                                                 &
-&       CFLAG_P, CFLAG_S, CFLAG_R,                                             &
+&       CFLAG_P, CFLAG_S,                                                      &
 &       OUTLAT,   OUTLONG,   NAME,                                             &
 &       REGULAR
 
@@ -198,8 +192,6 @@ CFLAG_P     = .TRUE.  !! PARAMETER FILE OUTPUT FLAG.
 
 CFLAG_S     = .TRUE.  !! SPECTRA FILE OUTPUT FLAG.
 
-CFLAG_R     = .TRUE.  !! RADIATION FILE OUTPUT FLAG.
-
 OUTLAT      = ' '       !! LATITUDES OF OUTPUT SITES.
 OUTLONG     = ' '       !! LONGITUDES OF OUTPUT SITES.
 NAME        = ' '        !! OUTPUT SITES NAMES.
@@ -277,7 +269,6 @@ CALL SET_TEST_OPTION   (TEST=ITEST)
 
 CALL SET_PARAMETER_OUTPUT_FLAGS (PF=CFLAG_P)
 CALL SET_SPECTRA_OUTPUT_FLAGS   (PF=CFLAG_S)
-CALL SET_RADIATION_OUTPUT_FLAGS (PF=CFLAG_R)
 
 CALL SET_OUTPUT_SITES (LONG=OUTLONG, LAT=OUTLAT, NA=NAME)
 

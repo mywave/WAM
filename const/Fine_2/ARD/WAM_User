@@ -1,0 +1,465 @@
+C
+C       USER INPUT OF CHIEF.             CREATED 20/02/2011
+C       ====================
+C
+C        USER INFORMATION IS BEING READ BY SUB. READ__WAM_USER
+C        WITH THE PRESUMPTIONS THAT:
+C         1. EVERY LINE STARTING WITH 'C' OR 'c' IS A COMMENT LINE
+C         2. VALUES ARE PUT IN BELOW POSITIONS INDICATED WITH '-'
+C         3. IF VALUES ARE NOT SPECIFIED DEFAULT VALUES WILL BE USED.
+C         4. VALUES MARKED BY C => MUST BE DEFINED BY THE USER.
+C         5. DEFAULT VALUES ARE DEFINED BY SUB. CLEAR_WAM_USER_MODULE
+C            CONTAINED IN WAM_USER_MODULE.
+C
+C ------------------------------------------------------------------------------
+C
+C           **** PERIOD OF MODEL RUN   ****
+C
+C =>    START DATE OF  RUN  (YYYYMMDDHHMMSS)
+C =>    END   DATE OF  RUN  (YYYYMMDDHHMMSS)
+C
+C    START DATE        END DATE
+C--------------  --------------
+ 19780906060000  19780908060000                                           
+C
+C ------------------------------------------------------------------------------
+C
+C           **** MODEL START OPTION   ****
+C
+C     COLDSTART   = COLD START: (DEFAULT)
+C                   HOT START:  string contains F or f
+C
+C COLDSTART
+C----------
+          T
+C
+C ------------------------------------------------------------------------------
+C
+C           **** OPTIONS AND PARAMETERS FOR INITIAL SPECTRA   ****
+C
+C     IOPTI   0 WIND INDEPENDENT VALUES.
+C             1 FETCH LAW AND ENERGY=0 IF WINDSPEED=0  (DEFAULT)
+C             2 FETCH LAW AND ENERGY FROM PARAMETERS IF WINDSPEEP=0.
+C  IOPTI
+C-------
+       1
+C
+C     ALPHA    PHILLIPS' PARAMETER  (NOT USED IF IOPTI = 1) (DEFAULT 0.01800)
+C     FM       PEAK FREQUENCY (HZ) AND/OR MAXIMUM FREQUENCY (DEFAULT 0.2)
+C     GAMMA    OVERSHOOT FACTOR                             (DEFAULT 3.0)
+C     SIGMAA   LEFT PEAK WIDTH                              (DEFAULT 0.07)
+C     SIGMAB   RIGHT PEAK WIDTH                             (DEFAULT 0.09)
+C     THETAQ   WAVE DIRECTION (DEG) (NOT USED IF IOPTI = 1) (DEFAULT 0.0)
+C     FETCH    FETCH IN METRES (IF ZERO THEN 0.5 OF THE
+C              LATITUDE INCREMENT IS USED.)                 (DEFAULT 30000.)
+C
+C     ALPHA          FM       GAMMA      SIGMAA      SIGMAB      THETAQ
+C----------  ----------  ----------  ----------  ----------  ----------
+    0.01800     0.20000     3.00000     0.07000     0.09000     0.00000         
+C
+C     FETCH
+C----------
+     30000.                                                                     
+C
+C ------------------------------------------------------------------------------
+C
+C           **** MODEL OPTIONS  ****
+C
+C    SPHER   SPHERICAL RUN (DEFAULT);      CARTESIAN RUN: string contains F or f
+C    SHALLOW SHALLOW WATER RUN (DEFAULT); DEEP WATER RUN: string contains F or f
+C    REFRA_D DEPTH REFRACTION  : OFF (DEFAULT);       ON: string contains T or t
+C    REFRA_C CURRENT REFRACTION: OFF (DEFAULT);       ON: string contains T or t
+C    R_FACTOR REDUCTION DUE TO SUB-GRID FEATURES: 
+C                               OFF (DEFAULT);        ON: string contains T or t
+C    DECOMP  MPI DECOMPOSITION IS 1D (DEFAULT);       2D: string contains F or f
+C
+C  SPHER  SHALLOW  REFRA_D  REFRA_C R_FACTOR   DECOMP 
+C-------  -------  -------  -------  -------  ------- 
+      F       t        t       t       T         F
+C
+C    IPHYS   PHYSICS PARAMETERISATION FOR INPUT AND OPEN OCEAN DISSIPATION
+C                                0 : ECMWF CY45R1 (CYCLE 4.6.2.2 (HZG)) (DEFAULT)
+C                                1 : ECMWF CY46R1, based on Ardhuin et al. 2010
+C    BREAK   WAVE BREAKING     : OFF (DEFAULT);       ON: string contains T or t
+C    PHILL   PHILLIPS SOURCE FUNCTION: OFF (DEFAULT); ON: string contains T or t
+C    ISNL    DEPTH SCALING OF SNL : =0 (DEFAULT) OLD ; =1 NEW SCALING
+C    ITEST   > 0: OUPUT UPTO SUBROUTINE LEVEL;    0: NO TEST OUTPUT (DEFAULT)
+C
+C  IPHYS    BREAK    PHILL     ISNL    ITEST
+C-------  -------  -------  -------  -------
+    1          t        F       0         10
+C
+C   BETAMAX  REAL PARAMETER FOR WIND INPUT REAL; (DEFAULT 1.20)
+C
+C   BETAMAX
+C----------
+   1.20
+C
+C ------------------------------------------------------------------------------
+C
+C           **** MODEL INTEGRATION TIME STEPS ****
+C
+C =>  IDELPRO  INTEGER   PROPAGATION TIMESTEP
+C     IDELT    INTEGER   SOURCE TIMESTEP
+C                        <= 0 : SOURCE STEP = PROPAGATION STEP (DEFAULT)
+C     U        CHARACTER TIME UNIT: M OR m MINUTE; H OR h HOUR; DEFAULT SECOND.
+C
+CIDELPRO U    IDELT U
+C------- -  ------- -
+       5 M       15 M                                   
+C
+C ------------------------------------------------------------------------------
+C
+C           **** MODEL RESTART SAVE TIMESTEP ****
+C
+C     IDEL_RE  INTEGER    > O : TIMESTEP TO SAVE RESTART FILE,
+C                         = 0 : RESTART FILE IS SAVED AT END OF RUN (DEFAULT),
+C                         < 0 : RESTART FILE IS NOT SAVED.
+C
+CIDEL_RE U
+C------- -
+     -24 H
+C
+C ------------------------------------------------------------------------------
+C
+C           **** COARSE OR FINE GRID ****
+C
+C     COARSE       COARSE GRID RUN BOUNDARY OUTPUT: OFF (DEFAULT)
+C                  ON: string contains T or t
+C     FINE         FINE GRID RUN BOUNDARY INPUT: OFF (DEFAULT)
+C                  ON: string contains T or t
+C
+C COARSE     FINE
+C-------  -------
+       F        T
+C
+C     IDEL_BO  INTEGER    > O  : TIMESTEP TO SAVE BOUNDARY OUTPUT.
+C                         <= 0 : OUTPUT EVERY IDELPRO STEPS (DEFAULT)
+C     IDEL_BF  INTEGER    > O  : TIMESTEP TO SAVE BOUNDARY OUTPUT FILE.
+C                         <= 0 : SAVE FILE EVERY IDEL_OF STEPS (DEFAULT)
+C     U        CHARACTER  TIME UNIT: M OR m MINUTE; H OR h HOUR; DEFAULT SECOND.
+C
+CIDEL_BO U  IDEL_BF U
+C------- -  ------- -
+       1 H        0 H
+C
+C ------------------------------------------------------------------------------
+C
+C           **** MODEL INPUT TIME STEPS ****
+C
+C     IDELWO   INTEGER    OUTPUT WIND TIMESTEP
+C                         <= 0 : OUTPUT = INPUT TIME STEP (DEFAULT)
+C =>  IDELWI   INTEGER    TIMESTEP ON INPUT WIND FILE
+C     IDELTO   INTEGER    OUTPUT TOPO TIMESTEP
+C                         <= 0 : OUTPUT = INPUT TIME STEP (DEFAULT)
+C     IDELTI   INTEGER    TIMESTEP ON INPUT TOPO FILE
+C                         <= 0 : STATIONARY DEPTH (DEFAULT)
+C     IDELCO   INTEGER    OUTPUT CURRENT TIMESTEP
+C                         <= 0 : OUTPUT = INPUT TIME STEP (DEFAULT)
+C     IDELCI   INTEGER    TIMESTEP ON INPUT CURRENT FILE
+C                         <= 0 : STATIONARY CURRENT (DEFAULT)
+C     IDELII   INTEGER    TIMESTEP ON INPUT ICE FILE
+C                         <= 0 : STATIONARY ICE (DEFAULT)
+C     U        CHARACTER  TIME UNIT: M OR m MINUTE; H OR h HOUR; DEFAULT SECOND.
+C
+C IDELWO U   IDELWI U   IDELTO U   IDELTI U   IDELCO U   IDELCI U   IDELII U
+C------- -  ------- -  ------- -  ------- -  ------- -  ------- -  ------- -
+      12 H       24 H       60 M        6 H       15 M       6  H       12 H                                     
+C
+C ------------------------------------------------------------------------------
+C
+C           **** OUTPUT TIME IN FIXED TIME STEPS ****
+C
+C     IDELINT  INTEGER    INTEGRATED PARAMETER (DEFAULT 1)
+C                         IF <= 0 IDELINT = IDELPRO
+C     IDELSPT  INTEGER    SPECTRA              (DEFAULT 1)
+C                         IF <= 0 IDELSPT = IDELPRO
+C     OT_STEP  INTEGER    TIME INCREMENT TO SAVE OUTPUT FILES  (DEFAULT 24)
+C                         IF <= 0 OUTPUT FILES ARE SAVED AT THE END OF RUN
+C     U        CHARACTER  TIME UNIT: M OR m MINUTE; S OR s SECOND; DEFAULT HOUR.
+C
+CIDELINT U  IDELSPT U  OT_STEP U
+C------- -  ------- -  ------- -
+       1 H        3 H       24 H                          
+C
+C ------------------------------------------------------------------------------
+C
+C           **** OUTPUT AT GIVE TIMES ****
+C
+C   SPECIFY A LIST WITH UP TO 20 DATES (YYYYMMDDHHMMSS) AND CLOSE THE
+C   LIST BY 'END'. IF THE LIST INCLUDES ANYTHING ELSE THAN 'END'
+C   THE OUTPUT TIME STEPS IDELINT AND IDELSPT SPECIFIED ABOVE ARE IGNORED.
+C
+CYYYYMMDDHHMMSS  YYYYMMDDHHMMSS  YYYYMMDDHHMMSS  YYYYMMDDHHMMSS
+C--------------  --------------  --------------  --------------
+C 19780906060000  19780906090000  19780906120000  19780906180000  
+C 19780907000000  19780907060000  19780907120000  19780907180000
+C 19780908000000  19780908060000                                                                             
+C
+ END      THE INPUT LIST HAS TO BE CLOSED BY THIS END LINE
+C
+C ------------------------------------------------------------------------------
+C
+C           **** SELECTION OF OUTPUT DATA ****
+C
+C     P  PRINTER OUTPUT: T : DATA ARE PRINTED;  DEFAULT F : NO OUTPUT
+C     F  FILE OUTPUT:    F : NO OUTPUT ,        DEFAULT T : OUTPUT
+C
+CP F                                   P F
+C- -                                   - -
+ F T   WIND SPEED U10                  F T   WIND DIRECTION
+ F T   FRICTION VELOCITY               F T   DRAG COEFFICIENT
+ F T   CHARNOCK PARAMETER              F T   WATER DEPTH
+ F T   CURRENT SPEED                   F T   CURRENT DIRECTION
+C
+ F T   SIGNIFICANT WAVE HEIGHT         F T   WAVE PEAK PERIOD
+ F T   WAVE MEAN PERIOD                F T   WAVE TM1 PERIOD
+ F T   WAVE TM2 PERIOD                 F T   WAVE DIRECTION
+ F T   DIRECTIONAL SPREAD              F T   NORMALISED WAVE STRESS
+C
+ F T   SEA SIGNIFICANT WAVE HEIGHT     F T   SEA PEAK PERIOD
+ F T   SEA MEAN PERIOD                 F T   SEA TM1 PERIOD
+ F T   SEA TM2 PERIOD                  F T   SEA DIRECTION
+ F T   SEA DIRECTIONAL SPREAD          F F   DUMMY
+C
+ F T   SWELL SIGNIFICANT WAVE HEIGHT   F T   SWELL PEAK PERIOD
+ F T   SWELL MEAN PERIOD               F T   SWELL TM1 PERIOD
+ F T   SWELL TM2 PERIOD                F T   SWELL DIRECTION
+ F T   SWELL DIRECTIONAL SPREAD        F T   ROUGHNESS LENGTH Z0
+C
+ F T   GODA PEAKEDNESS PARAMETER       F T   KURTOSIS
+ F T   BENJAMIN-FEIR INDEX             F T   NORMALIZED MAXIMUM WAVE HEIGHT
+ F T   MAXIMUM WAVE PERIOD             F T   PEAK FREQUENCY (INTERPOLATED)
+ F T   PEAK DIRECTION                  F T   MEAN SQUARE SLOPE
+C
+ F T   FIRST SWELL SIG. WAVE HEIGHT    F T   FIRST SWELL MEAN PERIOD
+ F T   FIRST SWELL DIRECTION           F T   SECOND SWELL SIG. WAVE HEIGHT
+ F T   SECOND SWELL MEAN PERIOD        F T   SECOND SWELL DIRECTION
+ F T   THIRD SWELL SIG. WAVE HEIGHT    F T   THIRD SWELL MEAN PERIOD
+ F T   THIRD SWELL DIRECTION           F T   DUMMY
+C
+ F T   RADIATION STRESS TENSOR SXX     F T   RADIATION STRESS TENSOR SYY
+ F T   RADIATION STRESS TENSOR SXY     F T   DUMMY
+ F T   X-COMP. WAVE FORCE              F T   Y-COMP. WAVE FORCE
+ F T   X-COMP. STOKES DRIFT            F T   Y-COMP. STOKES DRIFT
+ F T   ENERGY FLUX TO OCEAN            F T   TOTAL ENERGY FLUX FROM WIND TO WAVES
+ F T   X-COMP.MOMENTUM FLUX INTO OCEAN F T   Y-COMP. MOMENTUM FLUX INTO OCEAN
+ F T   ENERGY FLUX INTO BOTTOM         F T   X-COMP. MOMENTUM FLUX INTO BOT.
+ F T   Y-COMP.MOMENTUM FLUX INTO BOT.  F T   DUMMY
+C
+ F T   CRMAX (TIME, FORRISTAL)         F T   HMAX (TIME, NAESS)
+ F T   CRMAX (SPACE-TIME (STQD))       F T   HMAX (SPACE-TIME (STQD))
+C
+ F T   SPECTRA OF TOTAL SEA            F T   SEA SPECTRA
+ F T   SWELL SPECTRA                   F F   DUMMY
+C
+C-------------------------------------------------------------------------------
+C
+C           orientation of all directions    default: going to
+C                                            coming from : string contains f or F
+C
+C orientation_of_directions
+C-------------------------+
+                  t
+C ------------------------------------------------------------------------------
+C
+C           **** UP TO 20 OUTPUT SITES FOR SPECTRA ****
+C
+C           XLONG  LONGITUDE IN DEGREE             DEFAULT: -NONE-
+C           XLAT   LATITUDE IN DEGREE              DEFAULT: -NONE-
+C           NAME   SITE NAME (UP TO 20 CHARACTER)  DEFAULT: -BLANK-
+C      COORDINATE FORMAT:  REAL DEGREES F13.8    OR
+C                          TEXTSTRING -DDD:MM:SS.SS OR +DDD:MM:SS.SS
+C
+C   XLONG         XLAT       NAME
+C------------- ------------- ---------+---------+
+    10.00         -9.50      Station 1 
+    10.00         -9.00      Station 2 
+    10.00         -8.50      Station 3 
+    10.00         -8.00      Station 4 
+    10.00         -7.50      Station 5 
+    10.00         -7.00      Station 6 
+    10.00         -5.50      Station 7
+    10.00         -5.00      Station 8
+    10.00         -4.50      Station 9 
+    10.00           .00      Station 10 
+    10.00          1.00      Station 11
+    10.00          2.00      Station 12
+    10.00          3.00      Station 13
+    10.00          4.00      Station 14
+    10.00          5.00      Station 15
+    10.00          6.00      Station 16
+    10.00         10.00      Station 17                                                                              
+C
+ END      THE INPUT LIST HAS TO BE CLOSED BY THIS END LINE
+C
+C ------------------------------------------------------------------------------
+C
+C           **** INPUT AND OUTPUT FILE NAMES ****
+C
+C    THE PROGRAM OPENS AUTOMATICALLY THE FOLLOWING FILES, WHICH ARE
+C    DEFINED IN "WAM_FILE_MODULE.f90":
+C
+C    UNIT = IU05 = 55  FILE05 = 'WAM_User' TO READ THIS INPUT FILE.
+C    UNIT = IU06 = 66  FILE06 = 'WAM_Prot' TO WRITE A PROTOCOL.
+C
+C    ALL THE FOLLOWING FILES CAN TO BE DEFINED BELOW. IF A LINE OF
+C    BLANKS IS GIVEN THE PROGRAM WILL USE STANDARD NAMES WHICH ARE
+C    DEFINED IN "WAM_USER_MODULE.f90".
+C
+C =>  WIND DATA FILE NAME (UNIT=1 FORM. INPUT DEFAULT: NONE)
+C---------+---------+---------+---------+---------+---------+---------+---------
+ WIND_INPUT.DAT
+C
+C FILE IDENTIFIER BOUNDARY VALUES FROM A PREVIOUS COARSE GRID RUN
+C (UNIT=2 UNFORM. INPUT DEFAULT: CBO) ONLY USED IF FINE = T
+C---------+---------+---------+---------+---------+---------+---------+---------
+ C02  
+C
+C ICE FIELD DATA (UNIT=3 FORM. INPUT DEFAULT: -BLANK-)
+C IF A -BLANK- LINE IS GIVEN: ICE IS NOT PROCESSED
+C---------+---------+---------+---------+---------+---------+---------+---------
+ ICE_INPUT.DAT
+C
+C GRID DATA FILE (UNIT=7 UNFORM. INPUT DEFAULT: Grid_info)
+C---------+---------+---------+---------+---------+---------+---------+---------
+ Grid_info_fine_2_GRID
+C
+C DEPTH DATA FILE NAME (UNIT=8 FORM. INPUT DEFAULT: -BLANK-)
+C IF A -BLANK- LINE IS GIVEN BASIC DEPTH FROM PREPROC ARE USED.
+C---------+---------+---------+---------+---------+---------+---------+---------
+ TOPO_INPUT.DAT
+C
+C CURRENT DATA FILE NAME (UNIT=9 FORM. INPUT DEFAULT: -BLANK-)
+C IF A -BLANK- LINE IS GIVEN CURRENTS ARE NOT PROCESSED.
+C---------+---------+---------+---------+---------+---------+---------+---------
+ CURRENT_INPUT.DAT
+C
+C RESTART FILE IDENTIFIER (UNIT=17 UNFORM. INPUT/OUTPUT DEFAULT: BLS)
+C---------+---------+---------+---------+---------+---------+---------+---------
+ BLS2
+C
+C COARSE GRID BOUNDARY VALUE OUTPUT FILE IDENTIFIER
+C (UNIT=70 UNFORM. OUT. DEFAULT CBO) ONLY USED IF COARSE = T
+C IF MORE THAN ONE NEST IS PROCESSED UNITS ARE 69+NESTNUMBER AND IN
+C THE IDENTIFIER THE 2 LAST CHARACTERS ARE REPLACED BY THE NESTNUMBER
+C---------+---------+---------+---------+---------+---------+---------+---------
+
+C
+C INTEGRATED PARAMETER FILE IDENTIFIER (UNIT=20 UNFORM. OUTPUT DEFAULT: MAP)
+C---------+---------+---------+---------+---------+---------+---------+---------
+ MAP2
+C
+C SPECTRA FILE IDENTIFIER (UNIT=25 UNFORM. OUTPUT DEFAULT: OUT)
+C---------+---------+---------+---------+---------+---------+---------+---------
+ OUT2
+C
+C DWD : AREA AND PATH FOR READYFILES
+C
+CAREA
+C---
+ GSM
+C
+CWAIT FOR READY FILES
+C---------+---------+---------+---------+---------+---------+---------+---------
+ F
+C
+CPATH FOR READYFILES
+C---------+---------+---------+---------+---------+---------+---------+---------
+ /e/uwork/gkssbeh/wam453/wind
+C
+CWAIT FOR READY output FILES
+C---------+---------+---------+---------+---------+---------+---------+---------
+ F
+C
+CPATH FOR READY output FILES
+C---------+---------+---------+---------+---------+---------+---------+---------
+ /e/uwork/gkssbeh/wam453/wind
+C ------------------------------------------------------------------------------
+C
+C      *ispec2d*   ==> 2d-spectral information
+C          n         : at all active model grid points for n hours
+C          0         : at nest boundary points only
+C
+C      *ispecode*  ==> spectra in binary or ascii code
+C          1         : ascii code
+C          otherwise : binary code
+C
+CISPEC2D ISPECODE
+C------- --------
+       0        0
+C
+C ----------------------------------------------------------------------
+C
+C           **** WAM-MAX  OPTIONS  ****
+C
+C     WMDUR      Time window in seconds
+C     WMDX       xwidth in <UNITS?>
+C     WMDY       ywidth in <UNITS?>
+C
+C WMDUR      WMDX     WMDY
+C-------  -------  -------
+  1200.0   1000.0   1000.0
+C
+C ----------------------------------------------------------------------
+C
+C           **** ASSIMILATION  OPTIONS  ****
+C
+C     IASSI    1  FOR ASSIMILATION, OTHERWISE NO ASSIMILATION
+C
+C     RMAX     RADIUS OF INFLUENCE IN DEGREES
+C     SIGOBS   MEASUREMENT SCATTER.
+C     SIGMOD   MODEL SCATTER.
+C
+C  IASSI     RMAX   SIGOBS   SIGMOD
+C-------  -------  -------  -------
+       0      3.0      0.5      0.5
+C
+C           **** ASSIMILATION PERIOD AND TIME STEP ****
+C
+C     CDATAA   CHARACTER   START DATE  (YYYYMMDDHHMMSS)
+C     CDATAE   CHARACTER   END   DATE (YYYYMMDDHHMMSS)
+C     IDELASS  INTERGER    ASSIMILATION TIMESTEP
+C
+C      --------   -----------------------------------------------
+C      DEMAND :   ASSIMILATION TIMES MUST BE AT THE END OF A
+C                 PROPAGATION TIMESTEP
+C      --------   -----------------------------------------------
+C
+C        CDATAA          CDATAE  IDELASS U
+C--------------  --------------  ------- -
+ 19780906090000  19780906120000        3 H
+C
+C
+C    FG_OUTPUT   FIRST GUESS OUTPUT: string contains T or t
+C                DEFAULT: NO OUTPUT
+C
+CFG_OUTPUT
+C---------
+         T
+C
+C           **** DATA INPUT FILE NAME ****
+C
+C    ALL THE FOLLOWING FILES CAN TO BE DEFINED BELOW. IF A LINE OF
+C    BLANKS IS GIVEN THE PROGRAM WILL USE STANDARD NAMES WHICH ARE
+C    DEFINED IN "WAM_ASSI_SET_UP_MODULE.f90".
+C
+C ASSIMILATION DATA FILE IDENTIFIER (UNIT=IU80 FORM. INPUT)
+C A FILE MUST EXIST FOR EACH ASSIMILATION DATE. IF A FILE DOES NOT
+C EXIST ASSIMILATION IS NOT DONE FOR THIS DATE.
+C---------+---------+---------+---------+---------+---------+---------+
+ OBS
+C
+C INTEGRATED PARAMETER FILE IDENTIFIER (FIRST GUESS)
+C (UNIT=IU30 UNFORM. OUTPUT DEFAULT: MAPFG)
+C---------+---------+---------+---------+---------+---------+---------+
+ MAPFG
+C
+C SPECTRA FILE IDENTIFIER (FIRST GUESS)
+C (UNIT=IU35 UNFORM. OUTPUT DEFAULT: OUTFG)
+C---------+---------+---------+---------+---------+---------+---------+
+ OUTFG
+C
+C ------------------------------------------------------------------------------
+C                        END OF USER INPUT PROG CHIEF.
+C ------------------------------------------------------------------------------

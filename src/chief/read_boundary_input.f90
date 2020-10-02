@@ -75,19 +75,12 @@ IF (CDATE2 .GE. CDT_BI_FILE) THEN
       IOS = 0
       READ (IU02, IOSTAT=IOS) XANG, XFRE, TH0, FR1, CO1, XBOU, XDELIN,        &
 &                             XDELIF
-      WRITE(iu06,*)'IOS',IOS,'XANG',XANG
       if (ios/=0 .or. nint(XANG).LT.1) then
          unformatted = .false.
          write (iu06,*) ' UNFORMATTED READING FROM FILE ', trim(FILE02),      &
 &                       ' FAILED'
          write (iu06,*) ' TRYING FORMATTED READING'
          close (iu02, status='keep')
-      else
-         nboinp = nint(xbou)
-         write(iu06,*)'nboinp',nboinp
-         allocate (xdepth(nboinp))
-         read (iu02, iostat=ios) xdepth
-         if (ios/=0) call abort1
       endif
    endif
    if (.not.unformatted) then
@@ -112,11 +105,6 @@ IF (CDATE2 .GE. CDT_BI_FILE) THEN
          WRITE(IU06,*) '*                                                  *'
          WRITE(IU06,*) '****************************************************'
          CALL ABORT1
-      else
-         nboinp = nint(xbou)
-         allocate (xdepth(nboinp))
-         read (iu02,*,iostat=ios) xdepth
-         if (ios/=0) call abort1
       endif
    endif
 
@@ -127,6 +115,8 @@ IF (CDATE2 .GE. CDT_BI_FILE) THEN
    ML1 = NINT(XFRE)
    IDEL_B_INP = NINT(XDELIN)
    IDEL_BI_FILE = NINT(XDELIF)
+   NBOINP = nint(XBOU)
+
    IF (ITEST.GT.3) THEN
       WRITE (IU06,*) ' '
       WRITE (IU06,*) ' BOUNDARY VALUE INPUT FILE HEADER IS:'
@@ -173,10 +163,12 @@ END IF
 !     2. READ BOUNDARY VALUES.                                                 !
 !        ---------------------                                                 !
 
+allocate (xdepth(NBINP))
+
 if (unformatted) then
    DO IJ = 1,NBINP
       READ (IU02, IOSTAT=IOS) XLON(IJ), XLAT(IJ), CDATE2,                      &
-&                             EMEAN2 (IJ), THQ2(IJ), FMEAN2(IJ)
+&                             EMEAN2 (IJ), THQ2(IJ), FMEAN2(IJ), xdepth(IJ)
       IF (IOS.NE.0) THEN
          WRITE(IU06,*) '****************************************************'
          WRITE(IU06,*) '*                                                  *'
@@ -216,7 +208,7 @@ else                                                     !! formatted read
    ios = 0
    DO IJ = 1,NBINP
       READ (IU02,*,IOSTAT=IOS) XLON(IJ), XLAT(IJ), CDATE2,                     &
-&                              EMEAN2 (IJ), THQ2(IJ), FMEAN2(IJ)
+&                              EMEAN2 (IJ), THQ2(IJ), FMEAN2(IJ), xdepth(IJ)
       IF (IOS.NE.0) THEN
          WRITE(IU06,*) '****************************************************'
          WRITE(IU06,*) '*                                                  *'
@@ -253,5 +245,6 @@ else                                                     !! formatted read
       END IF
    END DO
 endif
+deallocate (xdepth)
 
 END SUBROUTINE READ_BOUNDARY_INPUT

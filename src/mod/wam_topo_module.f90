@@ -19,8 +19,10 @@ USE WAM_GENERAL_MODULE,   ONLY:  &
 &       INCDATE                    !! INCREMENTS DATE TIME GROUP.
 
 USE WAM_GRID_MODULE,      ONLY:  &
-&       INTERPOLATION_TO_GRID,   & !! INTERPOLATE TO WAM POINTS.
 &       EQUAL_TO_M_GRID            !! COMPARES WIND GRID TO MODEL GRID.
+
+USE wam_mpi_comp_module,  ONLY:  &
+&             MPI_EXCHNG
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -29,12 +31,13 @@ USE WAM_GRID_MODULE,      ONLY:  &
 ! ---------------------------------------------------------------------------- !
 
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST
-USE WAM_FRE_DIR_MODULE, ONLY: KL, ML, NDEPTH, DEPTHA, DEPTHD
-USE WAM_GRID_MODULE,    ONLY: NSEA, DEPTH_B, L_S_MASK
+USE WAM_FRE_DIR_MODULE, ONLY: KL, ML
+USE WAM_GRID_MODULE,    ONLY: DEPTH_B, AMOWEP, ZDELLO, AMOSOP, XDELLA,         &
+&                             IFROMIJ, KFROMIJ
 USE WAM_MODEL_MODULE,   ONLY: DEPTH, INDEP
-USE WAM_TIMOPT_MODULE,  ONLY: TOPO_RUN, CDTA, CDATEE, IDEL_WAM
-
-use wam_mpi_module,     only: nijs, nijl
+USE WAM_TIMOPT_MODULE,  ONLY: TOPO_RUN, CDTA, CDATEE, IDEL_WAM, L_DECOMP
+USE WAM_TABLES_MODULE,  ONLY: NDEPTH, DEPTHA, DEPTHD
+USE WAM_MPI_MODULE,     ONLY: NINF, NSUP, NIJS, NIJL
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -155,6 +158,11 @@ END INTERFACE
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
+INTERFACE INTERPOLATION_TO_GRID       !! INTERPOLATES TO MODEL GRID POINTS. 
+   MODULE  PROCEDURE INTERPOLATION_TO_GRID
+END INTERFACE
+PRIVATE INTERPOLATION_TO_GRID
+
 INTERFACE NOTIM           !! STEERING SUB IF TIME INTERPOLATION IS NOT WANTED.
    MODULE PROCEDURE NOTIM
 END INTERFACE
@@ -220,7 +228,7 @@ INTEGER   :: IT
 CDTA = ' '
 DO IT = 1, M_STORE
    IF (CD_STORE(IT).GT.CD_NEW) THEN
-      DEPTH = D_STORE(:,IT)
+      DEPTH(ninf:nsup) = D_STORE(ninf:nsup,IT)
       CDTA  = CD_STORE(IT)
       EXIT
    END IF
@@ -332,7 +340,7 @@ END IF
 IF ( ALLOCATED(CD_STORE))  then
    if (M_STORE.NE.SIZE(CD_STORE)) DEALLOCATE (CD_STORE, D_STORE)
 endif
-IF (.NOT. ALLOCATED(D_STORE) ) ALLOCATE (D_STORE(1:NSEA,M_STORE))
+IF (.NOT. ALLOCATED(D_STORE) ) ALLOCATE (D_STORE(ninf:nsup,M_STORE))
 IF (.NOT. ALLOCATED(CD_STORE)) ALLOCATE (CD_STORE(M_STORE))
 CD_STORE  = ' '
 
@@ -402,7 +410,7 @@ IF (ALLOCATED(IJ_DRY)) DEALLOCATE(IJ_DRY)
 IF (N_DRY.GT.0) THEN
    ALLOCATE (IJ_DRY(1:N_DRY))
    N = 0
-   DO IJ = 1,NSEA
+   DO IJ = ninf,nsup
       IF (DEPTH(IJ).LT.MIN_DEPTH) THEN
          N = N+1
          IJ_DRY(N) = IJ
@@ -503,7 +511,7 @@ ELSE
    WRITE (IU06,*) ' TOPO INPUT GRID IS NOT DEFINED'
 END IF
 
-WRITE (IU06,*) ' NO. OF DRY POINTS IS........................: ', N_DRY
+WRITE (IU06,*) ' NO. OF DRY POINTS IS. in sub domain)...........: ', N_DRY
 
 IF ( M_STORE.GT.0 .AND. ANY(CD_STORE.NE. ' ')) THEN
    WRITE (IU06,*) ' NUMBER OF DEPTH FIELDS STORED IN MODULE ....: ', M_STORE
@@ -1097,7 +1105,7 @@ SUBROUTINE WAM_TOPO (DT, CD_START)
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
 
-REAL,          INTENT(OUT)    :: DT(:)    !! DEPTH (M).
+REAL,          INTENT(OUT)    :: DT(ninf:nsup)    !! DEPTH (M).
 CHARACTER (LEN=14),INTENT(IN) :: CD_START !! DATE OF FIELD TO BE LOOKED FOR.
 
 ! ---------------------------------------------------------------------------- !
@@ -1137,12 +1145,12 @@ END DO
 !     2. INTERPOLATE TOPO FIELD TO GRID.                                       !
 !        -------------------------------                                       !
 
-DT = 0.  !! INITIALISE TOPO ARRAY WITH ZERO.
 IF (EQUAL_GRID) THEN
-   DT = PACK(TOPO_IN, L_S_MASK)
+   DO IJ = ninf, nsup
+      DT(IJ)= TOPO_IN(IFROMIJ(IJ),KFROMIJ(IJ))
+   END DO
 ELSE
-   CALL INTERPOLATION_TO_GRID (IU06, PER, DX_IN, DY_IN, WEST_IN, SOUTH_IN,     &
-&                              TOPO_IN, DT)
+   CALL INTERPOLATION_TO_GRID (DT)
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -1151,19 +1159,28 @@ END IF
 !        NOTHING TO DO FOR TOTAL WATER DEPTH (CODE_IN = 1).                    !
 !        ------------------------------------------------                      !
 
-IF (CODE_IN.NE.1)  DT = DT + DEPTH_B  !! INPUT IS SURFACE ELEVATION OVER NN.
+IF (CODE_IN.NE.1) THEN       !! INPUT IS SURFACE ELEVATION OVER NN.
+   DT(ninf:nsup) = DT(ninf:nsup) + DEPTH_B(ninf:nsup)
+END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     4. TEST OUTPUT OF WAVE MODEL BLOCKS                                      !
+!     4. FILL HALO IF 2_D DECOMPOSITION.                                       !
+!        -------------------------------                                       !
+
+If (.NOT.L_DECOMP) CALL mpi_exchng(DT)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     5. TEST OUTPUT OF WAVE MODEL BLOCKS                                      !
 !        ---------------------------------                                     !
 
 IF (ITEST.GE.3) THEN
-   IJ = MIN (10,SIZE(DT))
+   IJ = MIN(NINF+10,nsup)
    WRITE (IU06,*) ' '
    WRITE (IU06,*) '      SUB. WAM_TOPO: TOPO FIELDS CONVERTED TO MODEL GRID'
    WRITE (IU06,*) ' '
-   WRITE (IU06,*) ' DT(1:10) = ', DT(1:IJ)
+   WRITE (IU06,*) ' DT(NINF:NINF+10) = ', DT(NINF:IJ)
 END IF
 
 END SUBROUTINE WAM_TOPO
@@ -1172,6 +1189,156 @@ END SUBROUTINE WAM_TOPO
 !                                                                              !
 !     G. PRIVAT MODULE PROCEDURES.                                             !
 !                                                                              !
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+
+SUBROUTINE INTERPOLATION_TO_GRID (US)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!   INTERPOLATION_TO_GRID - INTERPOLATES TO MODEL GRID POINTS.                 !
+!                                                                              !
+!     H. GUNTHER    GKSS  DECEMBER 2001.                                       !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!     --------                                                                 !
+!                                                                              !
+!        LOCATE AND INTERPOLATE IN INPUT GRID.                                 !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       DOUBLE LINEAR INTERPOLATION IN INPUT GRID. OPTIONAL A SECOND INPUT     !
+!       CAN BE INTERPOLATED AT THE SAME CALL.                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.
+!     --------------------
+
+REAL,    INTENT(OUT)  :: US(NINF:NSUP)  !! SPACE INTERPOLATED OUTPUT FIELD.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.
+!     ----------------
+
+LOGICAL, SAVE :: FRSTIME = .TRUE.
+
+INTEGER :: IJ
+INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: I1, I2, K1, K2
+REAL,    SAVE ,ALLOCATABLE, DIMENSION(:) :: DI, DK
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     1. INITIALIZE INTERPOLATION WEIGHTS.                                     !
+!        ---------------------------------                                     !
+
+IF (FRSTIME) THEN
+   CALL INITIALIZE
+   FRSTIME =.FALSE.
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. LINEAR INTERPOLATION.                                                 !
+!        ----------------------                                                !
+
+!     2.1 FIRST FIELD.
+
+DO IJ = NINF,NSUP
+   US(IJ) = (TOPO_IN(I1(IJ),K1(IJ))*(1.-DI(IJ))+TOPO_IN(I2(IJ),K1(IJ))*DI(IJ))*(1.-DK(IJ)) &
+&         + (TOPO_IN(I1(IJ),K2(IJ))*(1.-DI(IJ))+TOPO_IN(I2(IJ),K2(IJ))*DI(IJ))*DK(IJ)
+END DO
+
+CONTAINS
+
+SUBROUTINE INITIALIZE
+
+ALLOCATE (I1(NINF:NSUP))
+ALLOCATE (I2(NINF:NSUP))
+ALLOCATE (K1(NINF:NSUP))
+ALLOCATE (K2(NINF:NSUP))
+ALLOCATE (DI(NINF:NSUP))
+ALLOCATE (DK(NINF:NSUP))
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     1. TRANSFORM MODEL COORDINATES TO INPUT GRID.                            !
+!        ------------------------------------------                            !
+
+I1(NINF:NSUP) = AMOWEP + (IFROMIJ(NINF:NSUP)-1)*ZDELLO(KFROMIJ(NINF:NSUP)) - WEST_IN
+I1(NINF:NSUP) = MOD(I1(NINF:NSUP)+2*M_S_PER,M_S_PER)
+DI(NINF:NSUP) = REAL(I1(NINF:NSUP))/REAL(DX_IN)
+
+K1(NINF:NSUP) = AMOSOP + (KFROMIJ(NINF:NSUP)-1)*XDELLA - SOUTH_IN
+DK(NINF:NSUP) = REAL(K1(NINF:NSUP))/REAL(DY_IN)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. COMPUTE CORNER POINT INDICES IN INPUT GRID.                           !
+!        -------------------------------------------                           !
+
+I1(NINF:NSUP)  = INT(DI(NINF:NSUP))+1
+K1(NINF:NSUP)  = INT(DK(NINF:NSUP))+1
+K2(NINF:NSUP)  = MIN(NY_IN,K1(NINF:NSUP)+1)
+I2(NINF:NSUP)  = I1(NINF:NSUP)+1
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3. DISTANCES OF INTERPOLATION POINT FROM LOW LEFT CORNER POINT.          !
+!        ------------------------------------------------------------          !
+
+DI(NINF:NSUP) = DI(NINF:NSUP)-REAL(I1(NINF:NSUP))+1.
+DK(NINF:NSUP) = DK(NINF:NSUP)-REAL(K1(NINF:NSUP))+1.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     4. CORRECTIONOF FIRST AND LAST GRID LINES (PERIODIC OR UNPERIODIC GRID). !
+!        --------------------------------------------------------------------- !
+
+IF (PER) THEN
+   WHERE (I1(NINF:NSUP).EQ.NX_IN) I2(NINF:NSUP) = 1
+   WHERE (I1(NINF:NSUP).EQ.0 ) I1(NINF:NSUP) = NX_IN
+ELSE
+   WHERE (I1(NINF:NSUP).EQ.NX_IN) I2(NINF:NSUP) = NX_IN
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     5. CHECK WHETHER POINTS ARE IN GRID.                                     !
+!        ---------------------------------                                     !
+
+IF (MINVAL(I1).LT.1 .OR. MAXVAL(I1).GT.NX_IN .OR.                              &
+&   MINVAL(K1).LT.1 .OR. MAXVAL(K1).GT.NY_IN) THEN
+   WRITE(IU06,*) ' *******************************************'
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *  FATAL ERROR IN INTERPOLATION_TO_GRID   *'
+   WRITE(IU06,*) ' *  ====================================   *'
+   WRITE(IU06,*) ' * POINT IS OUTSIDE OF INPUT GRID          *'
+   WRITE(IU06,*) ' * DIMENSION OF INPUT GRID IS   NX_IN = ', NX_IN
+   WRITE(IU06,*) ' *                              NY_IN = ', NY_IN
+   WRITE(IU06,*) ' * MIN AND MAX OF INDEX ARE                *'
+   WRITE(IU06,*) ' * I1:  MIN, MAX = ', MINVAL(I1), MAXVAL(I1)
+   WRITE(IU06,*) ' * I2:  MIN, MAX = ', MINVAL(I2), MAXVAL(I2)
+   WRITE(IU06,*) ' * K1:  MIN, MAX = ', MINVAL(K1), MAXVAL(K1)
+   WRITE(IU06,*) ' * K2:  MIN, MAX = ', MINVAL(K2), MAXVAL(K2)
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *  PROGRAM ABORTS     PROGRAM ABORTS      *'
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *******************************************'
+   CALL ABORT1
+END IF
+
+END SUBROUTINE INITIALIZE
+
+END SUBROUTINE INTERPOLATION_TO_GRID
+
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE NOTIM (CD_START, CD_END)
@@ -1217,7 +1384,7 @@ CHARACTER (LEN=14), INTENT(IN)  :: CD_END    !! DATE OF LAST TOPO FIELD.
 
 INTEGER            :: MP
 CHARACTER (LEN=14) :: CDTTOH
-REAL               :: DT(1:NSEA)  !! OUTPUT TOPO FIELD ARRAY.
+REAL               :: DT(NINF:nsup)  !! OUTPUT TOPO FIELD ARRAY.
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1237,7 +1404,7 @@ DO WHILE (CDTTOH.LE.CD_END)
 !     1.2 SAVE IN MODULE WAM_TOPO.                                             !
 !         ------------------------                                             !
 
-   D_STORE(:,MP)  = DT
+   D_STORE(NINF:nsup,MP)  = DT
    CD_STORE(MP) = CDTTOH
 
    IF (ITEST.GE.3) THEN
@@ -1300,8 +1467,8 @@ INTEGER            :: MP, NTS, N
 REAL               :: DEL
 CHARACTER (LEN=14) :: CDT1, CDT2, CDTH
 
-REAL               :: DT1(1:NSEA)  !! OUTPUT TOPO FIELD ARRAY.
-REAL               :: DT2(1:NSEA)  !! OUTPUT TOPO FIELD ARRAY.
+REAL               :: DT1(NINF:nsup)  !! OUTPUT TOPO FIELD ARRAY.
+REAL               :: DT2(NINF:nsup)  !! OUTPUT TOPO FIELD ARRAY.
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1309,7 +1476,7 @@ REAL               :: DT2(1:NSEA)  !! OUTPUT TOPO FIELD ARRAY.
 !        --------------------------------------------------------------------- !
 
 CDT1 = CDTA
-DT1  = DEPTH
+DT1(NINF:nsup)  = DEPTH(NINF:nsup)
 CDTH = CDT1
 CALL INCDATE (CDTH,IDELTO)
 IF (CD_START.NE.CDTH) THEN
@@ -1354,7 +1521,7 @@ DO
       MP = MP + 1
       CALL INCDATE(CDTH,IDELTO)
       CD_STORE(MP) = CDTH
-      D_STORE(:,MP) = DT1 + REAL(N)*DEL*(DT2-DT1)
+      D_STORE(NINF:nsup,MP) = DT1 + REAL(N)*DEL*(DT2-DT1)
    END DO
    IF (ITEST.GE.3) THEN
       WRITE(IU06,*) '       SUB. TIMIN: TOPO FIELDS FOR CD_STORE = ',          &
@@ -1364,7 +1531,7 @@ DO
 !     2.3 UPDATE TOPO FIELD REQUEST TIME AND READ NEXT IF REQUESTED.           !
 !         ----------------------------------------------------------           !
 
-   DT1  = DT2
+   DT1(NINF:nsup)  = DT2(NINF:nsup)
    CDT1 = CDT2
    CALL INCDATE (CDTH,IDELTI)
    IF (CDTH.GT.CD_END) EXIT

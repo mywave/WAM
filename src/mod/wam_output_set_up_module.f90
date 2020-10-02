@@ -29,10 +29,16 @@ USE WAM_GRID_MODULE,    ONLY:  &
 
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST, IU20, FILE20, IU25, FILE25
 
-USE WAM_TIMOPT_MODULE,  ONLY: CDATEA, CDATEE, IDELPRO, CDTPRO,                 &
-&                             SHALLOW_RUN, REFRACTION_C_RUN, COLDSTART
+USE WAM_TIMOPT_MODULE,  ONLY: CDATEA, CDATEE, IDELPRO, CDTPRO, l_decomp,       &
+&                             SHALLOW_RUN, REFRACTION_C_RUN, COLDSTART, LCFLX
 
+USE WAM_OUTPUT_PARAMETER_MODULE, ONLY:                                         &
+&            NOUT_P, TITL_P, NOUT_S, TITL_S
+
+use wam_grid_module,    only: one_point
 use wam_special_module, only: ispec2d, ispecode
+use wam_mpi_module,     only: irank, nijs, nijl, petotal, IJ2NEWIJ,            &
+&                             NSTART, NEND, noutp_ga, ijar_ga, ngou_ga
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -42,7 +48,7 @@ use wam_special_module, only: ispec2d, ispecode
 
 IMPLICIT NONE
 
-INTEGER :: I, lent
+INTEGER :: I, lent, ngou, ip, ij
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -76,17 +82,15 @@ CHARACTER( LEN=14), ALLOCATABLE :: COUTT(:)  !! OUTPUT TIMES.
 !     4. OUTPUT FLAGS FOR PARAMETER AND SPECTRA.                               !
 !        ---------------------------------------                               !
 
-INTEGER, PARAMETER :: NOUT_P = 40        !! NUMBER OF INTEGRATED PARAMETER.
-
 LOGICAL, DIMENSION(NOUT_P) :: FFLAG_P    !! FILE OUTPUT FLAG.
 LOGICAL, DIMENSION(NOUT_P) :: PFLAG_P    !! PRINTER OUTPUT FLAG.
 LOGICAL, DIMENSION(NOUT_P) :: CFLAG_P    !! COMPUTATION FLAG.
+logical :: orientation_of_directions     !! coming from or going to ?
 
 LOGICAL :: FFLAG20 = .FALSE. !! .TRUE. IF FIELDS ARE WRITTEN TO FILE20.
 LOGICAL :: PFLAG20 = .FALSE. !! .TRUE. IF FIELDS ARE PRINTED.
 LOGICAL :: CFLAG20 = .FALSE. !! .TRUE. IF ANY COMPUTATION OF FIELDS.
 
-INTEGER, PARAMETER :: NOUT_S = 4         !! NUMBER OF SPECTRA TYPES.
 integer, parameter :: npout  = 36
    
 LOGICAL, DIMENSION(NOUT_S) :: FFLAG_S    !! FILE OUTPUT FLAG. 
@@ -102,107 +106,16 @@ character (len=128) :: owpath
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     5. TITLE FOR OUTPUT PARAMETER AND SPECTRA.                               !
-!        ---------------------------------------                               !
+!     4. MISSING VALUES.                                                       !
+!        ---------------                                                       !
 
-CHARACTER(LEN=60), DIMENSION(NOUT_P) :: TITL_P = (/                  &
-& ' WIND SPEED U10 ( METRES/SECOND )                           ',    &   !!  1
-& ' WIND DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !!  2
-& ' FRICTION VELOCITY ( METRES/SECOND )                        ',    &   !!  3
-& ' DRAG COEFFICIENT ( PROMILLE )                              ',    &   !!  4
-& ' CHARNOCK PARAMETER                                         ',    &   !!  5
-& ' WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) ',    &   !!  6
-& ' CURRENT SPEED ( METRES/SECOND )                            ',    &   !!  7
-& ' CURRENT DIRECTION ( DEGREE FROM NORTH TO )                 ',    &   !!  8
-& ' SIGNIFICANT WAVE HEIGHT ( METRES )                         ',    &   !!  9
-& ' WAVE PEAK PERIOD ( SECONDS )                               ',    &   !! 10
-& ' WAVE MEAN PERIOD (SECONDS )                                ',    &   !! 11
-& ' WAVE TM1 PERIOD ( SECONDS )                                ',    &   !! 12
-& ' WAVE TM2 PERIOD ( SECONDS )                                ',    &   !! 13
-& ' WAVE DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !! 14
-& ' DIRECTIONAL SPREAD ( DEGREES )                             ',    &   !! 15
-& ' NORMALISED WAVE STRESS ( % )                               ',    &   !! 16
-& ' SEA SIGNIFICANT WAVE HEIGHT ( METRES )                     ',    &   !! 17
-& ' SEA PEAK PERIOD ( SECONDS )                                ',    &   !! 18
-& ' SEA MEAN PERIOD ( SECONDS )                                ',    &   !! 19
-& ' SEA TM1 PERIOD ( SECONDS )                                 ',    &   !! 20
-& ' SEA TM2 PERIOD (  SECONDS )                                ',    &   !! 21
-& ' SEA DIRECTION ( DEGREE FROM NORTH TO )                     ',    &   !! 22
-& ' SEA DIRECTIONAL SPREAD ( DEGREES )                         ',    &   !! 23
-& ' DUMMY                                                      ',    &   !! 24
-& ' SWELL SIGNIFICANT WAVE HEIGHT ( METRES )                   ',    &   !! 25
-& ' SWELL PEAK PERIOD ( SECONDS )                              ',    &   !! 26
-& ' SWELL MEAN PERIOD ( SECONDS )                              ',    &   !! 27
-& ' SWELL TM1 PERIOD ( SECONDS )                               ',    &   !! 28
-& ' SWELL TM2 PERIOD ( SECONDS )                               ',    &   !! 29
-& ' SWELL DIRECTION ( DEGREE FROM NORTH TO )                   ',    &   !! 30
-& ' SWELL DIRECTIONAL SPREAD ( DEGREES )                       ',    &   !! 31
-& ' DUMMY                                                      ',    &   !! 32
-& ' GODA PEAKEDNESS PARAMETER                                  ',    &   !! 33
-& ' KURTOSIS                                                   ',    &   !! 34
-& ' BENJAMIN-FEIR INDEX                                        ',    &   !! 35
-& ' NORMALIZED MAXIMUM WAVE HEIGHT                             ',    &   !! 36
-& ' MAXIMUM WAVE PERIOD ( SECONDS )                            ',    &   !! 37
-& ' PEAK FREQUENCY (INTERPOLATED) ( HZ )                       ',    &   !! 38
-& ' PEAK DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !! 39
-& ' MEAN SQUARE SLOPE                                          '/)       !! 40
-
-CHARACTER(LEN=60), DIMENSION(NOUT_S) :: TITL_S = (/                  &
-& ' SPECTRUM                                                   ',    &   !!  1
-& ' SEA SPECTRUM                                               ',    &   !!  2
-& ' SWELL SPECTRUM                                             ',    &   !!  3
-& ' DUMMY                                                      '/)       !!  4
+REAL, PARAMETER       :: ZMISS     =  -9999999.  !! MISSING VALUE (LAND)
+REAL, PARAMETER       :: ZMISS_ICE =  -9999999.  !! MISSING VALUE (ICE)
+REAL, PARAMETER       :: ZMISS_DRY =  -9999999.  !! MISSING VALUE (DRY)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     6. SCALING FACTORS FOR OUTPUT PARAMETER.                                 !
-!        -------------------------------------                                 !
-
-REAL, PARAMETER, DIMENSION(NOUT_P) :: SCAL_P = (/                              &
-&                     10.            ,    &   !!  1
-&                      1.            ,    &   !!  2
-&                    100.            ,    &   !!  3
-&                  10000.            ,    &   !!  4
-&                  10000.            ,    &   !!  5
-&                      1.            ,    &   !!  6
-&                    100.            ,    &   !!  7
-&                      1.            ,    &   !!  8
-&                     10.            ,    &   !!  9
-&                     10.            ,    &   !! 10
-&                     10.            ,    &   !! 11
-&                     10.            ,    &   !! 12
-&                     10.            ,    &   !! 13
-&                      1.            ,    &   !! 14
-&                      1.            ,    &   !! 15
-&                    100.            ,    &   !! 16
-&                     10.            ,    &   !! 17
-&                     10.            ,    &   !! 18
-&                     10.            ,    &   !! 19
-&                     10.            ,    &   !! 20
-&                     10.            ,    &   !! 21
-&                      1.            ,    &   !! 22
-&                      1.            ,    &   !! 23
-&                      1.            ,    &   !! 24
-&                     10.            ,    &   !! 25
-&                     10.            ,    &   !! 26
-&                     10.            ,    &   !! 27
-&                     10.            ,    &   !! 28
-&                     10.            ,    &   !! 29
-&                      1.            ,    &   !! 30
-&                      1.            ,    &   !! 31
-&                      1.            ,    &   !! 32
-&                     10.            ,    &   !! 33
-&                    100.            ,    &   !! 34
-&                     10.            ,    &   !! 35
-&                     10.            ,    &   !! 36
-&                     10.            ,    &   !! 37
-&                   1000.            ,    &   !! 38
-&                      1.            ,    &   !! 39
-&                   1000.            /)       !! 40
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!      7. OUTPUT POINTS FOR SPECTRA.                                           !
+!      5. OUTPUT POINTS FOR SPECTRA.                                           !
 !         --------------------------                                           !
 
 INTEGER                         :: NOUTP = 0  !! NUMBER OF OUTPUT POINTS.
@@ -211,6 +124,15 @@ INTEGER, ALLOCATABLE            :: OUTLONG(:) !! LONGITUDE OF POINTS [M_SEC].
 CHARACTER (LEN=20), ALLOCATABLE :: NAME(:)    !! NAMES OF OUTPUT SITES.
 
 INTEGER, ALLOCATABLE            :: IJAR(:)    !! GRIDPOINT NUMBER OF OUTPUT POINT
+
+! ---------------------------------------------------------------------------- !  !! WAM-MAX
+!                                                                              !  !! WAM-MAX
+!      6. WAMMAX OPTIONS                                                       !  !! WAM-MAX
+!         --------------------------                                           !  !! WAM-MAX
+                                                                                  !! WAM-MAX
+REAL                  :: WMDUR  = .0 !! width of time window (in seconds)         !! WAM-MAX
+REAL                  :: WMDX   = .0 !! xwidth of space window (in ....)          !! WAM-MAX
+REAL                  :: WMDY   = .0 !! ywidth of space window (in ....)          !! WAM-MAX
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -280,6 +202,11 @@ INTERFACE SAVE_OUTPUT_FILES             !! SAVES AND OPENS OUTPUT FILES.
    MODULE PROCEDURE SAVE_OUTPUT_FILES 
 END INTERFACE
 PUBLIC SAVE_OUTPUT_FILES
+
+INTERFACE SET_WAMMAX_OPTIONS            !! SETS WAM-MAX OPTIONS.     !! WAM-MAX
+   MODULE PROCEDURE SET_WAMMAX_OPTIONS                               !! WAM-MAX
+END INTERFACE                                                        !! WAM-MAX
+PUBLIC SET_WAMMAX_OPTIONS
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -377,10 +304,11 @@ end subroutine set_ready_outfile_directory
    
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE SET_PARAMETER_OUTPUT_FLAGS (PF, FF)
+SUBROUTINE SET_PARAMETER_OUTPUT_FLAGS (PF, FF, od)
 
 LOGICAL, INTENT(IN) :: PF(:)   !! PRINTER FLAGS.
 LOGICAL, INTENT(IN) :: FF(:)   !! FILE FLAGS.
+logical, intent(in) :: od      !! flag for orientation of directions
 
 IF (SIZE(PF).NE.NOUT_P .OR. SIZE(FF).NE.NOUT_P) THEN
    WRITE(IU06,*) '*  PROGRAM NEEDS ', NOUT_P,' FLAGS FOR PARAMETER OUTPUT *'
@@ -391,12 +319,17 @@ END IF
 
 PFLAG_P = PF
 FFLAG_P = FF
+orientation_of_directions = od
 
 FFLAG_P(24) = .FALSE.    !! CORRECT DUMMY PARAMETER.
-FFLAG_P(32) = .FALSE.
+FFLAG_P(50) = .FALSE.
+FFLAG_P(54) = .FALSE.
+FFLAG_P(66) = .FALSE.
 
 PFLAG_P(24) = .FALSE.
-PFLAG_P(32) = .FALSE.
+PFLAG_P(50) = .FALSE.
+PFLAG_P(54) = .FALSE.
+PFLAG_P(66) = .FALSE.
 
 CFLAG_P = FFLAG_P.OR.PFLAG_P
 FFLAG20 = ANY(FFLAG_P(:))
@@ -534,11 +467,17 @@ IF (.NOT.REFRACTION_C_RUN) THEN
    FFLAG_P(7:8) = .FALSE.
    PFLAG_P(7:8) = .FALSE.
 END IF
+IF (ONE_POINT) THEN
+   FFLAG_P(51:56) = .FALSE.
+   PFLAG_P(51:56) = .FALSE.
+END IF
+
 
 CFLAG_P(:) = FFLAG_P(:).OR.PFLAG_P(:)
 FFLAG20 = ANY(FFLAG_P(:))
 PFLAG20 = ANY(PFLAG_P(:))
 CFLAG20 = FFLAG20.OR.PFLAG20
+LCFLX = ANY(CFLAG_P (59:66))
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -805,6 +744,23 @@ END IF
 CALL SAVE_OUTPUT_FILES (IU20, FILE20, IU25, FILE25)
 CALL INCDATE(CDT_OUT ,IDEL_OUT)
 
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     6. Correct output text of directions if requested.                       !
+!        -----------------------------------------------                       !
+
+if (PFLAG20 .and. .not.(orientation_of_directions)) then
+   titl_p(2)  = ' WIND DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(8)  = ' CURRENT DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(14) = ' WAVE DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(22) = ' SEA DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(30) = ' SWELL DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(39) = ' PEAK DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(43) = ' FIRST SWELL DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(46) = ' SECOND SWELL DIRECTION ( DEGREE FROM NORTH FROM )'
+   titl_p(49) = ' SECOND SWELL DIRECTION ( DEGREE FROM NORTH FROM )'
+endif
+
 END SUBROUTINE PREPARE_OUTPUT
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -847,6 +803,16 @@ IF (CFLAG20) THEN
    DO I=1,NOUT_P
       WRITE(IU06,*) TITL_P(I),'....', PFLAG_P( I),'......', FFLAG_P( I)
    END DO
+
+   IF (ANY (CFLAG_P(67:70))) THEN
+      WRITE(IU06,*) '  '                                                                   !! WAM-MAX
+      WRITE(IU06,*) ' ------------------------------------------------- '                  !! WAM-MAX
+      WRITE(IU06,*) '              WAM-MAX OPTIONS:'                                       !! WAM-MAX
+      WRITE(IU06,*) ' ------------------------------------------------- '                  !! WAM-MAX
+      WRITE(IU06,*) ' TIME INTERVAL...................: ', WMDUR,' S'                      !! WAM-MAX
+      WRITE(IU06,*) ' X INTERVAL......................: ', WMDX ,' M'                      !! WAM-MAX
+      WRITE(IU06,*) ' Y INTERVAL......................: ', WMDY ,' M'                      !! WAM-MAX
+   END IF
 ELSE
    WRITE(IU06,*) '  OUTPUT OF INTEGRATED PARAMETERS IS NOT REQUESTED '
 END IF
@@ -988,6 +954,43 @@ END IF
 
 DEALLOCATE (MASK)
 
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     4. IF MPI then do decomposition.                                         !
+!        -----------------------------                                         !
+
+IF (petotal.gt.1) THEN
+    
+   If (allocated (noutp_ga)) deallocate (noutp_ga)
+   If (allocated (ijar_ga)) deallocate (ijar_ga)
+   If (allocated (ngou_ga)) deallocate (ngou_ga)
+   allocate (noutp_ga(petotal))
+   allocate (ijar_ga (NOUTP,petotal))
+   allocate (ngou_ga (NOUTP,petotal))
+   noutp_ga = 0
+   ijar_ga = 0
+   ngou_ga = 0
+   do ngou = 1,NOUTP
+      ij = ijar(ngou)
+      do ip = 1, petotal
+         if (ij>=nstart(ip).and.ij<=nend(ip)) then
+            noutp_ga(ip) = noutp_ga(ip) + 1
+            ijar_ga(noutp_ga(ip),ip) = ij
+            ngou_ga(noutp_ga(ip),ip) = ngou
+            exit
+         end if
+      END DO
+   END DO
+   IF (sum(noutp_ga(:)).NE.NOUTP) THEN
+      write (iu06,*) ' +++ error: Sub. MAKE_OUTPUT_SITES'
+      write (iu06,*) ' +++ decomposion error for output spectra'
+      write (iu06,*) ' +++ ', noutp_ga(:)
+      write (iu06,*) ' +++ ', sum(noutp_ga(:)), NOUTP
+     call abort1
+   end if
+
+END IF
+
 END SUBROUTINE MAKE_OUTPUT_SITES
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -1097,6 +1100,40 @@ END IF
 
 END SUBROUTINE SAVE_OUTPUT_FILES
 
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !     !! WAM-MAX
+                                                                                     !! WAM-MAX
+SUBROUTINE SET_WAMMAX_OPTIONS (dt, dx, dy)                                           !! WAM-MAX
+                                                                                     !! WAM-MAX
+REAL,    INTENT(IN), OPTIONAL :: DT  !! width of time window (in seconds)            !! WAM-MAX
+REAL,    INTENT(IN), OPTIONAL :: DX  !! xwidth of space window (in meters)           !! WAM-MAX
+REAL,    INTENT(IN), OPTIONAL :: DY  !! ywidth of space window (in meters)           !! WAM-MAX
+LOGICAL                       :: CCOND                                               !! WAM-MAX
+                                                                                     !! WAM-MAX
+!! ADJUST CCOND SPLITTING FOR TIME/SPACE-TIME                                        !! WAM-MAX
+     
+CCOND = ( .NOT.PRESENT(DT) .OR. .NOT.PRESENT(DX) .OR. .NOT. PRESENT(DY) )            !! WAM-MAX
+CCOND = CCOND.AND.ANY ( CFLAG_P( 67:70 ) )                                           !! WAM-MAX
+                                                                                     !! WAM-MAX
+IF ( CCOND ) THEN                                                                    !! WAM-MAX
+   WRITE(IU06,*) ' *******************************************************'          !! WAM-MAX
+   WRITE(IU06,*) ' *                                                     *'          !! WAM-MAX
+   WRITE(IU06,*) ' *     FATAL ERROR IN SUB. SET_WAMMAX_OPTIONS          *'          !! WAM-MAX
+   WRITE(IU06,*) ' *     ===========================================     *'          !! WAM-MAX
+   WRITE(IU06,*) ' * CALC OF XTREMES IS REQUESTED BUT                    *'          !! WAM-MAX
+   WRITE(IU06,*) ' * NO OPTIONS IS SPECIFIED IN WAM_USER FILE            *'          !! WAM-MAX
+   WRITE(IU06,*) ' *                                                     *'          !! WAM-MAX
+   WRITE(IU06,*) ' *         PROGRAM ABORTS  PROGRAM ABORTS              *'          !! WAM-MAX
+   WRITE(IU06,*) ' *                                                     *'          !! WAM-MAX
+   WRITE(IU06,*) ' *******************************************************'          !! WAM-MAX
+   CALL ABORT1                                                                       !! WAM-MAX
+END IF                                                                               !! WAM-MAX
+                                                                                     !! WAM-MAX
+WMDUR = DT                                                                           !! WAM-MAX
+WMDX  = DX                                                                           !! WAM-MAX
+WMDY  = DY                                                                           !! WAM-MAX
+                                                                                     !! WAM-MAX
+END SUBROUTINE SET_WAMMAX_OPTIONS                                                    !! WAM-MAX
+                                                                                     !! WAM-MAX
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 END MODULE WAM_OUTPUT_SET_UP_MODULE

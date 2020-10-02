@@ -49,7 +49,7 @@ USE WAM_GENERAL_MODULE,  ONLY: G, PI, ZPI, RAD, DEG
 USE WAM_FILE_MODULE,     ONLY: IU06, ITEST
 USE WAM_TIMOPT_MODULE,   ONLY: CDATEA, CDATEE, IDELPRO, CDTPRO, SPHERICAL_RUN
 USE WAM_GRID_MODULE,     ONLY: NX, NY, NSEA, AMOWEP, AMOSOP, AMOEAP, AMONOP,   &
-&                              XDELLA, ZDELLO, NLON_RG, IPER,                  &
+&                              XDELLA, ZDELLO, NLON_RG, IPER, IXLG, KXLT,      &
 &                              L_S_MASK, SINPH, COSPH
 USE WAM_FRE_DIR_MODULE,  ONLY: FR, DFIM, DELTH, TH
 USE WAM_MODEL_MODULE,    ONLY: U10, UDIR, USTAR
@@ -250,9 +250,9 @@ real, dimension (:,:,:), intent(inout) :: fl3
 REAL, PARAMETER :: ZMISS =  -999.       !! MISSING VALUE.
 
 REAL :: ETOT(1:nsea)                    !! FIRST GUESS WAVE ENERGIES
-REAL :: ETOIB(1:nsea)                   !! BLOCK OF UPDATED WAVE ENERGIES.  
+REAL :: ETOIB(nijs:nijl)                   !! BLOCK OF UPDATED WAVE ENERGIES.
 REAL :: USTAR_OLD(nijs:nijl)            !! BLOCK OF FIRST GUESS  USTARS. 
-REAL :: USOIB(1:nsea)                   !! UPDATED USTARS. 
+REAL :: USOIB(nijs:nijl)                   !! UPDATED USTARS.
 real :: xustar(1:nsea)                  !! complete ustar
 real :: xu10(1:nsea)                    !! complete u10
 REAL :: CDG(NX,NY)                      !! DRAG COEF.
@@ -266,7 +266,7 @@ REAL, ALLOCATABLE, DIMENSION(:,:) :: WHGTTG  !! FIRST GUESS WAVE HEIGHT.
 REAL, ALLOCATABLE, DIMENSION(:,:) :: USTARG  !! FIRST GUESS USTAR.
 
 character (len=100) :: titl                  !! WORK STRING FOR PRINTING
-integer :: isend, irecv
+integer :: i, isend, irecv
 
 ! ----------------------------------------------------------------------       !
    
@@ -307,10 +307,15 @@ call mpi_gather_block (irecv, ustar, xustar)
 call mpi_gather_block (irecv, u10, xu10)
     
 if (irank==irecv) then
-   WHGTTG = UNPACK (4.*SQRT(ETOT), L_S_MASK, ZMISS)   !! MAKE HS GRIDDED FIELD.
-   USTARG = UNPACK (xUSTAR, L_S_MASK, ZMISS)          !! MAKE USTAR GRIDDED FIELD.
-   CDG = UNPACK((xUSTAR**2 +0.0001)/(xU10**2+0.01), L_S_MASK, ZMISS)
-endif                           
+   WHGTTG = ZMISS
+   USTARG = ZMISS
+   CDG    = ZMISS
+   DO I = 1,NSEA
+      WHGTTG(IXLG(I), KXLT(I))=  4.*SQRT(ETOT(I))    !! MAKE HS GRIDDED FIELD.
+      USTARG(IXLG(I), KXLT(I))=  xUSTAR(I)           !! MAKE USTAR GRIDDED FIELD.
+      CDG   (IXLG(I), KXLT(I))=  (xUSTAR(I)**2 +0.0001)/(xU10(I)**2+0.01)
+   END DO
+endif
     
 call mpi_gather_oifl (isend, whgttg)         !! send fields to all processes
 call mpi_gather_oifl (isend, ustarg)
@@ -366,15 +371,19 @@ END IF
 !     5. ANALYSING THE SPECTRA.                                                !
 !        ----------------------                                                !
 
-ETOIB = PACK (WHOI, L_S_MASK)    !! BLOCK UPDATED WAVE HEIGHTS
-WHERE (ETOIB.GT.0.) 
-   ETOIB = ETOIB**2/16.          !! UPDATED WAVE ENERGIES
+DO I = NIJS, NIJL
+   ETOIB(I) = WHOI(IXLG(I), KXLT(I)) !! BLOCK UPDATED WAVE HEIGHTS
+END DO
+WHERE (ETOIB.GT.0.)
+   ETOIB = ETOIB**2/16.              !! UPDATED WAVE ENERGIES
 ELSEWHERE
    ETOIB = -99.
 ENDWHERE
 
-USTAR_OLD = USTAR                !! SAVE FIRST GUESS WINDS
-USOIB = PACK (USOI, L_S_MASK)    !! BLOCK UPDATED WINDS
+USTAR_OLD = USTAR                    !! SAVE FIRST GUESS WINDS
+DO I = NIJS, NIJL
+   USOIB(I) = USOI(IXLG(I), KXLT(I)) !! BLOCK UPDATED WINDS
+END DO
 
 CALL UPDATE (FL3, ETOT(nijs:nijl), ETOIB(nijs:nijl), USOIB(nijs:nijl),         &
 &            USTAR, UDIR)
@@ -531,9 +540,13 @@ IF (ICE_RUN .OR. N_DRY.GT.0) THEN
    ID_MAP_AC = 0.
    IF (ICE_RUN) CALL PUT_ICE (ID_MAP_AC, 1.)
    IF (N_DRY.GT.0) CALL PUT_DRY (ID_MAP_AC, 1.)
-   ID_MAP = UNPACK(ID_MAP_AC, L_S_MASK, 1.) .EQ. 1.
+
+   DO I= 1, NSEA
+     ID_MAP(IXLG(I), KXLT(I)) =  ID_MAP_AC(I) .EQ. 1.    !! MAKE HS GRIDDED FIELD.
+   END DO
+   ID_MAP(:,:) = .NOT. L_S_MASK(:,:) .OR. ID_MAP(:,:)
 ELSE
-   ID_MAP = .NOT. L_S_MASK
+   ID_MAP(:,:) = .NOT. L_S_MASK(:,:) 
 END IF
 
 !      OPEN INPUT FILE.
@@ -683,10 +696,12 @@ WRITE (IU06,*) '       NUMBER OF DATA ACCEPTED BY "GRDATA"  IS FOR WH :',      &
 DO J = 1,NY
    DO I = 1,NLON_RG(J)
       NN = NUMBWH(I,J)
-      IF (NN.GE.4) THEN
-         WHME(I,J) = WHME(I,J)/REAL(NN)                   !! MEAN VALUE.
-         WHSE2 =  (WHSE(I,J)-WHME(I,J)**2*REAL(NN)) / (REAL(NN)-1.)
-         WHSE(I,J) = SQRT( MAX(WHSE2,0.))                 !! STANDARD DEVIATION.
+      IF (NN.GE.1) THEN 
+         WHME(I,J) = WHME(I,J)/REAL(NN)                      !! MEAN VALUE.
+         IF (NN.GE.4) THEN
+            WHSE2 =  (WHSE(I,J)-WHME(I,J)**2*REAL(NN)) / (REAL(NN)-1.)
+            WHSE(I,J) = SQRT( MAX(WHSE2,0.))                 !! STANDARD DEVIATION.
+         END IF
       END IF
    END DO
 END DO
@@ -694,10 +709,12 @@ END DO
 DO J = 1,NY
    DO I = 1,NLON_RG(J)
       NN = NUMBUS(I,J)
-      IF (NN.GE.4) THEN
-         USME(I,J) = USME(I,J)/REAL(NN)                  !! MEAN VALUE.
-         USSE2 =  (USSE(I,J)-USME(I,J)**2*REAL(NN)) / (REAL(NN)-1.)
-         USSE(I,J) = SQRT( MAX(USSE2,0.))                !! STANDARD DEVIATION.
+      IF (NN.GE.1) THEN
+         USME(I,J) = USME(I,J)/REAL(NN)                     !! MEAN VALUE.
+         IF (NN.GE.4) THEN
+            USSE2 =  (USSE(I,J)-USME(I,J)**2*REAL(NN)) / (REAL(NN)-1.)
+            USSE(I,J) = SQRT( MAX(USSE2,0.))                !! STANDARD DEVIATION.
+         END IF
       END IF
    END DO
 END DO
@@ -713,8 +730,8 @@ DO J = 1,NY
       NN = NUMBWH(I,J)
       IF (NN.EQ.0) THEN                       !! IF THERE ARE NO MEASUREMENTS
          WHME(I,J) = -3.
-      ELSE IF (NN.GT.0 .AND. NN.LT.4) THEN    !! IF THERE ARE FEW MEASUREMENTS.
-         WHME(I,J) = -2.
+      ELSE IF (NN.LT.4) THEN                  !! IF THERE ARE FEW MEASUREMENTS.
+         NWH = NWH+1
       ELSE IF (NN.GE.4) THEN                  !! IF THE VARIANCE IS TOO LARGE
                                               !! OR SWH IS TOO SMALL  
 					      !! OR THERE ARE TOO MANY SPIKES.
@@ -735,8 +752,8 @@ DO J = 1,NY
       NN = NUMBUS(I,J)
       IF (NN.EQ.0) THEN                        !! IF THERE ARE NO MEASUREMENTS 
          USME(I,J) = -3.
-      ELSE IF (NN.GT.0 .AND. NN.LT.4) THEN     !! IF THERE ARE FEW MEASUREMENTS.
-         USME(I,J) = -2.
+      ELSE IF (NN.LT.4) THEN     !! IF THERE ARE FEW MEASUREMENTS.
+         NUS = NUS + 1
       ELSE IF (NN.GE.4) THEN                   !! IF THE VARIANCE IS TOO LARGE
                                                !! OR THERE IS NO CORRESPONDING SWH.
          IF (USME(I,J).GT.0.0001) RFU = USSE(I,J)/USME(I,J)
@@ -899,6 +916,10 @@ BLOCK: DO J = 1,NY
 
 !   INVERSE MATRIX M                                                           !
 
+
+
+
+
       COND = 0.
       EPS = 0.
       CALL SYMINV (P(1:NOBS,1:NOBS), NOBS, NOBS, COND, V)
@@ -954,7 +975,6 @@ INTEGER         :: IOBS, I1, I2, J1, J2, JOBS
 REAL            :: D0BS, W
 
 ! ---------------------------------------------------------------------------- !
-
 DO I1 = 1,NOBS-1
    DO J1 = I1+1,NOBS
       XM(I1,J1) = XM(J1,I1)
@@ -989,6 +1009,7 @@ DO IOBS = 1,NOBS
       J2 = JMEAS(JOBS)
       XOI = XOI + W*XM(IOBS,JOBS)*(XME(I2,J2)-XMO(I2,J2))
    END DO
+
 END DO
 
 END SUBROUTINE ANALYSE

@@ -26,7 +26,9 @@ USE WAM_INTERFACE_MODULE, ONLY:  &
 &       TM1_TM2_PERIODS,         &  !! COMPUTATION OF TM1 AND/OR TM2 PERIOD.
 &       TOTAL_ENERGY,            &  !! COMPUTATION OF TOTAL ENERGY.
 &       MEANSQS,                 &  !! COMPUTATION OF TMEAN SQUARE SLOPE.
+&       STOKES_DRIFT,            &  !! COMPUTES STOKES DRIFT.
 &       CHARNOCK_PAR,            &  !! COMPUTATION OF CHARNOCK_PARAMETER,
+&       WAMAX,                   &  !! COMPUTATION OF ...                          !! WAM-MAX
 &       KURTOSIS                    !! COMPUTATION OF KURTOSIS,
                                     !! BENJAMIN-FEIR INDEX,
                                     !! GODA'S PEAKEDNESS PARAMETER,
@@ -45,8 +47,14 @@ USE WAM_ICE_MODULE,    ONLY:     &
 USE WAM_TOPO_MODULE,   ONLY:     & 
 &       PUT_DRY                     !! PUTS DRY INDICATOR INTO DATA FIELD.
 
+USE WAM_RADIATION_MODULE, ONLY:  &
+&       RADIATION_STRESS            !! COMPUTAION OF RADIATION STRESS.
+
 USE WAM_SOURCE_MODULE, ONLY:     & 
 &       AIRSEA                      !! EVALUATE USTAR.
+
+USE WAM_SWELL_MODULE, ONLY:      &
+&       SWELL_SEPARATION            !! SWELL SEPARATION.
 
 use wam_mpi_comp_module, only:   &
 &       mpi_gather_block,        &
@@ -64,28 +72,39 @@ use wam_special_module, only:    &
 
 USE WAM_GENERAL_MODULE,ONLY: G, ZPI, DEG, RCHAR
 
-USE WAM_FRE_DIR_MODULE,ONLY: KL, ML, CO, FR, C, DFIM, TH, COSTH, SINTH, TFAK
+USE WAM_FRE_DIR_MODULE,ONLY: KL, ML, CO, FR, C, DFIM, TH, COSTH, SINTH
 
 USE WAM_GRID_MODULE,   ONLY: NX, NY, NLON_RG, AMOWEP, AMOSOP, AMOEAP, AMONOP,  &
-&                             L_S_MASK, NSEA, ZDELLO
+&                             L_S_MASK, NSEA, ZDELLO, IXLG, KXLT
 
 USE WAM_FILE_MODULE,   ONLY: IU06, ITEST, IU20, IU25, FILE20, FILE25,          &
 &                            area, iu67
+
+USE WAM_FLUX_MODULE,    ONLY: PHIOC, PHIAW, TAUOC_X, TAUOC_Y,                  &
+&                             PHIBOT, TAUBOT_X, TAUBOT_Y
 
 USE WAM_MODEL_MODULE,  ONLY: FL3, U10, UDIR, USTAR, TAUW, Z0, DEPTH, INDEP, U, V
 
 USE WAM_TIMOPT_MODULE, ONLY: IDELPRO, CDTPRO,                                  &
 &                            SHALLOW_RUN, REFRACTION_C_RUN, cdatea
 
+USE WAM_OUTPUT_PARAMETER_MODULE, ONLY:                                         &
+&            NOUT_P, TITL_P, SCAL_P, NOUT_S, TITL_S
+
 USE WAM_OUTPUT_SET_UP_MODULE, ONLY:                                            &
 &       CDTINTT, CDTSPT, IDELINT, IDELSPT, NOUTT, COUTT, CDT_OUT,              &
-&       NOUT_P, FFLAG_P, FFLAG20, PFLAG_P, PFLAG20, CFLAG_P, CFLAG20,          &
-&       TITL_P, SCAL_P,                                                        &
-&       NOUT_S, FFLAG_S, FFLAG25, PFLAG_S, PFLAG25, CFLAG_S, CFLAG25,          &
-&       TITL_S, NOUTP, OUTLAT, OUTLONG, NAME, IJAR,                            &
-&       ready_outf, owpath
+&       FFLAG_P, FFLAG20, PFLAG_P, PFLAG20, CFLAG_P, CFLAG20,                  &
+&       FFLAG_S, FFLAG25, PFLAG_S, PFLAG25, CFLAG_S, CFLAG25,                  &
+&       NOUTP, OUTLAT, OUTLONG, NAME, IJAR,                                    &
+&       ready_outf, owpath, orientation_of_directions,                         &
+&       ZMISS, ZMISS_ICE, ZMISS_DRY
 
 USE WAM_ICE_MODULE,    ONLY: ICE_RUN
+
+USE WAM_NEST_MODULE,   ONLY: FINE, NBOUNF, IJARF
+
+USE WAM_TABLES_MODULE, ONLY: TFAK
+
 USE WAM_TOPO_MODULE,   ONLY: N_DRY
 
 use wam_mpi_module,    only: irank, nijs, nijl, ipfgtbl, i_out_par, i_out_spec
@@ -136,11 +155,6 @@ INTERFACE SIGMA_TO_OMEGA              !! MAP SPECTRUM FROM SIGMA TO OMEGA SPACE.
    MODULE PROCEDURE SIGMA_TO_OMEGA
 END INTERFACE
 PRIVATE SIGMA_TO_OMEGA
-
-INTERFACE SWELL_SEPARATION            !! SWELL SEPARATION AND INTEGRATED
-   MODULE PROCEDURE SWELL_SEPARATION  !! PARAMETER OF SEA AND SWELL.
-END INTERFACE
-PRIVATE SWELL_SEPARATION
 
 INTERFACE WRITE_MODEL_OUTPUT           !! WRITE MODEL OUTPUT.
    MODULE PROCEDURE WRITE_MODEL_OUTPUT
@@ -220,7 +234,7 @@ END IF
 
 !  ARRAY FOR SWELL-SEA SEPARATION
 
-IF (ANY(CFLAG_P(17:32)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
+IF (ANY(CFLAG_P(17:32)).OR.ANY(CFLAG_P(41:49)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
    ALLOCATE (FL(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3)))
 END IF
 
@@ -510,11 +524,15 @@ REAL  :: TAU(NIJS:NIJL)
 
 BLOCK = 0.
 
-IF (MAXVAL(USTAR(:)).EQ.0.) THEN !! EVALUATE FRICTION VELOCITY
+IF (MAXVAL(USTAR(:)).EQ.0.) THEN   !! EVALUATE FRICTION VELOCITY
   CALL AIRSEA  (U10, TAUW, USTAR, Z0)
 END IF
 IF (CFLAG_P(1)) BLOCK(NIJS:NIJL,1) = U10(:)
-IF (CFLAG_P(2)) BLOCK(NIJS:NIJL,2) = DEG * UDIR(:)
+if (orientation_of_directions) then
+   IF (CFLAG_P(2)) BLOCK(NIJS:NIJL,2) = DEG * UDIR(:)
+else
+   IF (CFLAG_P(2)) BLOCK(NIJS:NIJL,2) = mod(DEG * UDIR(:) + 180.,360.)
+endif
 IF (CFLAG_P(3)) BLOCK(NIJS:NIJL,3) = USTAR(:)
 
 IF (CFLAG_P(4).OR.CFLAG_P(16)) THEN
@@ -537,7 +555,11 @@ IF (CFLAG_P(7)) THEN
    BLOCK(NIJS:NIJL,7) = SQRT(U(NIJS:NIJL)**2+V(NIJS:NIJL)**2)
 END IF
 IF (CFLAG_P(8)) THEN  
-   BLOCK(NIJS:NIJL,8) = ATAN2(U(NIJS:NIJL),V(NIJS:NIJL))*DEG
+   if (orientation_of_directions) then
+      BLOCK(NIJS:NIJL,8) = ATAN2(U(NIJS:NIJL),V(NIJS:NIJL))*DEG
+   else
+      BLOCK(NIJS:NIJL,8) = mod(ATAN2(U(NIJS:NIJL),V(NIJS:NIJL))*DEG+180.,360.)
+   endif
    WHERE (BLOCK(NIJS:NIJL,8).LT.0.) BLOCK(NIJS:NIJL,8) = BLOCK(NIJS:NIJL,8)+360.
 END IF
 
@@ -578,9 +600,14 @@ ELSE IF (CFLAG_P(14)) THEN
 ELSE IF (CFLAG_P(15)) THEN
    CALL MEAN_DIRECTION (FL3, SPREAD=BLOCK(NIJS:NIJL,15))
 END IF
-IF (CFLAG_P(14)) BLOCK(NIJS:NIJL,14) = BLOCK(NIJS:NIJL,14)*DEG
+if (orientation_of_directions) then
+   IF (CFLAG_P(14)) BLOCK(NIJS:NIJL,14) = BLOCK(NIJS:NIJL,14)*DEG
+else
+   IF (CFLAG_P(14)) BLOCK(NIJS:NIJL,14) = mod(BLOCK(NIJS:NIJL,14)*DEG+180.,360.)
+endif
 IF (CFLAG_P(15)) BLOCK(NIJS:NIJL,15) = BLOCK(NIJS:NIJL,15)*DEG
 
+IF (CFLAG_P(32)) BLOCK(NIJS:NIJL,32) = Z0(:)
 
 IF (ANY(CFLAG_P(33:39))) THEN
    CALL KURTOSIS (FL3, DEPTH(NIJS:NIJL), BLOCK(NIJS:NIJL,34),                  &
@@ -591,7 +618,11 @@ IF (ANY(CFLAG_P(33:39))) THEN
 &                                        BLOCK(NIJS:NIJL,36),                  &
 &                                        BLOCK(NIJS:NIJL,37))
 END IF
-IF (CFLAG_P(39)) BLOCK(NIJS:NIJL,39) = DEG * BLOCK(NIJS:NIJL,39)
+if (orientation_of_directions) then
+   IF (CFLAG_P(39)) BLOCK(NIJS:NIJL,39) = DEG*BLOCK(NIJS:NIJL,39)
+else
+   IF (CFLAG_P(39)) BLOCK(NIJS:NIJL,39) = mod(DEG*BLOCK(NIJS:NIJL,39)+180.,360.)
+endif
 
 IF (ITEST.GE.3)   WRITE(IU06,*)                                                &
 & '      SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED'
@@ -602,154 +633,72 @@ IF (ITEST.GE.3)   WRITE(IU06,*)                                                &
 !     2. WINDSEA SWELL SEPARATION.                                             !
 !        -------------------------                                             !
 
-IF (ANY(CFLAG_P(17:32)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
-   CALL SWELL_SEPARATION (FL3, FL)
+IF (ANY(CFLAG_P(17:31)).OR.ANY(CFLAG_P(41:49)).OR.ANY(CFLAG_S(2:NOUT_S)) ) THEN
+   CALL SWELL_SEPARATION (FL3, FL, BLOCK)
    IF (ITEST.GE.3) THEN
       WRITE(IU06,*) '      SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE'
    END IF
 END IF
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3. RADIATION STRESS TENSOR AND WAVE FORCE VECTOR.                        !
+!        ----------------------------------------------                        !
+
+IF (ANY(CFLAG_P(51:56))) THEN
+   CALL RADIATION_STRESS (FL3, BLOCK(NIJS:NIJL,51:56))
+ENDIF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     4. COMPUTE STOKES DRIFT.                                                 !
+!        ---------------------                                                 !
+
+IF (ANY(CFLAG_P(57:58))) THEN
+
+   IF (SHALLOW_RUN) THEN
+      CALL STOKES_DRIFT (FL3, BLOCK(NIJS:NIJL,57), BLOCK(NIJS:NIJL,58),        &
+&                        INDEP(NIJS:NIJL))
+   ELSE
+      CALL STOKES_DRIFT (FL3, BLOCK(NIJS:NIJL,57), BLOCK(NIJS:NIJL,58))
+   END IF
+
+   IF (FINE) THEN              !! FLAG BOUNDARY INPUT POINTS (IF FINE GRID)
+      DO I = 1, NBOUNF
+         IF (IJARF(I).LT.NIJS .OR. IJARF(I).GT.NIJL) CYCLE
+         BLOCK(IJARF(I),57) = ZMISS
+         BLOCK(IJARF(I),58) = ZMISS
+      END DO
+   END IF
+   IF (ITEST.GE.3) THEN
+      WRITE(IU06,*) '      SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE'
+   END IF
+END IF
+call flush (iu06)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     5. FLUXES.                                                               !
+!        -------                                                               !
+
+IF (CFLAG_P(59)) BLOCK(NIJS:NIJL,59) = PHIOC
+IF (CFLAG_P(60)) BLOCK(NIJS:NIJL,60) = PHIAW
+IF (CFLAG_P(61)) BLOCK(NIJS:NIJL,61) = TAUOC_X
+IF (CFLAG_P(62)) BLOCK(NIJS:NIJL,62) = TAUOC_Y
+IF (CFLAG_P(63)) BLOCK(NIJS:NIJL,63) = PHIBOT
+IF (CFLAG_P(64)) BLOCK(NIJS:NIJL,64) = TAUBOT_X
+IF (CFLAG_P(65)) BLOCK(NIJS:NIJL,65) = TAUBOT_Y
+
+! ---------------------------------------------------------------------------- !  !! WAM-MAX
+!                                                                              !  !! WAM-MAX
+!     6. WAM-MAX.                                                              !  !! WAM-MAX
+!        -------                                                               !  !! WAM-MAX
+
+IF (ANY(CFLAG_P(67:70))) THEN                                                     !! WAM-MAX
+    CALL WAMAX (FL3, DEPTH(NIJS:NIJL), BLOCK(NIJS:NIJL,39), BLOCK(NIJS:NIJL,67), &!! WAM-MAX
+&        BLOCK(NIJS:NIJL,68),BLOCK(NIJS:NIJL,69),BLOCK(NIJS:NIJL,70) )            !! WAM-MAX
+END IF                                                                            !! WAM-MAX
 
 END SUBROUTINE COMPUTE_OUTPUT_PARAMETER
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
-SUBROUTINE SWELL_SEPARATION (FL3, FL1)
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!   SWELL_SEPARATION - COMPUTES THE SWELL SPECTRUM AND INTEGRATED PARAMETER    !
-!                      OF SWELL AND WINDSEA.                                   !
-!                                                                              !
-!     P.LIONELLO     FEBRUARY 87                                               !
-!                                                                              !
-!     L.ZAMBRESKY    NOVEMBER 87   GKSS/ECMWF   OPTIMIZED SUB.                 !
-!     H. GUENTHER    FEBRUARY 2002   GKSS       FT90 AND INTEGRATED PARAMETERS !
-!     A. Behrens     December 2003 MSC/GKSS     Message passing                !
-!     E. Myklebust   February 2005              MPI parallelization
-!                                                                              !
-!     PURPOSE.                                                                 !
-!     --------                                                                 !
-!                                                                              !
-!       TO SEPARATE THE SWELL FROM THE WIND INTERACTING SEA AND COMPUTE        !
-!       INTEGRATED PARAMETER FOR BOTH SYSTEMS.                                 !
-!                                                                              !
-!     METHOD.                                                                  !
-!     -------                                                                  !
-!                                                                              !
-!       THE WAVES WHICH DO NOT INTERACT WITH THE WIND ARE CONSIDERED SWELL.    !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     INTERFACE VARIABLES.                                                     !
-!     --------------------                                                     !
-
-REAL,    INTENT(IN)  :: FL3(:,:,:)        !! BLOCK OF SPECTRA.
-REAL,    INTENT(OUT) :: fl1(:,:,:)        !! BLOCK OF SWELL SPECTRA.
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     LOCAL VARIABLES.                                                         !
-!     ----------------                                                         !
-
-REAL, PARAMETER :: FRIC = 28.
-LOGICAL :: SWELL(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3)) !! TRUE FOR SWELL ENERGY.
-
-INTEGER  :: K, M
-REAL     :: CM
-REAL     :: SIS(SIZE(FL3,1))
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     1. THE SWELL DISTRIBUTION IS COMPUTED.                                   !
-!        -----------------------------------                                   !
-
-FL1 = 0.
-DO M = 1,ML
-   CM = FRIC/C(M)
-   DO K=1,KL
-      SIS(:) = 1.2*USTAR(:)*COS(TH(K)-UDIR(:))
-      WHERE (cm*sis(:)<1.0) fl1(:,k,m) = fl3(:,k,m)
-      SWELL(:,k,m) =  cm*sis(:)<1.0
-   END DO
-END DO
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     2. COMPUTATION INTEGRATED PARAMETER FOR WINDSEA.                         !
-!        ---------------------------------------------                         !
-
-IF (CFLAG_P(17).OR.ANY(CFLAG_P(19:21))) THEN
-   CALL TOTAL_ENERGY (FL3, BLOCK(NIJS:NIJL,17), MASK=.NOT.SWELL)
-   IF (CFLAG_P(19)) THEN
-      CALL FEMEAN (FL3, BLOCK(NIJS:NIJL,17), FM=BLOCK(NIJS:NIJL,19),           &
-&                  MASK=.NOT.SWELL)
-      BLOCK(NIJS:NIJL,19) = 1./BLOCK(NIJS:NIJL,19)
-   END IF
-   IF (CFLAG_P(20).AND.CFLAG_P(21)) THEN
-      CALL TM1_TM2_PERIODS (FL3, BLOCK(NIJS:NIJL,17), TM1=BLOCK(NIJS:NIJL,20), &
-&                           TM2=BLOCK(NIJS:NIJL,21), MASK=.NOT.SWELL)
-   ELSE IF (CFLAG_P(20)) THEN
-      CALL TM1_TM2_PERIODS (FL3, BLOCK(NIJS:NIJL,17), TM1=BLOCK(NIJS:NIJL,20), &
-&                           MASK=.NOT.SWELL)
-   ELSE IF (CFLAG_P(21)) THEN
-      CALL TM1_TM2_PERIODS (FL3, BLOCK(NIJS:NIJL,17), TM2=BLOCK(NIJS:NIJL,21), &
-&                           MASK=.NOT.SWELL)
-   END IF
-   IF (CFLAG_P(17)) BLOCK(NIJS:NIJL,17) = 4.*SQRT(BLOCK(NIJS:NIJL,17))
-END IF
-
-IF (CFLAG_P(18)) CALL PEAK_PERIOD (FL3,BLOCK(NIJS:NIJL,18), MASK=.NOT.SWELL)
-
-IF (CFLAG_P(22).AND.CFLAG_P(23)) THEN
-   CALL MEAN_DIRECTION (FL3, THQ=BLOCK(NIJS:NIJL,22),                          &
-&                       SPREAD=BLOCK(NIJS:NIJL,23), MASK=.NOT.SWELL)
-ELSE IF (CFLAG_P(22)) THEN
-   CALL MEAN_DIRECTION (FL3, THQ=BLOCK(NIJS:NIJL,22), MASK=.NOT.SWELL)
-ELSE IF (CFLAG_P(23)) THEN
-   CALL MEAN_DIRECTION (FL3, SPREAD=BLOCK(NIJS:NIJL,23), MASK=.NOT.SWELL)
-END IF
-IF (CFLAG_P(22)) BLOCK(NIJS:NIJL,22) = BLOCK(NIJS:NIJL,22)*DEG
-IF (CFLAG_P(23)) BLOCK(NIJS:NIJL,23) = BLOCK(NIJS:NIJL,23)*DEG
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3. COMPUTATION INTEGRATED PARAMETER FOR SWELL.                           !
-!        -------------------------------------------                           !
-
-IF (CFLAG_P(25).OR.ANY(CFLAG_P(27:29))) THEN
-   CALL TOTAL_ENERGY (FL3, BLOCK(NIJS:NIJL,25), MASK=SWELL)
-   IF (CFLAG_P(27)) THEN
-      CALL FEMEAN (FL3,  BLOCK(NIJS:NIJL,25), FM=BLOCK(NIJS:NIJL,27),          &
-&                  MASK=SWELL)
-      BLOCK(NIJS:NIJL,27) = 1./BLOCK(NIJS:NIJL,27)
-   END IF
-   IF (CFLAG_P(28).AND.CFLAG_P(29)) THEN
-      CALL TM1_TM2_PERIODS (FL3, BLOCK(NIJS:NIJL,25), TM1=BLOCK(NIJS:NIJL,28), &
-&                           TM2=BLOCK(NIJS:NIJL,29), MASK=SWELL)
-   ELSE IF (CFLAG_P(28)) THEN
-      CALL TM1_TM2_PERIODS (FL3, BLOCK(NIJS:NIJL,25), TM1=BLOCK(NIJS:NIJL,28), &
-&                           MASK=SWELL)
-   ELSE IF (CFLAG_P(29)) THEN
-      CALL TM1_TM2_PERIODS (FL3, BLOCK(NIJS:NIJL,25), TM2=BLOCK(NIJS:NIJL,29), &
-&                           MASK=SWELL)
-   END IF
-   IF (CFLAG_P(25)) BLOCK(NIJS:NIJL,25) = 4.*SQRT( BLOCK(NIJS:NIJL,25))
-END IF
-
-IF (CFLAG_P(26)) CALL PEAK_PERIOD (FL3, BLOCK(NIJS:NIJL,26), MASK=SWELL)
-
-IF (CFLAG_P(30).AND.CFLAG_P(31)) THEN
-   CALL MEAN_DIRECTION (FL3, THQ=BLOCK(NIJS:NIJL,30),                          &
-&                            SPREAD=BLOCK(NIJS:NIJL,31), MASK=SWELL)
-ELSE IF (CFLAG_P(30)) THEN
-   CALL MEAN_DIRECTION (FL3, THQ=BLOCK(NIJS:NIJL,30), MASK=SWELL)
-ELSE IF (CFLAG_P(31)) THEN
-   CALL MEAN_DIRECTION (FL3, SPREAD=BLOCK(NIJS:NIJL,31), MASK=SWELL)
-END IF
-IF (CFLAG_P(30)) BLOCK(NIJS:NIJL,30) = BLOCK(NIJS:NIJL,30)*DEG
-IF (CFLAG_P(31)) BLOCK(NIJS:NIJL,31) = BLOCK(NIJS:NIJL,31)*DEG
-
-END SUBROUTINE SWELL_SEPARATION
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
@@ -875,11 +824,6 @@ INTEGER, INTENT(IN) :: IU20         !! PARAMETER UNIT NUMBER.
 !     LOCAL VARIABLE.                                                          !
 !     ---------------                                                          !
 
-REAL, PARAMETER       :: ZMISS     =  -999.  !! MISSING VALUE (LAND)
-REAL, PARAMETER       :: ZMISS_ICE =  -997.  !! MISSING VALUE (ICE)
-REAL, PARAMETER       :: ZMISS_DRY =  -998.  !! MISSING VALUE (DRY)
-REAL, PARAMETER       :: ZMISS_PRI =  -995.  !! MISSING VALUE for Print
-
 INTEGER                          :: IP, ierr
 REAL,ALLOCATABLE, DIMENSION(:,:) :: GRID        !! GRIDDED PARAMETER FIELD.
 REAL,ALLOCATABLE, DIMENSION(:)   :: BLOCK_TOTAL !! FULL PARAMETER FIELD.
@@ -906,6 +850,7 @@ END IF
 IF (irank==i_out_par) THEN
    ALLOCATE (BLOCK_TOTAL(1:nsea))
    ALLOCATE (GRID(1:NX,1:NY))
+   GRID = ZMISS
 END IF
 
 DO IP = 1,NOUT_P
@@ -934,13 +879,17 @@ DO IP = 1,NOUT_P
          IF (IP.EQ.5) THEN
             IF (ICE_RUN)    CALL PUT_ICE (BLOCK_TOTAL(:), RCHAR)
             IF (N_DRY.GT.0) CALL PUT_DRY (BLOCK_TOTAL(:), RCHAR)
-END IF
+        END IF
      END IF
 
 !     2.2 MAKE GRID FIELD.                                                     !
 !        -----------------                                                     !
 
-      GRID = UNPACK (BLOCK_TOTAL(:), L_S_MASK, ZMISS)
+!      GRID = UNPACK (BLOCK_TOTAL(:), L_S_MASK, ZMISS)
+    
+      DO I = 1, NSEA
+         GRID (IXLG(I), KXLT(I)) = BLOCK_TOTAL(I)
+      END DO
 
 !     2.3 WRITE OUTPUT.                                                        !
 !         -------------                                                        !
@@ -949,7 +898,8 @@ END IF
       IF (PFLAG_P(IP)) THEN
          IF (IP.EQ.5) GRID = MIN(GRID, 999.)
          CALL PRINT_ARRAY (IU06, CDTPRO, TITL_P(IP), GRID,                     &
-&                        AMOWEP, AMOSOP, AMOEAP, AMONOP, SCAL_P(IP),ZMISS_PRI)
+&              AMOWEP, AMOSOP, AMOEAP, AMONOP, SCAL_P(IP),ZMISS, NG_R=NLON_RG)
+
       END IF
    END IF
    

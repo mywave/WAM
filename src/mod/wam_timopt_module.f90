@@ -51,10 +51,20 @@ LOGICAL :: SHALLOW_RUN       !! TRUE:  SHALLOW WATER MODEL,
                              !! FALSE:  DEEP WATER MODEL. 
 LOGICAL :: REFRACTION_D_RUN  !! TRUE: DEPTH REFRACTION ON.                                            
 LOGICAL :: REFRACTION_C_RUN  !! TRUE: CURRENT REFRACTION ON.                                            
-LOGICAL :: WAVE_BREAKING_RUN !! TRUE: WAVE BREAKING ON.                                          
+LOGICAL :: L_OBSTRUCTION     !! TRUE: REDUCTION FACTORS DUE TO SUB. GRID.
+INTEGER :: IPHYS             !! PHYSICS PARAMETERISATION FOR INPUT AND OPEN OCEAN
+                             !! DISSIPATION
+                             !!  0 : ECMWF CY45R1
+                             !!  1 : ECMWF CY46R1, based on Ardhuin et al. 2010
+LOGICAL :: WAVE_BREAKING_RUN !! TRUE: WAVE BREAKING ON.
 LOGICAL :: TOPO_RUN          !! TRUE: INSTATIONARY WATER DEPTH.
 LOGICAL :: CURRENT_RUN       !! TRUE: INSTATIONARY CURRENTS.
 LOGICAL :: PHILLIPS_RUN      !! TRUE: PHILLIPS SOURCE TERM 0N.
+INTEGER :: ISNONLIN          !! = 0 OLD DEPTH SCALING FOR SNL,
+                             !! ≠ 0 NEW DEPTH SCALING FOR SNL.
+LOGICAL :: LCFLX             !! TRUE: CALCULATION OF THE FLUXES ARE PERFORMED.
+LOGICAL :: L_DECOMP          !! TRUE: MPI DECOMPOSITION IS 1D
+                             !! FALSE: MPI DECOMPOSITION IS 2D
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -121,40 +131,51 @@ CONTAINS
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE SET_MODEL_OPTION (SPHERICAL, SHALLOW, REFRACTION_D, REFRACTION_C,   &
-&                            WAVE_BREAKING, PHILLIPS)
+&                            R_FACTOR, L_DEC, IWAMPHYS, WAVE_BREAKING,         &
+&                            PHILLIPS, INONLIN)
 
-LOGICAL, OPTIONAL, INTENT(IN) :: SPHERICAL      !! PROPAGATION FLAG
-                                                !! TRUE:  SPHERICAL COORDINATES
-                                                !! FALSE: CARTESIAN COORDINATES.
-LOGICAL, OPTIONAL, INTENT(IN) :: SHALLOW        !! SHALLOW WATER MODEL FLAG
-                                                !! TRUE:  SHALLOW WATER MODEL.
-                                                !! FALSE: DEEP WATER MODEL
-LOGICAL, OPTIONAL, INTENT(IN) :: REFRACTION_D   !! DEPTH REFRACTION OPTION.
-                                                !! FALSE: NO DEPTH REFRACTION.
-                                                !! TRUE:  DEPTH REFRACTION.
-LOGICAL, OPTIONAL, INTENT(IN) :: REFRACTION_C   !! CURRENT REFRACTION OPTION.
-                                                !! TRUE:  CURRENT REFRACTION.
-                                                !! FALSE: NO CURRENT REFRACTION.
-LOGICAL, OPTIONAL, INTENT(IN) :: WAVE_BREAKING  !! WAVE BREAKING OPTION.
-                                                !! FALSE:  NO BREAKING.
-                                                !! TRUE:   BREAKING ACTIVE.
-LOGICAL, OPTIONAL, INTENT(IN) :: PHILLIPS       !! PHILLIPS SOURCE.
-                                                !! FALSE:  OFF.
-                                                !! TRUE:   ON.
-                                    
-SPHERICAL_RUN     = .TRUE.
-SHALLOW_RUN       = .TRUE.
-REFRACTION_D_RUN  = .FALSE.
-REFRACTION_C_RUN  = .FALSE.
-WAVE_BREAKING_RUN = .FALSE.
-PHILLIPS_RUN      = .FALSE.
+LOGICAL, INTENT(IN) :: SPHERICAL      !! PROPAGATION FLAG
+                                      !! TRUE:  SPHERICAL COORDINATES
+                                      !! FALSE: CARTESIAN COORDINATES.
+LOGICAL, INTENT(IN) :: SHALLOW        !! SHALLOW WATER MODEL FLAG
+                                      !! TRUE:  SHALLOW WATER MODEL.
+                                      !! FALSE: DEEP WATER MODEL
+LOGICAL, INTENT(IN) :: REFRACTION_D   !! DEPTH REFRACTION OPTION.
+                                      !! FALSE: NO DEPTH REFRACTION.
+                                      !! TRUE:  DEPTH REFRACTION.
+LOGICAL, INTENT(IN) :: REFRACTION_C   !! CURRENT REFRACTION OPTION.
+                                      !! TRUE:  CURRENT REFRACTION.
+                                      !! FALSE: NO CURRENT REFRACTION.
+LOGICAL, INTENT(IN) :: R_FACTOR       !! TRUE: REDUCTION FACTOR DUE TO SUB. GRID.
+                                      !! FALSE: NO REDUCTION FACTOR DUE TO SUB. GRID.
+LOGICAL, INTENT(IN) :: L_DEC          !! TRUE: MPI DECOMPOSITION IS 1D.
+                                      !! FALSE: MPI DECOMPOSITION IS 2D.
+INTEGER, INTENT(IN) :: IWAMPHYS       !! PHYSICS PARAMETERISATION FOR INPUT
+                                      !! AND OPEN OCEAN DISSIPATION
+                                      !!  0 : ECMWF CY45R1
+                                      !!  1 : ECMWF CY46R1, based on Ardhuin et al. 2010
+LOGICAL, INTENT(IN) :: WAVE_BREAKING  !! WAVE BREAKING OPTION.
+                                      !! FALSE:  NO BREAKING.
+                                      !! TRUE:   BREAKING ACTIVE.
+LOGICAL, INTENT(IN) :: PHILLIPS       !! PHILLIPS SOURCE.
+                                      !! FALSE:  OFF.
+                                      !! TRUE:   ON.
+INTEGER, INTENT(IN) :: INONLIN        !! = 0 OLD DEPTH SCALING
+                                      !! ≠ 0 NEW DEPTH SCALING
 
-IF (PRESENT(SPHERICAL    )) SPHERICAL_RUN     = SPHERICAL
-IF (PRESENT(SHALLOW      )) SHALLOW_RUN       = SHALLOW
-IF (PRESENT(REFRACTION_D )) REFRACTION_D_RUN  = REFRACTION_D
-IF (PRESENT(REFRACTION_C )) REFRACTION_C_RUN  = REFRACTION_C
-IF (PRESENT(WAVE_BREAKING)) WAVE_BREAKING_RUN = WAVE_BREAKING
-IF (PRESENT(PHILLIPS     )) PHILLIPS_RUN = PHILLIPS
+! ---------------------------------------------------------------------------- !
+
+SPHERICAL_RUN     = SPHERICAL
+SHALLOW_RUN       = SHALLOW
+REFRACTION_D_RUN  = REFRACTION_D
+REFRACTION_C_RUN  = REFRACTION_C
+L_OBSTRUCTION     = R_FACTOR
+L_DECOMP          = L_DEC
+IPHYS             = IWAMPHYS
+WAVE_BREAKING_RUN = WAVE_BREAKING
+PHILLIPS_RUN      = PHILLIPS
+ISNONLIN          = INONLIN
+LCFLX = .FALSE.
 
 IF (SHALLOW_RUN .AND.REFRACTION_C_RUN .AND. .NOT.REFRACTION_D_RUN) THEN
    WRITE (IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
@@ -202,6 +223,21 @@ IF (.NOT.SHALLOW_RUN .AND. WAVE_BREAKING_RUN) THEN
    WRITE (IU06,*) ' +                                                   +'
    WRITE (IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
    WAVE_BREAKING_RUN = .FALSE.
+END IF
+IF (.NOT.SHALLOW_RUN .AND. L_OBSTRUCTION) THEN
+   WRITE (IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' +        WARNING ERROR SUB.SET_MODEL_OPTION.        +'
+   WRITE (IU06,*) ' +        ===================================        +'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' + A DEEP WATER MODEL RUN WITH REDUCTION DUE TO      +'
+   WRITE (IU06,*) ' + SUB. GRID IS REQUESTED.                           +'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' +               MODEL CONTINUES                     +'
+   WRITE (IU06,*) ' +             WITHOUT REDUCTION                     +'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
+   L_OBSTRUCTION = .FALSE.
 END IF
 
 END SUBROUTINE SET_MODEL_OPTION
@@ -279,6 +315,24 @@ IF (REFRACTION_C_RUN) THEN
 ELSE
    WRITE(IU06,*) ' MODEL RUNS WITHOUT CURRENT REFRACTION'
 END IF
+IF (IPHYS.EQ.0) THEN
+   WRITE (IU06,*) ' ECMWF CY45R1 PARAMETERISATION FOR INPUT AND OPEN OCEAN DISSIPATION'
+ELSEIF (IPHYS.EQ.1) THEN
+   WRITE (IU06,*) ' ECMWF CY46R1 PARAMETERISATION FOR INPUT AND OPEN OCEAN DISSIPATION'
+ELSE
+   WRITE (IU06,*) ' INCORRECT CHOICE FOR FOR INPUT AND OPEN OCEAN DISSIPATION  '
+   CALL ABORT1
+END IF
+IF (L_OBSTRUCTION) THEN
+   WRITE(IU06,*) ' MODEL RUNS WITH OBSTRUCTION'
+ELSE
+   WRITE(IU06,*) ' MODEL RUNS WITHOUT OBSTRUCTION'
+END IF
+IF (L_DECOMP) THEN
+   WRITE(IU06,*) ' IF MPI-RUN, THEN 1D DECOMPOSITION OF GRID'
+ELSE
+   WRITE(IU06,*) ' IF MPI-RUN, THEN 2D DECOMPOSITION OF GRID'
+END IF
 
 IF (WAVE_BREAKING_RUN) THEN
    WRITE(IU06,*) ' MODEL RUNS WITH  WAVE BREAKING'
@@ -296,6 +350,18 @@ IF (COLDSTART) THEN
    WRITE (IU06,*) ' INITIAL VALUES ARE PROCESSED DUE TO OPTION (COLD START).'
 ELSE 
    WRITE (IU06,*) ' INITIAL VALUES FROM A PREVIOUS MODEL RUN (HOT START).'
+END IF
+
+IF (ISNONLIN.NE.0) THEN
+    WRITE (IU06,*) ' NEW DEPTH SCALING FOR SNL SOURCE FUNCTION.'
+ELSE
+    WRITE (IU06,*) ' OLD DEPTH SCALING FOR SNL SOURCE FUNCTION.'
+END IF
+
+IF (LCFLX) THEN
+   WRITE(IU06,*) ' CALCULATION OF THE FLUXES ARE PERFORMED.'
+ELSE
+   WRITE(IU06,*) ' CALCULATION OF THE FLUXES ARE NOT PERFORMED.'
 END IF
 WRITE(IU06,*) '  '
 

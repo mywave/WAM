@@ -1,0 +1,16 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
+    
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/ptime_S.mk $OBJDIR
+cd $OBJDIR
+make -f ptime_S.mk ptime_S
+mv ptime_S $EXECDIR
+rm -f ptime_S.mk

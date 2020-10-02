@@ -136,6 +136,18 @@ IF (LINE( 8:12).NE.' ') READ (LINE( 8:12),'(I5)',IOSTAT=IOS) KL
 IF (IOS.NE.0) CALL ERROR_MESSAGE ('KL')
 IF (LINE(14:23).NE.' ') READ (LINE(14:23),'(F10.8)',IOSTAT=IOS) FR1
 IF (IOS.NE.0) CALL ERROR_MESSAGE('FR1')
+IF (LINE(25:29).NE.' ') READ (LINE(25:29),'(I5)',IOSTAT=IOS) IREF
+IF (IOS.NE.0) CALL ERROR_MESSAGE('FR1')
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. SHALLOW WATER DEPTH TABLE DEFINITIONS.                                !
+!        --------------------------------------                                !
+
+CALL F_NEW_DATA
+IF (LINE( 2:11).NE.' ') READ (LINE( 2:11),'(I10)',  IOSTAT=IOS) N_DEPTH
+IF (LINE(13:22).NE.' ') READ (LINE(13:22),'(F10.4)',IOSTAT=IOS) DEPTH_S
+IF (LINE(24:33).NE.' ') READ (LINE(24:33),'(F10.4)',IOSTAT=IOS) DEPTH_I
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -144,6 +156,8 @@ IF (IOS.NE.0) CALL ERROR_MESSAGE('FR1')
 
 CALL F_NEW_DATA
 REDUCED_GRID = (SCAN(LINE( 2:11),'T').GT.0 .OR. SCAN(LINE( 2:11),'t').GT.0) 
+L_INTERPOL = .NOT.(SCAN(LINE(13:22),'F').GT.0 .OR. SCAN(LINE(13:22),'f').GT.0)
+L_OBSTRUCTION = (SCAN(LINE(24:33),'T').GT.0 .OR. SCAN(LINE(24:33),'t').GT.0)
 
 CALL F_NEW_DATA
 IF (LINE( 2:14).NE.' ') AMOSOP = LINE( 2:14)
@@ -205,8 +219,8 @@ END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     5. TEST OPTION.                                                          !
-!        ------------                                                          !
+!     5. TEST OPTION AND WIND INPUT PARAMETER.                                 !
+!        -------------------------------------                                 !
 
 CALL F_NEW_DATA
 READ (LINE,'(1X,I8)',IOSTAT=IOS) ITEST

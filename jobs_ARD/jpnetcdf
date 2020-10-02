@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+#==>  WAM post-processing pnetcdf
+#
+#     Arno Behrens (March January 2016)
+#
+#SBATCH --job-name=pnetcdf
+#SBATCH --partition=pCluster
+#SBATCH --ntasks=1
+#SBATCH --time=00:05:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=cluster
+#SBATCH --output=pnetcdf.o%j
+#SBATCH --error=pnetcdf.e%j
+#
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
+#
+set -k
+WAMDIR=/gpfs/home/behrens/WAM_Cycle_6
+WORK=/gpfs/work/behrens/WAM_Cycle_6
+cd ${WORK}/tempsg
+#
+cp ${WAMDIR}/const/Coarse_Grid/ARD/nlnetcdf NETCDF_User
+cp ${WAMDIR}/abs/pnetcdf pnetcdf.exe
+#
+srun -N 1 -n 1 --mpi=pmi2 -t 5 ./pnetcdf.exe
+#
+mv pnetcdf_prot ${WAMDIR}/dayfiles/pnetcdf_prot_coarse_ARD
+mv WAVE* ../coarse/ARD
+rm NETCDF_User pnetcdf.exe
+#
+# ===================================================================
+#  NETCDF FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PNETCDF.
+# ===================================================================
+#

@@ -17,6 +17,9 @@ USE WAM_COORDINATE_MODULE          !! COORDINATE PROCEDURES
 USE WAM_FRE_DIR_MODULE,  ONLY:  &
 &       SET_FRE_DIR                !! DEFINE FREQUENCY DIRECTION GRID.
 
+USE WAM_GENERAL_MODULE, ONLY:   &
+&       SET_GENERAL_MODULE
+
 USE WAM_NEST_MODULE, ONLY:      &
 &       SET_BOUNDARY_OPTION,    &  !! DEFINES BOUNDARY OPTION
 &       SET_NEST                   !! DEFINES A NEST.
@@ -31,6 +34,9 @@ USE WAM_FILE_MODULE,     ONLY:  &
 &       SET_TOPO_FILE,          &  !! DEFINE DEPTH DATA FILE NAME.
 &       SET_PREPROC_FILE,       &  !! DEFINE PREPROC OUTPUT FILE NAME.
 &       SET_C_PREPROC_FILE         !! DEFINE COARSE GRID PREPROC FILE NAME.
+
+USE WAM_TABLES_MODULE,  ONLY:   &
+&       SET_DEPTH_TABLE_PARAMETER  !! DEFINE DEPTH TABLES
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -51,26 +57,38 @@ IMPLICIT NONE
 
 ! ---------------------------------------------------------------------------- !
 
-CHARACTER (LEN=80) :: HEADER            !! HEADER OF MODEL RUN.
-INTEGER            :: ITEST             !! TEST OUTPUT OPTION.
+CHARACTER (LEN=80) :: HEADER       !! HEADER OF MODEL RUN.
+INTEGER            :: ITEST        !! TEST OUTPUT OPTION.
 
 ! ---------------------------------------------------------------------------- !
 ! 
 !    2. FREQUENCY-DIRECTION GRID.
 !       -------------------------
 
-INTEGER            :: KL                !! NUMBER OF DIRECTIONS.
-INTEGER            :: ML                !! NUMBER OF FREQUENCIES.
-REAL               :: FR1               !! FIRST FREQUENCY [HZ].
+INTEGER            :: KL           !! NUMBER OF DIRECTIONS.
+INTEGER            :: ML           !! NUMBER OF FREQUENCIES.
+REAL               :: FR1          !! REFERENCE FREQUENCY [HZ].
+INTEGER            :: IREF         !! FREQUENCY BIN NUMBER OF REFERENCE FREQU.
+
+! ---------------------------------------------------------------------------- !
+!
+!    3. SHALLOW WATER TABLES.
+!       ---------------------
+
+INTEGER            :: N_DEPTH       !! LENGTH OF SHALLOW WATER TABLES.
+REAL               :: DEPTH_S       !! MINIMUM DEPTH FOR TABLES [M].
+REAL               :: DEPTH_I       !! DEPTH INCREMENT [%].
 
 ! ---------------------------------------------------------------------------- !
 ! 
 !    3. BASIC MODEL GRID.
 !       -----------------
 
-LOGICAL            :: REDUCED_GRID      !! REDUCED GRID OPTION.
-INTEGER            :: NX                !! NUMBER OF LONGITUDES.
-INTEGER            :: NY                !! NUMBER OF LATITUDES.
+LOGICAL        :: REDUCED_GRID      !! REDUCED GRID OPTION.
+LOGICAL        :: L_INTERPOL        !! INTERPOLATION OPTION FOR MODEL DEPTH.
+LOGICAL        :: L_OBSTRUCTION     !! REDUCTION FACTORS DUE TO SUB-GRID FEATURES.
+INTEGER        :: NX                !! NUMBER OF LONGITUDES.
+INTEGER        :: NY                !! NUMBER OF LATITUDES.
 CHARACTER(LEN=LEN_COOR) :: XDELLA       !! LONGITUDE INCREMENT.
 CHARACTER(LEN=LEN_COOR) :: XDELLO       !! LATITUDE  INCREMENT.
 CHARACTER(LEN=LEN_COOR) :: AMOSOP       !! SOUTH LATITUDE.
@@ -129,8 +147,9 @@ CHARACTER (LEN=80) :: PREPROC_OUTPUT_FILE_NAME
 
 NAMELIST /PREPROC_NAMELIST/                                                    &
 &       HEADER,   ITEST,                                                       &      
-&       KL,       ML,      FR1,                                                &
-&       REDUCED_GRID,                                                          &
+&       KL,       ML,      FR1,     IREF,                                      &
+&       N_DEPTH,  DEPTH_S, DEPTH_I,                                            &
+&       REDUCED_GRID,      L_INTERPOL,   L_OBSTRUCTION,                        &
 &       NX,       NY,      XDELLA,  XDELLO,                                    &
 &       AMOSOP,   AMONOP,  AMOWEP,  AMOEAP,                                    &
 &       LAND,                                                                  &
@@ -206,20 +225,29 @@ ITEST  = 0           !! TEST OUTPUT OPTION.
 
 KL     = 24          !! NUMBER OF DIRECTIONS.
 ML     = 25          !! NUMBER OF FREQUENCIES.
-FR1    = .04177248   !! FIRST FREQUENCY [HZ].
+FR1    = .04177248   !! REFERENCE FREQUENCY [HZ].
+IREF   = 1           !! FREQUENCY BIN NUMBER OF REFERENCE FREQUENCY
 
 ! ---------------------------------------------------------------------------- !
 
-REDUCED_GRID = .FALSE.   !! REDUCED GRID OPTION.
-NX     = -1              !! NUMBER OF LONGITUDES.
-NY     = -1              !! NUMBER OF LATITUDES.
-XDELLA = ' '             !! LONGITUDE INCREMENT.
-XDELLO = ' '             !! LATITUDE  INCREMENT.
-AMOSOP = ' '             !! SOUTH LATITUDE.
-AMONOP = ' '             !! NORTH LATITUDE.
-AMOWEP = ' '             !! WEST LONGITUDE.
-AMOEAP = ' '             !! EAST LONGITUDE.
-LAND    = 0.             !! DEPTH >= LAND ARE SEAPOINTS [M].
+N_DEPTH = 69         !! LENGTH OF SHALLOW WATER TABLES.
+DEPTH_S = 1.0        !! MINIMUM DEPTH FOR TABLES [M].
+DEPTH_I = 1.1        !! DEPTH RATIO.
+
+! ---------------------------------------------------------------------------- !
+
+REDUCED_GRID   = .FALSE.    !! REDUCED GRID OPTION.
+L_INTERPOL     = .TRUE.     !! MODEL DEPTH IS NEAREST NEIGHBOUR DEPTH OF INPUT.
+L_OBSTRUCTION  = .FALSE.    !! REDUCTION FACTORS DUE TO SUB-GRID FEATURES.
+NX     = -1                 !! NUMBER OF LONGITUDES.
+NY     = -1                 !! NUMBER OF LATITUDES.
+XDELLA = ' '                !! LONGITUDE INCREMENT.
+XDELLO = ' '                !! LATITUDE  INCREMENT.
+AMOSOP = ' '                !! SOUTH LATITUDE.
+AMONOP = ' '                !! NORTH LATITUDE.
+AMOWEP = ' '                !! WEST LONGITUDE.
+AMOEAP = ' '                !! EAST LONGITUDE.
+LAND    = 0.                !! DEPTH >= LAND ARE SEAPOINTS [M].
 
 ! ---------------------------------------------------------------------------- !
 
@@ -318,11 +346,15 @@ endif
 CALL SET_HEADER (HEADER)
 CALL SET_TEST_OPTION (TEST=ITEST)
 
-CALL SET_FRE_DIR (N_DIR=KL, N_FRE=ML, FR1=FR1)
-  
+CALL SET_FRE_DIR (N_DIR=KL, N_FRE=ML, FR1=FR1, IREF=IREF)
+
+CALL SET_DEPTH_TABLE_PARAMETER (N_DEPTH=N_DEPTH, DEPTH_S=DEPTH_S,              &
+&              DEPTH_I=DEPTH_I)
+
 CALL SET_GRID_DEF (N_LON=NX, N_LAT=NY, D_LON=XDELLO, D_LAT=XDELLA,             &
 &                 SOUTH=AMOSOP, NORTH=AMONOP, WEST=AMOWEP, EAST=AMOEAP,        &
-&                  LAND=LAND, R_GRID=REDUCED_GRID)
+&                 LAND=LAND, R_GRID=REDUCED_GRID, L_INTERPOL=L_INTERPOL,       &
+&                 L_OBSTRUCTION=L_OBSTRUCTION)
 
 CALL SET_GRID_CORRECTIONS (SOUTH=XOUTS, NORTH=XOUTN, WEST=XOUTW, EAST=XOUTE,   &
 &                          D_COR=XOUTD)

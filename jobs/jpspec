@@ -1,29 +1,37 @@
-#!/usr/bin/ksh -l
+#!/bin/bash
+#
+#     Arno Behrens (May 2019)
 #
 #==>  WAM post-processing pspec
 #
-#     Arno Behrens (March 2014)
+#SBATCH --job-name=pspec
+#SBATCH --partition=pCluster
+#SBATCH --ntasks=1
+#SBATCH --time=00:05:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=cluster
+#SBATCH --output=pspec.o%j
+#SBATCH --error=pspec.e%j
 #
-#PBS -q xc_normal
-#PBS -l select=1
-#PBS -l place=pack
-#PBS -l walltime=00:10:00
-#PBS -j oe
-#PBS -N Pspec
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
 #
 set -k
-WAMDIR=/e/uhome/gkssbeh/WAM
-WORK=/e/uhome/gkssbeh/WAM/workdir
+WAMDIR=/gpfs/home/behrens/WAM_Cycle_6
+WORK=/gpfs/work/behrens/WAM_Cycle_6
+#
 cd ${WORK}/tempsg
-cp ${WAMDIR}/const/Coarse_Grid/Spectra_User .
+cp ${WAMDIR}/const/Coarse_Grid/JAN/Spectra_User .
 cp ${WAMDIR}/abs/pspec pspec.exe
 #
 ./pspec.exe
-mv Spectra_Prot ${WAMDIR}/dayfiles/pspec_prot_c
+#
+mv Spectra_Prot ${WAMDIR}/dayfiles/pspec_prot_coarse_JAN
 rm Spectra_User pspec.exe
 #
 # ===================================================================
-#  SPEC FILES HAVE BEEN CREATED AND SAVED.
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
 #  END OF JOB PGRID.
 # ===================================================================
 #

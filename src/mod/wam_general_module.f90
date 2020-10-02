@@ -46,21 +46,34 @@ REAL, PARAMETER :: DEG = 180./PI     !! COVERTION FROM RADIANS TO DEGREE
 REAL, PARAMETER :: RAD = PI/180.     !! COVERTION FROM DEGREE TO RADIANS 
 REAL, PARAMETER :: CIRC = 40000000.  !! EARTH CIRCUMFERENCE [M].
 REAL, PARAMETER :: R = CIRC/ZPI      !! EARTH RADIUS [M].
+REAL, PARAMETER :: GAMMA_E = 0.57721566 !! EULER CONSTANT                      !! WAM-MAX
 
 ! ---------------------------------------------------------------------------- !
 !
 !    2. PARAMETERS FOR COUPLING.
 !       ------------------------
 
-REAL, PARAMETER :: ROAIR = 1.225        !! AIR DENSITY
+REAL, PARAMETER :: ROAIR   = 1.225      !! AIR DENSITY
+REAL, PARAMETER :: RNUAIR  = 1.5E-5     !! KINEMATIC AIR VISCOSITY
+REAL, PARAMETER :: RNUAIRM = 0.11*RNUAIR !! KINEMATIC AIR VISCOSITY FOR MOMENTUM TRANSFER
 REAL, PARAMETER :: ROWATER = 1000.      !! WATER DENSITY
 REAL, PARAMETER :: XEPS = ROAIR/ROWATER
 REAL, PARAMETER :: XINVEPS = 1./XEPS
-REAL, PARAMETER :: BETAMAX = 1.20       !! PARAMETER FOR WIND INPUT.
-REAL, PARAMETER :: ZALP    = 0.0110     !! SHIFTS GROWTH CURVE.
-REAL, PARAMETER :: ALPHA   = 0.0095     !! CHARNOCK CONSTANT.
+
+REAL            :: BETAMAX = 1.20       !! PARAMETER FOR WIND INPUT (ECMWF CY45R1).
+REAL            :: ZALP    = 0.0080     !! SHIFTS GROWTH CURVE (ECMWF CY45R1).
+REAL            :: ALPHA   = 0.0060     !! MINIMUM CHARNOCK CONSTANT (ECMWF CY45R1).
+                                        !! if LE 30 frequencies changed
+                                        !! to 0.0075 in subroutine INITMDL
+REAL            :: TAUWSHELTER= 0.0     !! SHELTERING COEFFICIENT  (ECMWF CY45R1)
+
+REAL            :: BETAMAX_ARD = 1.42   !! PARAMETER FOR WIND INPUT (ECMWF CY46R1, based on Ardhuin et al. 2010).
+REAL            :: ZALP_ARD= 0.0080     !! SHIFTS GROWTH CURVE (ECMWF CY46R1, based on Ardhuin et al. 2010).
+REAL            :: ALPHA_ARD= 0.0062    !! MINIMUM CHARNOCK CONSTANT (ECMWF CY46R1, based on Ardhuin et al. 2010).
+REAL            :: TAUWSHELTER_ARD= 0.25 !! SHELTERING COEFFICIENT (ECMWF CY46R1, based on Ardhuin et al. 2010).
+
 REAL, PARAMETER :: XKAPPA  = 0.40       !! VON KARMAN CONSTANT.
-REAL, PARAMETER :: XNLEV   = 10.0       !! WINDSPEED REF. LEVEL 
+REAL, PARAMETER :: XNLEV   = 10.0       !! WINDSPEED REF. LEVEL.
 REAL, PARAMETER :: RCHAR   = 0.018      !! DEFAULT CHARNOCK VALUE FOR ICE AND
                                         !! DRY SEA.
 ! ---------------------------------------------------------------------------- !
@@ -74,6 +87,41 @@ REAL, PARAMETER :: BF2MAX = 10.       !! MAXIMUM VALUE ALLOWED FOR BFI SQUARED.
 REAL, PARAMETER :: C4MIN = -0.33      !! MINIMUM VALUE ALLOWED FOR KURTOSIS.
 REAL, PARAMETER :: C4MAX = 1.         !! MAXIMUM VALUE ALLOWED FOR KURTOSIS.
 
+! ---------------------------------------------------------------------------- !
+!
+!    4. PARAMETERS FOR SDISSIP_ARD ARDHUIN et al. 2010
+!       ----------------------------------------------
+!     Br:
+REAL, PARAMETER :: SDSBR = 9.0E-4
+
+!!     Saturation dissipation coefficient
+INTEGER, PARAMETER :: ISDSDTH = 80
+INTEGER, PARAMETER :: ISB=2
+INTEGER, PARAMETER :: IPSAT=2
+REAL, PARAMETER :: SSDSC2 = -2.2E-5
+REAL, PARAMETER :: SSDSC4 = 1.0
+REAL, PARAMETER :: SSDSC6 = 0.3
+REAL, PARAMETER :: MICHE = 1.0
+
+!!     Cumulative dissipation coefficient
+!!! REAL, PARAMETER :: SSDSC3 = -0.40344
+!!!   This is quite an expensive computation. Setting it to 0 will disable its calculation.
+!!!   It was found that if the high frequency tail is prescribed (see frcutindex),
+!!!   then the results are very similar.
+!!!   Converserly, it will be required, in particular for the wave modified fluxes to NEMO
+!!!   when the high frequency tail is not prescribed and used in all calculation
+REAL, PARAMETER :: SSDSC3 = 0.0
+
+REAL, PARAMETER :: SSDSBRF1 = 0.5
+!  28.16 = 22.0 * 1.6² * 1/2 with
+!  22.0 (Banner & al. 2000, figure 6)
+!  1.6  the coefficient that transforms  SQRT(B) to Banner et al. (2000)'s epsilon
+!  1/2  factor to correct overestimation of Banner et al. (2000)'s breaking probability due to zero-crossing analysis
+REAL, PARAMETER :: BRKPBCOEF=28.16
+
+!! Wave-turbulence interaction coefficient
+REAL, PARAMETER :: SSDSC5  = 0.0
+
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
 !     D.  PUBLIC INTERFACES.                                                   !
@@ -85,7 +133,7 @@ INTERFACE ABORT1                        !! TERMINATE PROCESSING.
 END INTERFACE
 
 INTERFACE AKI                           !! WAVE NUMBER FROM FREQUENCY AND DEPTH.
-MODULE PROCEDURE AKI
+   MODULE PROCEDURE AKI
 END INTERFACE
 
 interface flush1
@@ -124,6 +172,26 @@ INTERFACE REDUCED_TO_REGULAR            !! INTERPOLATE REDUCED TO REGULAR GRID.
    MODULE PROCEDURE REDUCED_TO_REGULAR_C
 END INTERFACE
 PUBLIC REDUCED_TO_REGULAR
+
+INTERFACE PRINT_GENERAL_MODULE          !! PRINT OUTPUT OF MODULE DATA.
+   MODULE PROCEDURE PRINT_GENERAL_MODULE
+END INTERFACE
+PUBLIC PRINT_GENERAL_MODULE
+
+INTERFACE SET_GENERAL_MODULE            !! TRANSFER OF DATA INTO MODULE.
+   MODULE PROCEDURE SET_GENERAL_MODULE
+END INTERFACE
+PUBLIC SET_GENERAL_MODULE
+
+INTERFACE SORT               !! SORT A DATA ARRAY BY AN INDEX ARRAY.
+   MODULE PROCEDURE SORTI       !! INTEGER DATA ARRAY
+END INTERFACE
+PUBLIC SORT
+
+INTERFACE SORTIN             !! FIND THE INDEX ARRAY WHICH SORTS THE DATA.
+   MODULE PROCEDURE SORTINI     !! INTEGER DATA ARRAY
+END INTERFACE
+PUBLIC SORTIN
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -280,16 +348,16 @@ AKI   = MAX ( OM**2/(4.*G), OM/(2.*SQRT(G*BETA)) )
 
 AKP = 10000.
 DO WHILE (ABS(AKP-AKI).GT.EBS*AKI)
-BO = BETA*AKI
-IF (BO.GT.DKMAX) THEN
-AKI = OM**2/G
-EXIT
-ELSE
-AKP = AKI
-TH = G*AKI*TANH(BO)
-STH = SQRT(TH)
-AKI = AKI+(OM-STH)*STH*2./(TH/AKI+G*BO/COSH(BO)**2)
-END IF
+   BO = BETA*AKI
+   IF (BO.GT.DKMAX) THEN
+      AKI = OM**2/G
+      EXIT
+   ELSE
+      AKP = AKI
+      TH = G*AKI*TANH(BO)
+      STH = SQRT(TH)
+      AKI = AKI+(OM-STH)*STH*2./(TH/AKI+G*BO/COSH(BO)**2)
+   END IF
 END DO
 
 END FUNCTION AKI
@@ -297,8 +365,8 @@ END FUNCTION AKI
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 subroutine flush1 (iu)
-integer :: iu
-call flush (iu)
+   integer :: iu
+   call flush (iu)
 end subroutine flush1
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -697,7 +765,7 @@ END SUBROUTINE OPEN_FILE
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE PRINT_ARRAY_C (IUOUT, CDATE, TITL, ARRAY,                           &
-                          AMOWEP, AMOSOP, AMOEAP, AMONOP)
+                          AMOWEP, AMOSOP, AMOEAP, AMONOP, NG_R)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -735,6 +803,7 @@ REAL,               INTENT(IN)  :: AMOWEP         !! WEST LONGITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMOSOP         !! SOUTH LATITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMOEAP         !! EAST LONGITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (DEGREE).
+INTEGER, OPTIONAL,  INTENT(IN)  :: NG_R(:)        !! NO. OF POINTS
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -783,7 +852,15 @@ DO L = 1,NPAGE
    WRITE (IUOUT,*) ' '
    WRITE (IUOUT,'(2X,130I1)') (MOD(I,10),I=IA,IE)
    DO I = NGY,1,-1
-      WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:IE,I)
+      IF (PRESENT(NG_R)) THEN
+         IF (NG_R(I).GE.IE) THEN
+            WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:IE,I)
+         ELSE IF (NG_R(I).GE.IA) THEN
+            WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:NG_R(I),I)
+         END IF
+      ELSE
+         WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:IE,I)
+      END IF
    END DO
    WRITE (IUOUT,'(2X,130I1)') (MOD(I,10),I=IA,IE)
 END DO
@@ -793,7 +870,7 @@ END SUBROUTINE PRINT_ARRAY_C
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE PRINT_ARRAY_CC (IUOUT, CDATE, TITL, ARRAY,                          &
-                          AMOWEP, AMOSOP, AMOEAP, AMONOP)
+                          AMOWEP, AMOSOP, AMOEAP, AMONOP, NG_R)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -831,6 +908,7 @@ INTEGER,            INTENT(IN)  :: AMOWEP         !! WEST LONGITUDE (DEGREE).
 INTEGER,            INTENT(IN)  :: AMOSOP         !! SOUTH LATITUDE (DEGREE).
 INTEGER,            INTENT(IN)  :: AMOEAP         !! EAST LONGITUDE (DEGREE).
 INTEGER,            INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (DEGREE).
+INTEGER, OPTIONAL,  INTENT(IN)  :: NG_R(:)        !! NO. OF POINTS
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -883,7 +961,15 @@ DO L = 1,NPAGE
    WRITE (IUOUT,*) ' '
    WRITE (IUOUT,'(2X,130I1)') (MOD(I,10),I=IA,IE)
    DO I = NGY,1,-1
-      WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:IE,I)
+      IF (PRESENT(NG_R)) THEN
+         IF (NG_R(I).GE.IE) THEN
+            WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:IE,I)
+         ELSE IF (NG_R(I).GE.IA) THEN
+            WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:NG_R(I),I)
+         END IF
+      ELSE
+         WRITE (IUOUT,'(1X,I1,130A1)') MOD(I,10),ARRAY(IA:IE,I)
+      END IF
    END DO
    WRITE (IUOUT,'(2X,130I1)') (MOD(I,10),I=IA,IE)
 END DO
@@ -893,7 +979,7 @@ END SUBROUTINE PRINT_ARRAY_CC
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE PRINT_ARRAY_L (IUOUT, CDATE, TITL, ARRAY,                           &
-                          AMOWEP, AMOSOP, AMOEAP, AMONOP)
+                          AMOWEP, AMOSOP, AMOEAP, AMONOP, NG_R)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -931,6 +1017,7 @@ REAL,               INTENT(IN)  :: AMOWEP         !! WEST LONGITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMOSOP         !! SOUTH LATITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMOEAP         !! EAST LONGITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (DEGREE).
+INTEGER, OPTIONAL,  INTENT(IN)  :: NG_R(:)        !! NO. OF POINTS
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -979,7 +1066,15 @@ DO L = 1,NPAGE
    WRITE (IUOUT,*) ' '
    WRITE (IUOUT,'(2X,130I1)') (MOD(I,10),I=IA,IE)
    DO I = NGY,1,-1
-      WRITE (IUOUT,'(1X,I1,130L1)') MOD(I,10),ARRAY(IA:IE,I)
+      IF (PRESENT(NG_R)) THEN
+         IF (NG_R(I).GE.IE) THEN
+            WRITE (IUOUT,'(1X,I1,130L1)') MOD(I,10),ARRAY(IA:IE,I)
+         ELSE IF (NG_R(I).GE.IA) THEN
+            WRITE (IUOUT,'(1X,I1,130L1)') MOD(I,10),ARRAY(IA:NG_R(I),I)
+         END IF
+      ELSE
+         WRITE (IUOUT,'(1X,I1,130L1)') MOD(I,10),ARRAY(IA:IE,I)
+      END IF
    END DO
    WRITE (IUOUT,'(2X,130I1)') (MOD(I,10),I=IA,IE)
 END DO
@@ -989,7 +1084,7 @@ END SUBROUTINE PRINT_ARRAY_L
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE PRINT_ARRAY_R (IUOUT, CDATE, TITL, ARRAY,                           &
-                          AMOWEP, AMOSOP, AMOEAP, AMONOP, SCALE, ZMISS)
+                          AMOWEP, AMOSOP, AMOEAP, AMONOP, SCALE, ZMISS, NG_R)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1029,6 +1124,7 @@ REAL,               INTENT(IN)  :: AMOEAP         !! EAST LONGITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (DEGREE).
 REAL, OPTIONAL,     INTENT(IN)  :: SCALE          !! SCALING FACTOR.
 REAL, OPTIONAL,     INTENT(IN)  :: ZMISS          !! MISSING VALUE.
+INTEGER, OPTIONAL,  INTENT(IN)  :: NG_R(:)        !! NO. OF POINTS
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -1117,21 +1213,27 @@ LEN1 = LEN_TRIM(CDATE)
 ISTART = -NPTS+1
 IEND   = ISTART+NPTS-1
 DO NP = 1,NPAGE
-   IF (ABS(SCALEH).GT. 999. .OR. ABS(SCALEH).LT. 0.00001) THEN
+   IF (ABS(SCALEH).GT. 99999. .OR. ABS(SCALEH).LT. 0.01) THEN
       WRITE (IUOUT,'(''1'',4X,A,2X,2A,E10.3,5X,''PAGE '',I2,/)')               &
 &                   CDATE(1:LEN1), TITL(1:LEN),' MULTIPLIED BY: ', SCALEH, NP
    ELSE
-      WRITE (IUOUT,'(''1'',4X,A,2X,2A,F10.5,5X,''PAGE '',I2,/)')               &
+      WRITE (IUOUT,'(''1'',4X,A,2X,2A,F10.2,5X,''PAGE '',I2,/)')               &
 &                   CDATE(1:LEN1), TITL(1:LEN),' MULTIPLIED BY: ', SCALEH, NP
    END IF
 
    ISTART = ISTART+NPTS
    IEND   = MIN(IEND+NPTS,NGX)
-   WRITE (IUOUT,'(7X,''I='',30I4)') (I,I=ISTART,IEND)
-   WRITE (IUOUT,'(5X,''LON='',30I4)') ILON(ISTART:IEND)
-   WRITE (IUOUT,'(''   J LAT'',/)')
-   DO J = NGY,1,-1
-      WRITE (IUOUT,'(I3,F5.1,1X,30I4)') J,YLAT(J),IARRAY(ISTART:IEND,J)
+   WRITE (IUOUT,'(4X,30I4)') (I,I=ISTART,IEND)
+    DO J = NGY,1,-1
+      IF (PRESENT(NG_R)) THEN
+         IF (NG_R(J).GE.IEND) THEN
+            WRITE (IUOUT,'(I4,30I4)') J,IARRAY(ISTART:IEND,J)
+         ELSE IF (NG_R(J).GE.ISTART) THEN
+            WRITE (IUOUT,'(I4,30I4)') J,IARRAY(ISTART:NG_R(J),J)
+         END IF
+      ELSE
+         WRITE (IUOUT,'(I4,30I4)') J,IARRAY(ISTART:IEND,J)
+      END IF
    END DO
 END DO
 
@@ -1140,7 +1242,7 @@ END SUBROUTINE PRINT_ARRAY_R
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE PRINT_ARRAY_RC (IUOUT, CDATE, TITL, ARRAY,                          &
-                          AMOWEP, AMOSOP, AMOEAP, AMONOP, SCALE, ZMISS)
+                          AMOWEP, AMOSOP, AMOEAP, AMONOP, SCALE, ZMISS, NG_R)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1180,6 +1282,7 @@ INTEGER,            INTENT(IN)  :: AMOEAP         !! EAST LONGITUDE (M_SEC).
 INTEGER,            INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (M_SEC).
 REAL, OPTIONAL,     INTENT(IN)  :: SCALE          !! SCALING FACTOR.
 REAL, OPTIONAL,     INTENT(IN)  :: ZMISS          !! MISSING VALUE.
+INTEGER, OPTIONAL,  INTENT(IN)  :: NG_R(:)        !! NO. OF POINTS
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -1229,6 +1332,7 @@ IF (PRESENT(SCALE)) THEN
       ELSE
          SCALEH = MAXVAL(ABS(ARRAY))
      END IF
+
       IF (SCALEH.NE.0) THEN
          SCALEH = 100./(10.**NINT(LOG10(SCALEH)))
       ELSE
@@ -1247,6 +1351,7 @@ IF (PRESENT(SCALE)) THEN
    ELSE
       IARRAY = NINT(SCALEH*ARRAY)
    END IF
+
 ELSE
    IARRAY = NINT(ARRAY)
 END IF
@@ -1263,11 +1368,11 @@ LEN1 = LEN_TRIM(CDATE)
 ISTART = -NPTS+1
 IEND   = ISTART+NPTS-1
 DO NP = 1,NPAGE
-   IF (ABS(SCALEH).GT. 999. .OR. ABS(SCALEH).LT. 0.00001) THEN
+   IF (ABS(SCALEH).GT. 99999. .OR. ABS(SCALEH).LT. 0.01) THEN
       WRITE (IUOUT,'(''1'',4X,A,2X,2A,E10.3,5X,''PAGE '',I2,/)')               &
 &                   CDATE(1:LEN1), TITL(1:LEN),' MULTIPLIED BY: ', SCALEH, NP
    ELSE
-      WRITE (IUOUT,'(''1'',4X,A,2X,2A,F10.5,5X,''PAGE '',I2,/)')               &
+      WRITE (IUOUT,'(''1'',4X,A,2X,2A,F10.2,5X,''PAGE '',I2,/)')               &
 &                   CDATE(1:LEN1), TITL(1:LEN),' MULTIPLIED BY: ', SCALEH, NP
    END IF
 
@@ -1282,7 +1387,15 @@ DO NP = 1,NPAGE
 
    WRITE (IUOUT,'(4X,30I4)') (I,I=ISTART,IEND)
    DO J = NGY,1,-1
-      WRITE (IUOUT,'(I4,30I4)') J,IARRAY(ISTART:IEND,J)
+      IF (PRESENT(NG_R)) THEN
+         IF (NG_R(J).GE.IEND) THEN
+            WRITE (IUOUT,'(I4,30I4)') J,IARRAY(ISTART:IEND,J)
+         ELSE IF (NG_R(J).GE.ISTART) THEN
+            WRITE (IUOUT,'(I4,30I4)') J,IARRAY(ISTART:NG_R(J),J)
+         END IF
+      ELSE
+         WRITE (IUOUT,'(I4,30I4)') J,IARRAY(ISTART:IEND,J)
+      END IF
    END DO
 END DO
 
@@ -1291,7 +1404,7 @@ END SUBROUTINE PRINT_ARRAY_RC
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE PRINT_ARRAY_I (IUOUT, CDATE, TITL, ARRAY,                           &
-                          AMOWEP, AMOSOP, AMOEAP, AMONOP)
+                          AMOWEP, AMOSOP, AMOEAP, AMONOP, NG_R)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1329,6 +1442,7 @@ REAL,               INTENT(IN)  :: AMOWEP         !! WEST LONGITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMOSOP         !! SOUTH LATITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMOEAP         !! EAST LONGITUDE (DEGREE).
 REAL,               INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (DEGREE).
+INTEGER, OPTIONAL,  INTENT(IN)  :: NG_R(:)        !! NO. OF POINTS
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -1338,10 +1452,8 @@ REAL,               INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (DEGREE).
 
 INTEGER    :: NGX                     !! FIRST DIMENSION  USED.
 INTEGER    :: NGY                     !! SECOND DIMENSION USED.
-INTEGER    :: ILON(SIZE(ARRAY,1))
-REAL       :: YLAT(SIZE(ARRAY,2))
 INTEGER    :: I, J, NPAGE, ISTART, IEND, NP, LEN, LEN1
-REAL       :: DLAMA, DPHIA
+REAL       :: DLAMA
 
 INTEGER, PARAMETER :: NPTS = 30
 
@@ -1358,17 +1470,6 @@ IF (NGX.GT.1) THEN
 ELSE
    DLAMA = 0.
 END IF
-DO I = 1,NGX
-   ILON(I) = NINT(AMOWEP + (I-1)*DLAMA)
-END DO
-IF (NGX.GT.1) THEN
-   DPHIA = (AMONOP-AMOSOP)/REAL(NGY-1)
-ELSE
-   DPHIA = 0.
-END IF
-DO J = 1,NGY
-   YLAT(J) = AMOSOP + REAL(J-1)*DPHIA
-END DO
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -1386,11 +1487,19 @@ DO NP = 1,NPAGE
 &                                  TITL(1:LEN), NP
    ISTART = ISTART+NPTS
    IEND   = MIN(IEND+NPTS,NGX)
+   WRITE (IUOUT,'(2X,''LONGITUDE IS FROM '',F8.4,'' TO '',F8.4)') amowep+(istart-1)*dlama, amowep+(iend-1)*dlama
+   WRITE (IUOUT,'(2X,''LATITUDE  IS FROM '',F8.4,'' TO '',F8.4)') AMONOP, AMOSOP
    WRITE (IUOUT,'(7X,''I='',30I4)') (I,I=ISTART,IEND)
-   WRITE (IUOUT,'(5X,''LON='',30I4)') ILON(ISTART:IEND)
-   WRITE (IUOUT,'(''   J LAT'',/)')
    DO J = NGY,1,-1
-      WRITE (IUOUT,'(I3,F5.1,1X,30I4)') J,YLAT(J),ARRAY(ISTART:IEND,J)
+      IF (PRESENT(NG_R)) THEN
+         IF (NG_R(J).GE.IEND) THEN
+            WRITE (IUOUT,'(I4,30I4)') MOD(I,10),ARRAY(ISTART:IEND,J)
+         ELSE IF (NG_R(J).GE.ISTART) THEN
+            WRITE (IUOUT,'(I4,30I4)') MOD(I,10),ARRAY(ISTART:NG_R(J),J)
+         END IF
+      ELSE
+         WRITE (IUOUT,'(I4,30I4)') MOD(I,10),ARRAY(ISTART:IEND,J)
+      END IF
    END DO
 END DO
 
@@ -1399,7 +1508,7 @@ END SUBROUTINE PRINT_ARRAY_I
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE PRINT_ARRAY_IC (IUOUT, CDATE, TITL, ARRAY,                           &
-                          AMOWEP, AMOSOP, AMOEAP, AMONOP)
+                          AMOWEP, AMOSOP, AMOEAP, AMONOP, NG_R)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1437,6 +1546,7 @@ INTEGER,            INTENT(IN)  :: AMOWEP         !! WEST LONGITUDE (M_SEC).
 INTEGER,            INTENT(IN)  :: AMOSOP         !! SOUTH LATITUDE (M_SEC).
 INTEGER,            INTENT(IN)  :: AMOEAP         !! EAST LONGITUDE (M_SEC).
 INTEGER,            INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (M_SEC).
+INTEGER, OPTIONAL,  INTENT(IN)  :: NG_R(:)        !! NO. OF POINTS
 
 ! ---------------------------------------------------------------------------- !
 !
@@ -1446,8 +1556,8 @@ INTEGER,            INTENT(IN)  :: AMONOP         !! NORTH LATITUDE (M_SEC).
 
 INTEGER    :: NGX                     !! FIRST DIMENSION  USED.
 INTEGER    :: NGY                     !! SECOND DIMENSION USED.
-INTEGER    :: I, J, NPAGE, ISTART, IEND, NP, LEN, LEN1
-INTEGER    :: DLAMA, DPHIA
+INTEGER    :: I,J, NPAGE, ISTART, IEND, NP, LEN, LEN1
+INTEGER    :: DLAMA
 character (len=len_coor) :: ftext1, ftext2
 
 INTEGER, PARAMETER :: NPTS = 30
@@ -1464,11 +1574,6 @@ IF (NGX.GT.1) THEN
    DLAMA = (AMOEAP-AMOWEP)/(NGX-1)
 ELSE
    DLAMA = 0.
-END IF
-IF (NGX.GT.1) THEN
-   DPHIA = (AMONOP-AMOSOP)/(NGY-1)
-ELSE
-   DPHIA = 0.
 END IF
 
 
@@ -1499,7 +1604,15 @@ DO NP = 1,NPAGE
 
    WRITE (IUOUT,'(4X,30I4)') (I,I=ISTART,IEND)
    DO J = NGY,1,-1
-      WRITE (IUOUT,'(I4,30I4)') J, ARRAY(ISTART:IEND,J)
+      IF (PRESENT(NG_R)) THEN
+         IF (NG_R(J).GE.IEND) THEN
+            WRITE (IUOUT,'(I4,30I4)') J,ARRAY(ISTART:IEND,J)
+         ELSE IF (NG_R(J).GE.ISTART) THEN
+            WRITE (IUOUT,'(I4,30I4)') J,ARRAY(ISTART:NG_R(J),J)
+         END IF
+      ELSE
+         WRITE (IUOUT,'(I4,30I4)') J,ARRAY(ISTART:IEND,J)
+      END IF
    END DO
 END DO
 
@@ -1798,30 +1911,30 @@ END SUBROUTINE PRINT_SPECTRUM_C
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE REDUCED_TO_REGULAR (REDUCED_GRID, REGULAR_GRID,                     &
-&                              NLON_RG, ZDELLO, XDELLO)
+SUBROUTINE REDUCED_TO_REGULAR_C (REDUCED_GRID, REGULAR_GRID,                   &
+&                                NLON_RG, ZDELLO, XDELLO, ZMISS, DIR)
 
 ! ---------------------------------------------------------------------------- !
-! 
-!   REDUCED_TO_REGULAR -  INTERPOLATES FROM REDUCED TO REGULAR GRID.
-! 
-!         H. GUENTHER    HZG   DECEMBER 2010
-!
-!     PURPOSE.
-!     --------
-!
-!        INTERPOLATE PARAMETER FIELD FROM A REDUCED TO A REGULAR GRID.
-!
-!     METHOD.
-!     -------
-!
-!       NEAREST NEIGHBOUR.
-!
-!     REFERENCE.
-!     ----------
-!
-!       NONE.
-!
+!                                                                              !
+!   REDUCED_TO_REGULAR -  INTERPOLATES FROM REDUCED TO REGULAR GRID.           !
+!                                                                              !
+!         H. GUENTHER    HZG   DECEMBER 2010                                   !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!     --------                                                                 !
+!                                                                              !
+!        INTERPOLATE PARAMETER FIELD FROM A REDUCED TO A REGULAR GRID.         !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       LINEAR INTERPOLATION.                                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
 ! ---------------------------------------------------------------------------- !
 !
 !     INTERFACE VARIABLES.
@@ -1829,100 +1942,485 @@ SUBROUTINE REDUCED_TO_REGULAR (REDUCED_GRID, REGULAR_GRID,                     &
 
 REAL,    INTENT(IN)  :: REDUCED_GRID(:,:) !! INPUT FIELD ON REDUCED GRID.
 REAL,    INTENT(OUT) :: REGULAR_GRID(:,:) !! OUTPUT FIELD ON REGULAR GRID.
-INTEGER, INTENT(IN)  :: NLON_RG(:)         !! NO. OF LONGITUDES FOR EACH LAT.
-REAL,    INTENT(IN)  :: ZDELLO(:)         !! LONGITUDE INCREMENTS FOR EACH LAT.
-REAL,    INTENT(IN)  :: XDELLO            !! REGULAR LONGITUDE INCREMENT.
+INTEGER, INTENT(IN)  :: NLON_RG(:)        !! NO. OF LONGITUDES FOR EACH LAT.
+INTEGER, INTENT(IN)  :: ZDELLO(:)         !! LONGITUDE INCREMENTS FOR EACH LAT.
+INTEGER, INTENT(IN)  :: XDELLO            !! REGULAR LONGITUDE INCREMENT.
+REAL,    INTENT(IN)  :: ZMISS             !! MISSING VALUE.
+LOGICAL, INTENT(IN)  :: DIR               !! .TRUE. IF INPUT ARE DIRECTIONS.
 
 ! ---------------------------------------------------------------------------- !
-! 
-!     LOCAL VARIABLES.
-!     ----------------
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------                                                         !
 
-INTEGER :: I, K, I_RED, N_RED
-REAL    :: D_RED
-LOGICAL :: IPER
+REAL, DIMENSION(SIZE(ZDELLO))   :: ZDELLO_R
+REAL    :: XDELLO_R
 
-IPER = ABS(REAL(SIZE(REDUCED_GRID,1))*XDELLO-360.).LT.0.0001 
-REGULAR_GRID = -999. 
+ZDELLO_R(:) = REAL(ZDELLO(:))
+XDELLO_R    = REAL(XDELLO)
 
-DO K = 1,SIZE(REDUCED_GRID,2)
-   N_RED = NLON_RG(K)
-   D_RED = XDELLO/ZDELLO(K)
+CALL REDUCED_TO_REGULAR (REDUCED_GRID, REGULAR_GRID,                           &
+&                        NLON_RG, ZDELLO_R, XDELLO_R, ZMISS, DIR)
 
-   DO I = 1,SIZE(REDUCED_GRID,1)
-      I_RED = NINT(REAL(I-1)*D_RED)
-      IF (IPER) I_RED = MOD(I_RED+4*N_RED, N_RED)
-      I_RED = I_RED+1
-      IF (I_RED.GT.0 .AND. I_RED.LE.N_RED) REGULAR_GRID(I,K) = REDUCED_GRID(I_RED,K)
+END SUBROUTINE REDUCED_TO_REGULAR_C
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE REDUCED_TO_REGULAR (REDUCED_GRID, REGULAR_GRID,                     &
+&                              NLON_RG, ZDELLO, XDELLO, ZMISS, DIR)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!   REDUCED_TO_REGULAR -  INTERPOLATES FROM REDUCED TO REGULAR GRID.           !
+!                                                                              !
+!         H. GUENTHER    HZG   DECEMBER 2010                                   !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!     --------                                                                 !
+!                                                                              !
+!        INTERPOLATE PARAMETER FIELD FROM A REDUCED TO A REGULAR GRID.         !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       LINEAR INTERPOLATION.                                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!
+!     INTERFACE VARIABLES.
+!     --------------------
+
+REAL,    INTENT(IN)  :: REDUCED_GRID(:,:) !! INPUT FIELD ON REDUCED GRID.
+REAL,    INTENT(OUT) :: REGULAR_GRID(:,:) !! OUTPUT FIELD ON REGULAR GRID.
+INTEGER, INTENT(IN)  :: NLON_RG(:)        !! NO. OF LONGITUDES FOR EACH LAT.
+REAL,    INTENT(IN)  :: ZDELLO(:)         !! LONGITUDE INCREMENTS FOR EACH LAT.
+REAL,    INTENT(IN)  :: XDELLO            !! REGULAR LONGITUDE INCREMENT.
+REAL,    INTENT(IN)  :: ZMISS             !! MISSING VALUE.
+LOGICAL, INTENT(IN)  :: DIR               !! .TRUE. IF INPUT ARE DIRECTIONS.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------                                                         !
+
+INTEGER :: I, K, I_RED1, I_RED2
+REAL    :: WH1, WH2
+LOGICAL, SAVE :: FRSTIME = .TRUE.
+INTEGER, SAVE, ALLOCATABLE, DIMENSION(:,:) :: I_RED_1, I_RED_2
+REAL,    SAVE, ALLOCATABLE, DIMENSION(:,:) :: WH_1, WH_2
+REAL,          ALLOCATABLE, DIMENSION(:,:) :: S_DIR, C_DIR
+
+IF (FRSTIME) CALL INIT
+
+IF (DIR) THEN
+   ALLOCATE (S_DIR(SIZE(REDUCED_GRID,1),SIZE(REDUCED_GRID,2)))
+   ALLOCATE (C_DIR(SIZE(REDUCED_GRID,1),SIZE(REDUCED_GRID,2)))
+   DO K = 1,SIZE(REDUCED_GRID,2)
+      DO I = 1,SIZE(REDUCED_GRID,1)
+         IF (REDUCED_GRID(I,K).NE.ZMISS) THEN
+            S_DIR(I,K) = SIN(REDUCED_GRID(I,K)*RAD)
+            C_DIR(I,K) = COS(REDUCED_GRID(I,K)*RAD)
+         ELSE
+            S_DIR(I,K) = ZMISS
+         END IF
+      END DO
+   END DO
+   DO K = 1,SIZE(REGULAR_GRID,2)
+      DO I = 1,SIZE(REGULAR_GRID,1)
+         I_RED1 = I_RED_1(I,K)
+         I_RED2 = I_RED_2(I,K)
+         WH1 = WH_1(I,K)
+         WH2 = WH_2(I,K)
+         IF (S_DIR(I_RED1,K).EQ.ZMISS .AND. S_DIR(I_RED2,K).EQ.ZMISS) THEN
+            REGULAR_GRID(I,K) = ZMISS
+         ELSE IF (S_DIR(I_RED1,K).EQ.ZMISS) THEN
+            IF (WH2.GE.0.5) THEN
+               REGULAR_GRID(I,K) = REDUCED_GRID(I_RED2,K)
+            ELSE
+               REGULAR_GRID(I,K) = ZMISS
+            END IF
+         ELSE IF (S_DIR(I_RED2,K).EQ.ZMISS) THEN
+            IF (WH1.GE.0.5) THEN
+               REGULAR_GRID(I,K) = REDUCED_GRID(I_RED1,K)
+            ELSE
+               REGULAR_GRID(I,K) = ZMISS
+            END IF
+         ELSE
+            REGULAR_GRID(I,K) = ATAN2(WH1*S_DIR(I_RED1,K)+WH2*S_DIR(I_RED2,K), &
+&                               WH1*C_DIR(I_RED1,K)+WH2*C_DIR(I_RED2,K))*DEG
+            IF (REGULAR_GRID(I,K).LT.0.) THEN
+               REGULAR_GRID(I,K) = REGULAR_GRID(I,K)+360.
+            END IF
+            IF (REGULAR_GRID(I,K).GT.359.95) THEN
+               REGULAR_GRID(I,K) = 0.
+            END IF
+         END IF
+      END DO
+   END DO
+   DEALLOCATE (S_DIR, C_DIR)
+
+ELSE
+
+   DO K = 1,SIZE(REGULAR_GRID,2)
+      DO I = 1,SIZE(REGULAR_GRID,1)
+         I_RED1 = I_RED_1(I,K)
+         I_RED2 = I_RED_2(I,K)
+         WH1 = WH_1(I,K)
+         WH2 = WH_2(I,K)
+         IF (REDUCED_GRID(I_RED1,K).EQ.ZMISS .AND.                             &
+&            REDUCED_GRID(I_RED2,K).EQ.ZMISS) THEN
+            REGULAR_GRID(I,K) = ZMISS
+         ELSE IF (REDUCED_GRID(I_RED1,K).EQ.ZMISS) THEN
+            IF (WH2.GE.0.5) THEN
+               REGULAR_GRID(I,K) = REDUCED_GRID(I_RED2,K)
+            ELSE
+               REGULAR_GRID(I,K) = ZMISS
+            END IF
+         ELSE IF (REDUCED_GRID(I_RED2,K).EQ.ZMISS) THEN
+            IF (WH1.GE.0.5) THEN
+               REGULAR_GRID(I,K) = REDUCED_GRID(I_RED1,K)
+            ELSE
+               REGULAR_GRID(I,K) = ZMISS
+            END IF
+         ELSE
+            REGULAR_GRID(I,K) = WH1*REDUCED_GRID(I_RED1,K)                     &
+&                             + WH2*REDUCED_GRID(I_RED2,K)
+         END IF
+      END DO
+   END DO
+END IF
+
+CONTAINS
+
+SUBROUTINE INIT
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!   INIT REDUCED_TO_REGULAR -  INTERPOLATES FROM REDUCED TO REGULAR GRID.      !
+!                                                                              !
+!         H. GUENTHER    HZG   DECEMBER 2010                                   !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!     --------                                                                 !
+!                                                                              !
+!        COMPUTE THE INTERPOLATION INDICES AND WEIGHTS TO BE USED BY           !
+!        SUB. REDUCED TO A REGULAR GRID.                                       !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       LINEAR INTERPOLATION.                                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCALE VARIABLES.                                                        !
+!     -----------------                                                        !
+
+   INTEGER :: N_RED
+   REAL    :: X, D_RED
+   LOGICAL :: IPER
+
+   IPER = SIZE(REDUCED_GRID,1)*XDELLO.EQ. M_S_PER
+   ALLOCATE (I_RED_1(SIZE(REGULAR_GRID,1),SIZE(REGULAR_GRID,2)))
+   ALLOCATE (I_RED_2(SIZE(REGULAR_GRID,1),SIZE(REGULAR_GRID,2)))
+   ALLOCATE (WH_1(SIZE(REGULAR_GRID,1),SIZE(REGULAR_GRID,2)))
+   ALLOCATE (WH_2(SIZE(REGULAR_GRID,1),SIZE(REGULAR_GRID,2)))
+
+   DO K = 1,SIZE(REGULAR_GRID,2)
+      N_RED = NLON_RG(K)
+      D_RED = XDELLO/ZDELLO(K)
+
+      DO I = 1,SIZE(REGULAR_GRID,1)
+         X = REAL(I-1)*D_RED
+         I_RED1 = FLOOR(X)
+         I_RED2 = CEILING(X)
+         IF (I_RED1.EQ.I_RED2) THEN
+            WH1 = 1.
+            WH2 = 0.
+         ELSE
+            WH1 = REAL(I_RED1)-X+1.
+            WH2 = 1.-WH1
+         END IF
+         IF (IPER) THEN
+            I_RED1 = MOD(I_RED1+4*N_RED, N_RED)
+            I_RED2 = MOD(I_RED2+4*N_RED, N_RED)
+         ELSE
+            IF (I_RED1.LT.0 .AND. WH1.LT. 0.1E-4) THEN
+               I_RED1 = 0
+               WH1 = 0.
+               WH2 = 1.
+            END IF
+            IF (I_RED2.GE.N_RED .AND. WH2.LT. 0.1E-4) THEN
+               I_RED2 = N_RED-1
+               WH1 = 1.
+               WH2 = 0.
+            END IF
+         END IF
+         I_RED_1(I,K) = I_RED1+1
+         I_RED_2(I,K) = I_RED2+1
+         WH_1(I,K) = WH1
+         WH_2(I,K) = WH2
+      END DO
    END DO
 
-END DO
+   FRSTIME = .FALSE.
+
+END SUBROUTINE INIT
 
 END SUBROUTINE REDUCED_TO_REGULAR
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE REDUCED_TO_REGULAR_C (REDUCED_GRID, REGULAR_GRID,                   &
-&                                NLON_RG, ZDELLO, XDELLO)
+SUBROUTINE PRINT_GENERAL_MODULE
 
 ! ---------------------------------------------------------------------------- !
-! 
-!   REDUCED_TO_REGULAR -  INTERPOLATES FROM REDUCED TO REGULAR GRID.
-! 
-!         H. GUENTHER    HZG   DECEMBER 2010
+!                                                                              !
+!   PRINT_GENERAL_MODULE - PRINT STATUS OF WAM_GENERAL_MODULE.                 !
+!                                                                              !
+!     H.GUNTHER            HZG          APRIL 2015                             !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!     -------                                                                  !
+!                                                                              !
+!       MAKE A PRINTER OUTPUT OF THE DATA STORED IN WAM_GENERAL_MODULE.        !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
 !
-!     PURPOSE.
-!     --------
+!    1. WAM MODEL GLOBAL CONSTANTS.
+!       ---------------------------
+
+WRITE(IU06,'(/,'' -------------------------------------------------'')')
+WRITE(IU06,*)'                WAM GENARAL MODULE DATA'
+WRITE(IU06,'(  '' -------------------------------------------------'')')
+WRITE(IU06,*) ' '
+WRITE(IU06,*) ' ACCELERATION OF GRAVITY [M/S**2] .............. G = ', G
+WRITE(IU06,*) ' PI ........................................... PI = ', PI
+WRITE(IU06,*) ' 2.* PI ...................................... ZPI = ',  ZPI
+WRITE(IU06,*) ' SQRT(PI) ................................ ZPISQRT = ', ZPISQRT
+WRITE(IU06,*) ' COVERTION FROM RADIANS TO DEGREE ............ DEG = ', DEG
+WRITE(IU06,*) ' COVERTION FROM DEGREE TO RADIANS ............ RAD = ', RAD
+WRITE(IU06,*) ' EARTH CIRCUMFERENCE [M] .....................CIRC = ', CIRC
+WRITE(IU06,*) ' EARTH RADIUS [M] .............................. R = ', R
+WRITE(IU06,*) ' EULER CONSTANT .......................... GAMMA_E = ', GAMMA_E !! WAM-MAX
+
+! ---------------------------------------------------------------------------- !
 !
-!        INTERPOLATE PARAMETER FIELD FROM A REDUCED TO A REGULAR GRID.
+!    2. PARAMETERS FOR COUPLING.
+!       ------------------------
+
+WRITE(IU06,*) ' '
+WRITE(IU06,*) ' AIR DENSITY ............................... ROAIR = ', ROAIR
+WRITE(IU06,*) ' WATER DENSITY ........................... ROWATER = ', ROWATER
+WRITE(IU06,*) ' ROAIR/ROWATER............................... XEPS = ',  XEPS
+WRITE(IU06,*) ' 1./XEPS ................................. XINVEPS = ', XINVEPS
+WRITE(IU06,*) ' PARAMETER FOR WIND INPUT ................ BETAMAX = ', BETAMAX
+WRITE(IU06,*) ' SHIFTS GROWTH CURVE ........................ ZALP = ', ZALP
+WRITE(IU06,*) ' MINIMUM CHARNOCK CONSTANT ................. ALPHA = ', ALPHA
+WRITE(IU06,*) ' SHELTERING COEFFICIENT .............. TAUWSHELTER = ', TAUWSHELTER
+WRITE(IU06,*) ' VON KARMAN CONSTANT ...................... XKAPPA = ', XKAPPA
+WRITE(IU06,*) ' DEFAULT CHARNOCK VALUE FOR ICE AND DRY SEA  RCHAR = ', RCHAR
+
+! ---------------------------------------------------------------------------- !
 !
-!     METHOD.
-!     -------
-!
-!       NEAREST NEIGHBOUR.
-!
-!     REFERENCE.
+!    3. PARAMETERS FOR BFI.
+!       -------------------
+
+WRITE(IU06,*) ' '
+WRITE(IU06,*) ' MAXIMUM VALUE OF DEPTH*WAVENUMBER ......... DKMAX = ', DKMAX
+WRITE(IU06,*) ' MINIMUM VALUE ALLOWED FOR BFI SQUARED .... BF2MIN = ', BF2MIN
+WRITE(IU06,*) ' MAXIMUM VALUE ALLOWED FOR BFI SQUARED .... BF2MAX = ', BF2MAX
+WRITE(IU06,*) ' MINIMUM VALUE ALLOWED FOR KURTOSIS ........ C4MIN = ', C4MIN
+WRITE(IU06,*) ' MAXIMUM VALUE ALLOWED FOR KURTOSIS ........ C4MAX = ', C4MAX
+
+END SUBROUTINE PRINT_GENERAL_MODULE
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE SET_GENERAL_MODULE (B_MAX)
+
+REAL, INTENT(IN) :: B_MAX
+
+BETAMAX = B_MAX
+
+END SUBROUTINE SET_GENERAL_MODULE
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE SORTI (iarray, index)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!   SORTI  - SORTS AN INTEGER ARRAY.
+!                                                                              !
+!     HEINZ GUNTHER    ECMWF/GKSS    JANUARY 1991
+!                                                                              !
+!    PURPOSE
+!    -------
+!                                                                              !
+!        SORT AN INTEGER ARRAY BY AN INDEX ARRAY.
+!                                                                              !
+!     METHOD
+!     ------
+!                                                                              !
+!       THE DATA IN THE INPUT ARRAY ARE SORTED AS DEFINED IN THE INPUT
+!       INDEX ARRAY.
+!       THIS ARRAY MAY BE GENEGATED BY SUB. SORTINI OR SORTINR.
+!                                                                              !
+!     EXTERNALS
+!     ---------
+!                                                                              !
+!          NONE
+!                                                                              !
+!     REFERENCES
 !     ----------
-!
-!       NONE.
-!
+!                                                                              !
+!          NONE
+!                                                                              !
 ! ---------------------------------------------------------------------------- !
 !
 !     INTERFACE VARIABLES.
 !     --------------------
 
-REAL,    INTENT(IN)  :: REDUCED_GRID(:,:) !! INPUT FIELD ON REDUCED GRID.
-REAL,    INTENT(OUT) :: REGULAR_GRID(:,:) !! OUTPUT FIELD ON REGULAR GRID.
-INTEGER, INTENT(IN)  :: NLON_RG(:)         !! NO. OF LONGITUDES FOR EACH LAT.
-INTEGER, INTENT(IN)  :: ZDELLO(:)         !! LONGITUDE INCREMENTS FOR EACH LAT.
-INTEGER, INTENT(IN)  :: XDELLO            !! REGULAR LONGITUDE INCREMENT.
+INTEGER, DIMENSION(:), INTENT(INOUT) :: IARRAY  !! INPUT/ OUTPUT DATA ARRAY.
+INTEGER, DIMENSION(:), INTENT(IN)    :: INDEX   !! INPUT INDEX ARRAY.
 
 ! ---------------------------------------------------------------------------- !
-! 
-!     LOCAL VARIABLES.
-!     ----------------
+!                                                                              !
+!     LOCALE VARIABLES.                                                        !
+!     -----------------                                                        !
 
-INTEGER :: I, K, I_RED, N_RED
-REAL    :: D_RED
-LOGICAL :: IPER
+INTEGER, ALLOCATABLE, DIMENSION(:) :: IWORK
 
-IPER = SIZE(REDUCED_GRID,1)*XDELLO.EQ. M_S_PER
-REGULAR_GRID = -999. 
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!    1. SORT DATA INTO WORK ARRAY.                                             !
+!       --------------------------                                             !
 
-DO K = 1,SIZE(REDUCED_GRID,2)
-   N_RED = NLON_RG(K)
-   D_RED = REAL(XDELLO)/REAL(ZDELLO(K))
+ALLOCATE (IWORK(SIZE(IARRAY)))
 
-   DO I = 1,SIZE(REDUCED_GRID,1)
-      I_RED = NINT(REAL(I-1)*D_RED)
-      IF (IPER) I_RED = MOD(I_RED+4*N_RED, N_RED)
-      I_RED = I_RED+1
-      IF (I_RED.GT.0 .AND. I_RED.LE.N_RED) REGULAR_GRID(I,K) = REDUCED_GRID(I_RED,K)
-   END DO
+IWORK(:) = IARRAY(INDEX(:))
 
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!    2. COPY BACK TO DATA ARRAY.                                               !
+!       ------------------------                                               !
+
+IARRAY(:) = IWORK(:)
+
+DEALLOCATE (IWORK)
+
+END SUBROUTINE SORTI
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE SORTINI (iarray, index)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     SORTINI* - SORTS AN INDEX ARRAY FORM AN INTEGER DATA ARRAY.
+!                                                                              !
+!     HEINZ GUNTHER    ECMWF/GKSS    JANUARY 1991
+!                                                                              !
+!     PURPOSE
+!     -------
+!                                                                              !
+!        FIND THE INDEX ARRAY WHICH SORTS THE DATA.
+!                                                                              !
+!     METHOD
+!     ------
+!                                                                              !
+!       THE INPUT ARRAY IS SCANNED AND AN INDEX ARRAY IS GENERATED,
+!       WHICH CONTAINS THE INDEX OF THE INPUT ARRAY TO SORT THE DATA
+!       IN INCREASING ORDER. THE INPUT ARRAY IS NOT CHANGED.
+!                                                                              !
+!     EXTERNALS
+!     ---------
+!                                                                              !
+!          NONE
+!                                                                              !
+!     REFERENCES
+!     ----------
+!                                                                              !
+!          NONE
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!
+!     INTERFACE VARIABLES.
+!     --------------------
+
+INTEGER, DIMENSION(:), INTENT(IN)   :: IARRAY  !! INPUT DATA TO BE SCANNED.
+INTEGER, DIMENSION(:), INTENT(OUT)  :: INDEX   !! UTPUT ARRAY OF INDICES.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCALE VARIABLES.                                                        !
+!     -----------------                                                        !
+
+INTEGER :: N, I, J, IH, IHM
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!*   1. INITIAL INDEX ARRAY.
+!       -------------------
+N = SIZE(IARRAY)
+DO I=1,N
+   INDEX(I) = I
 END DO
 
-END SUBROUTINE REDUCED_TO_REGULAR_C
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!    2. CHECK FIRST TWO DATA.
+!       ---------------------
+
+IF (N.LT.2) RETURN
+IF (IARRAY(2).LT.IARRAY(1)) THEN
+   INDEX(2)=1
+   INDEX(1)=2
+ENDIF
+IF (N.EQ.2) RETURN
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!    3. DO REST OF DATA.
+!       ----------------
+
+OUTER: DO I=3,N
+   IH = INDEX(I)
+   IHM = INDEX(I-1)
+   IF (IARRAY(IH).LT.IARRAY(IHM)) THEN
+      INNER: DO J=I-1,2,-1
+         INDEX(J+1) = INDEX(J)
+         IF (IARRAY(INDEX(J-1)).LE.IARRAY(IH)) THEN
+            INDEX(J) = IH
+            CYCLE OUTER
+         ENDIF
+      END DO INNER
+      INDEX(2) = INDEX(1)
+      INDEX(1) = IH
+   ENDIF
+END DO OUTER
+
+END SUBROUTINE SORTINI
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 

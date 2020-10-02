@@ -2,8 +2,8 @@ MODULE WAM_NEST_MODULE
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!   THIS MODULE STORES THE BOUNDARY INPUT VALUES FOR A FINE GRID RUN.          !
-!   THE VALUES WERE PRODUCED BY A PREVIOUS COARSE GRID RUN.                    !
+!   THIS MODULE GENERATES AND STORES THE GRID INFORMATION FOR A COARSE         !
+!   AND OR FINE GRID RUN.                                                      !
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
@@ -33,7 +33,7 @@ USE WAM_FILE_MODULE,      ONLY: IU06, ITEST, IU10, FILE10
 USE WAM_GRID_MODULE,      ONLY: NX, NY, NSEA, NLON_RG, XDELLA, XDELLO, ZDELLO, &
 &                               AMOWEP, AMOSOP, AMOEAP, AMONOP, IPER, IXLG,    &
 &                               KXLT, L_S_MASK
-    
+
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
 !     C.  MODULE DATA.                                                         !
@@ -591,9 +591,9 @@ INTEGER, DIMENSION(4) :: C_NEST_I, C_NEST_K
 NUMBER = 1
 IF (AMOSOP .GT. SOUTH .OR. NORTH .GT. AMONOP .OR. SOUTH .GE. NORTH) NUMBER = 0
 
-IF ((.NOT.IPER) .AND. &
-&   (AMOWEP.GT.WEST      .OR. WEST.GT.AMOEAP     ) .AND.                      &
-&   (AMOWEP.GT.WEST+M_S_PER .OR. EAST+M_S_PER.GT.AMOEAP) .AND.                &
+IF ((.NOT.IPER) .AND.                                                          &
+&   (AMOWEP.GT.WEST      .OR. WEST.GT.AMOEAP     )  .AND.                      &
+&   (AMOWEP.GT.WEST+M_S_PER .OR. EAST+M_S_PER.GT.AMOEAP)  .AND.                &
 &   (AMOWEP.GT.WEST-M_S_PER .OR. EAST-M_S_PER.GT.AMOEAP) ) NUMBER = 0
 
 IF (NUMBER .EQ. 0) THEN
@@ -1133,16 +1133,16 @@ FINE: DO I = 1, NBOUNF
       END IF
    END DO COARSE1
 
-!     1.2 FINE GP AND NEAREST COARSE GP HAVE DIFFERENT LONGITUDES AND LATITUDE.                                           !
+!     1.2 FINE GP AND NEAREST COARSE GP HAVE DIFFERENT LONGITUDES AND LATITUDE.        !
      
    IF (M1.EQ.0 ) CYCLE FINE 
 
-!     1.3 FINE GP AND NEAREST COARSE GP HAVE THE SAME LATITUDE.                                           !
+!     1.3 FINE GP AND NEAREST COARSE GP HAVE THE SAME LATITUDE.                        !
 
    M2 = 0
    IF (LAT_C(M1) .EQ. BLATF(I)) THEN
 
-!     1.3.1 NEAREST COARSE GP IS TO FAR AWAY.                                           !
+!     1.3.1 NEAREST COARSE GP IS TO FAR AWAY.                                          !
 
       IF (ID1 .GT. ZDEL_C(M1)) CYCLE FINE
 
@@ -1208,7 +1208,7 @@ FINE: DO I = 1, NBOUNF
       END IF
    END IF
 
-!     1.5 DEFINE INTERPOLATION INDEICES AND WEIGHT.
+!     1.5 DEFINE INTERPOLATION INDICES AND WEIGHTS.
 
    IF (M1.GT.M2) THEN
       IBFL(I) = M2   

@@ -1,0 +1,24 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/print
+
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
+
+modfile="print_grid_file print_spectra_file \
+print_time read_grid_file read_grid_user \
+read_spectra_file read_spectra_user \
+read_time_user read_time_user_S print_time_S"
+
+cd $path_o
+
+for code in $modfile
+do
+   rm -f ${code}.f90 ${code}.o
+   cp ${path_f}/${code}.f90 ${path_o}/${code}.f90
+   mpiifort -c ${code}.f90
+   rm -f ${code}.f90
+done

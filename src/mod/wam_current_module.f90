@@ -19,8 +19,10 @@ USE WAM_GENERAL_MODULE,   ONLY:  &
 &       INCDATE                    !! INCREMENTS DATE TIME GROUP.
 
 USE WAM_GRID_MODULE, ONLY:       &
-&       INTERPOLATION_TO_GRID,   & !! INTERPOLATE TO WAM POINTS.
 &       EQUAL_TO_M_GRID            !! COMPARES CURRENT GRID TO MODEL GRID.
+
+USE wam_mpi_comp_module,  ONLY:  &
+&             MPI_EXCHNG
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -30,9 +32,10 @@ USE WAM_GRID_MODULE, ONLY:       &
 
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST
 USE WAM_GENERAL_MODULE, ONLY: RAD
-USE WAM_GRID_MODULE,    ONLY: NSEA, L_S_MASK
+USE WAM_GRID_MODULE,    ONLY: AMOWEP, ZDELLO, AMOSOP, XDELLA, IFROMIJ, KFROMIJ
 USE WAM_MODEL_MODULE,   ONLY: U, V
-USE WAM_TIMOPT_MODULE,  ONLY: CURRENT_RUN, CDCA, CDATEE, IDEL_WAM
+USE WAM_TIMOPT_MODULE,  ONLY: CURRENT_RUN, CDCA, CDATEE, IDEL_WAM, L_DECOMP
+USE WAM_MPI_MODULE,     ONLY: NINF, NSUP
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -141,6 +144,11 @@ END INTERFACE
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
+INTERFACE INTERPOLATION_TO_GRID       !! INTERPOLATES TO MODEL GRID POINTS. 
+   MODULE  PROCEDURE INTERPOLATION_TO_GRID
+END INTERFACE
+PRIVATE INTERPOLATION_TO_GRID
+
 INTERFACE NOTIM           !! STEERING SUB IF TIME INTERPOLATION IS NOT WANTED.
    MODULE PROCEDURE NOTIM
 END INTERFACE
@@ -206,8 +214,8 @@ INTEGER   :: IT
 CDCA  = ' '
 DO IT = 1, M_STORE
    IF ( CD_STORE(IT).GT.CD_NEW) THEN
-      U =  U_STORE(:,IT)
-      V =  V_STORE(:,IT)
+      U(NINF:NSUP) =  U_STORE(NINF:NSUP,IT)
+      V(NINF:NSUP) =  V_STORE(NINF:NSUP,IT)
       CDCA = CD_STORE(IT)
       EXIT
    END IF
@@ -316,8 +324,8 @@ END IF
 IF ( ALLOCATED(CD_STORE)) then
    if (M_STORE.NE.SIZE(CD_STORE)) DEALLOCATE (CD_STORE, U_STORE,  V_STORE)
 endif
-IF (.NOT. ALLOCATED(U_STORE) ) ALLOCATE (U_STORE(1:NSEA, 1:M_STORE))
-IF (.NOT. ALLOCATED(V_STORE) ) ALLOCATE (V_STORE(1:NSEA, 1:M_STORE))
+IF (.NOT. ALLOCATED(U_STORE) ) ALLOCATE (U_STORE(NINF:NSUP, 1:M_STORE))
+IF (.NOT. ALLOCATED(V_STORE) ) ALLOCATE (V_STORE(NINF:NSUP, 1:M_STORE))
 IF (.NOT. ALLOCATED(CD_STORE)) ALLOCATE (CD_STORE(1:M_STORE))
 CD_STORE  = ' '
 
@@ -997,8 +1005,8 @@ SUBROUTINE WAM_CURRENT (US, DS, CD_START)
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
 
-REAL,          INTENT(OUT)    :: US(:)    !! OUTPUT CURRENT (U-COMPONENT).
-REAL,          INTENT(OUT)    :: DS(:)    !! OUTPUT CURRENT (V-COMPONENT).
+REAL,          INTENT(OUT)    :: US(NINF:NSUP) !! OUTPUT CURRENT (U-COMPONENT)
+REAL,          INTENT(OUT)    :: DS(NINF:NSUP) !! OUTPUT CURRENT (V-COMPONENT)
 CHARACTER (LEN=14),INTENT(IN) :: CD_START !! DATE OF FIELD TO BE LOOKED FOR.
 
 ! ---------------------------------------------------------------------------- !
@@ -1038,15 +1046,23 @@ END DO
 !     2. INTERPOLATE CURRENT FIELD TO GRID.                                    !
 !        ----------------------------------                                    !
 
-
-US = 0.  !! INITIALISE CURRENT ARRAY WITH ZERO.
-DS = 0.
 IF (EQUAL_GRID) THEN
-   US = PACK(U_IN, L_S_MASK)
-   DS = PACK(V_IN, L_S_MASK)
+   DO IJ = NINF, NSUP
+      US(IJ)= U_IN(IFROMIJ(IJ),KFROMIJ(IJ))
+      DS(IJ)= V_IN(IFROMIJ(IJ),KFROMIJ(IJ))
+   END DO
 ELSE
-   CALL INTERPOLATION_TO_GRID (IU06, PER, DX_IN, DY_IN, WEST_IN, SOUTH_IN,     &
-&                              U_IN, US, V_IN, DS)
+   CALL INTERPOLATION_TO_GRID (US, DS)
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3. FILL HALO IF 2_D DECOMPOSITION.                                       !
+!        -------------------------------                                       !
+
+If (.NOT.L_DECOMP) THEN
+   CALL mpi_exchng(US)
+   CALL mpi_exchng(DS)
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -1055,12 +1071,12 @@ END IF
 !        ------------                                                          !
 
 IF (ITEST.GE.3) THEN
-   IJ = MIN (10,SIZE(US))
+   IJ = MIN(NINF+10,NSUP)
    WRITE (IU06,*) ' '
    WRITE (IU06,*) '      SUB. WAM_CURRENT: CURRENT FIELDS CONVERTED TO GRID'
    WRITE (IU06,*) ' '
-   WRITE (IU06,*) ' US(1:10) = ', US(1:IJ)
-   WRITE (IU06,*) ' DS(1:10) = ', DS(1:IJ)
+   WRITE (IU06,*) ' US(NINF:NINF+10) = ', US(NINF:IJ)
+   WRITE (IU06,*) ' DS(NINF:NINF+10) = ', DS(NINF:IJ)
 END IF
 
 END SUBROUTINE WAM_CURRENT
@@ -1069,6 +1085,163 @@ END SUBROUTINE WAM_CURRENT
 !                                                                              !
 !     G. PRIVATE MODULE PROCEDURES.                                            !
 !                                                                              !
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE INTERPOLATION_TO_GRID (US, VS)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!   INTERPOLATION_TO_GRID - INTERPOLATES TO MODEL GRID POINTS.                 !
+!                                                                              !
+!     H. GUNTHER    GKSS  DECEMBER 2001.                                       !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!     --------                                                                 !
+!                                                                              !
+!        LOCATE AND INTERPOLATE IN INPUT GRID.                                 !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       DOUBLE LINEAR INTERPOLATION IN INPUT GRID. OPTIONAL A SECOND INPUT     !
+!       CAN BE INTERPOLATED AT THE SAME CALL.                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.
+!     --------------------
+
+REAL,    INTENT(OUT)  :: US(NINF:NSUP)  !! SPACE INTERPOLATED OUTPUT FIELD.
+REAL,    INTENT(OUT)  :: VS(NINF:NSUP)  !! OPTIONAL SECOND OUTPUT FIELD.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.
+!     ----------------
+
+LOGICAL, SAVE :: FRSTIME = .TRUE.
+
+INTEGER :: IJ
+INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: I1, I2, K1, K2
+REAL,    SAVE ,ALLOCATABLE, DIMENSION(:) :: DI, DK
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     1. INITIALIZE INTERPOLATION WEIGHTS.                                     !
+!        ---------------------------------                                     !
+
+IF (FRSTIME) THEN
+   CALL INITIALIZE
+   FRSTIME =.FALSE.
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. LINEAR INTERPOLATION.                                                 !
+!        ----------------------                                                !
+
+!     2.1 FIRST FIELD.
+
+DO IJ = NINF,NSUP
+   US(IJ) = (U_IN(I1(IJ),K1(IJ))*(1.-DI(IJ))+U_IN(I2(IJ),K1(IJ))*DI(IJ))*(1.-DK(IJ)) &
+&         + (U_IN(I1(IJ),K2(IJ))*(1.-DI(IJ))+U_IN(I2(IJ),K2(IJ))*DI(IJ))*DK(IJ)
+END DO
+
+!     2.2 SECOND FIELD.
+
+DO IJ =  NINF,NSUP
+   VS(IJ) = (V_IN(I1(IJ),K1(IJ))*(1.-DI(IJ))+V_IN(I2(IJ),K1(IJ))*DI(IJ))*(1.-DK(IJ)) &
+&         + (V_IN(I1(IJ),K2(IJ))*(1.-DI(IJ))+V_IN(I2(IJ),K2(IJ))*DI(IJ))*DK(IJ)
+END DO
+
+CONTAINS
+
+SUBROUTINE INITIALIZE
+
+ALLOCATE (I1(NINF:NSUP))
+ALLOCATE (I2(NINF:NSUP))
+ALLOCATE (K1(NINF:NSUP))
+ALLOCATE (K2(NINF:NSUP))
+ALLOCATE (DI(NINF:NSUP))
+ALLOCATE (DK(NINF:NSUP))
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     1. TRANSFORM MODEL COORDINATES TO INPUT GRID.                            !
+!        ------------------------------------------                            !
+
+I1(NINF:NSUP) = AMOWEP + (IFROMIJ(NINF:NSUP)-1)*ZDELLO(KFROMIJ(NINF:NSUP)) - WEST_IN
+I1(NINF:NSUP) = MOD(I1(NINF:NSUP)+2*M_S_PER,M_S_PER)
+DI(NINF:NSUP) = REAL(I1(NINF:NSUP))/REAL(DX_IN)
+
+K1(NINF:NSUP) = AMOSOP + (KFROMIJ(NINF:NSUP)-1)*XDELLA - SOUTH_IN
+DK(NINF:NSUP) = REAL(K1(NINF:NSUP))/REAL(DY_IN)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. COMPUTE CORNER POINT INDICES IN INPUT GRID.                           !
+!        -------------------------------------------                           !
+
+I1(NINF:NSUP)  = INT(DI(NINF:NSUP))+1
+K1(NINF:NSUP)  = INT(DK(NINF:NSUP))+1
+K2(NINF:NSUP)  = MIN(NY_IN,K1(NINF:NSUP)+1)
+I2(NINF:NSUP)  = I1(NINF:NSUP)+1
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3. DISTANCES OF INTERPOLATION POINT FROM LOW LEFT CORNER POINT.          !
+!        ------------------------------------------------------------          !
+
+DI(NINF:NSUP) = DI(NINF:NSUP)-REAL(I1(NINF:NSUP))+1.
+DK(NINF:NSUP) = DK(NINF:NSUP)-REAL(K1(NINF:NSUP))+1.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     4. CORRECTIONOF FIRST AND LAST GRID LINES (PERIODIC OR UNPERIODIC GRID). !
+!        --------------------------------------------------------------------- !
+
+IF (PER) THEN
+   WHERE (I1(NINF:NSUP).EQ.NX_IN) I2(NINF:NSUP) = 1
+   WHERE (I1(NINF:NSUP).EQ.0 ) I1(NINF:NSUP) = NX_IN
+ELSE
+   WHERE (I1(NINF:NSUP).EQ.NX_IN) I2(NINF:NSUP) = NX_IN
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     5. CHECK WHETHER POINTS ARE IN GRID.                                     !
+!        ---------------------------------                                     !
+
+IF (MINVAL(I1).LT.1 .OR. MAXVAL(I1).GT.NX_IN .OR.                              &
+&   MINVAL(K1).LT.1 .OR. MAXVAL(K1).GT.NY_IN) THEN
+   WRITE(IU06,*) ' *******************************************'
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *  FATAL ERROR IN INTERPOLATION_TO_GRID   *'
+   WRITE(IU06,*) ' *  ====================================   *'
+   WRITE(IU06,*) ' * POINT IS OUTSIDE OF INPUT GRID          *'
+   WRITE(IU06,*) ' * DIMENSION OF INPUT GRID IS   NX_IN = ', NX_IN
+   WRITE(IU06,*) ' *                              NY_IN = ', NY_IN
+   WRITE(IU06,*) ' * MIN AND MAX OF INDEX ARE                *'
+   WRITE(IU06,*) ' * I1:  MIN, MAX = ', MINVAL(I1), MAXVAL(I1)
+   WRITE(IU06,*) ' * I2:  MIN, MAX = ', MINVAL(I2), MAXVAL(I2)
+   WRITE(IU06,*) ' * K1:  MIN, MAX = ', MINVAL(K1), MAXVAL(K1)
+   WRITE(IU06,*) ' * K2:  MIN, MAX = ', MINVAL(K2), MAXVAL(K2)
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *  PROGRAM ABORTS     PROGRAM ABORTS      *'
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *******************************************'
+   CALL ABORT1
+END IF
+
+END SUBROUTINE INITIALIZE
+
+END SUBROUTINE INTERPOLATION_TO_GRID
+
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE NOTIM (CD_START, CD_END)
@@ -1113,8 +1286,8 @@ CHARACTER (LEN=14), INTENT(IN)  :: CD_END    !! DATE OF LAST CURRENT FIELD.
 
 INTEGER            :: MP
 CHARACTER (LEN=14) :: CDTWIH
-REAL               :: US(1:NSEA)  !! OUTPUT CURRENT FIELD ARRAY (U-COMPONENT).
-REAL               :: DS(1:NSEA)  !! OUTPUT CURRENT FIELD ARRAY (V-COMPONENT).
+REAL               :: US(NINF:NSUP)  !! OUTPUT CURRENT FIELD ARRAY (U-COMPONENT).
+REAL               :: DS(NINF:NSUP)  !! OUTPUT CURRENT FIELD ARRAY (V-COMPONENT).
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1134,8 +1307,8 @@ DO WHILE (CDTWIH.LE.CD_END)
 !     1.2 SAVE IN MODULE WAM_CCURRENT.                                         !
 !         ----------------------------                                         !
 
-    U_STORE(:,MP)  = US
-    V_STORE(:,MP)  = DS
+    U_STORE(NINF:NSUP,MP)  = US(NINF:NSUP)
+    V_STORE(NINF:NSUP,MP)  = DS(NINF:NSUP)
     CD_STORE(MP)   = CDTWIH
 
    IF (ITEST.GE.3) THEN
@@ -1198,10 +1371,10 @@ INTEGER            :: MP, NTS, N
 REAL               :: DEL
 CHARACTER (LEN=14) :: CDT1, CDT2, CDTH
 
-REAL               :: US1(1:NSEA)  !! OUTPUT CURRENT FIELD ARRAY (U-COMPONENT).
-REAL               :: DS1(1:NSEA)  !! OUTPUT CURRENT FIELD ARRAY (V-COMPONENT).
-REAL               :: US2(1:NSEA)  !! OUTPUT CURRENT FIELD ARRAY (U-COMPONENT).
-REAL               :: DS2(1:NSEA)  !! OUTPUT CURRENT FIELD ARRAY (V-COMPONENT).
+REAL               :: US1(NINF:NSUP)  !! OUTPUT CURRENT FIELD ARRAY (U-COMPONENT).
+REAL               :: DS1(NINF:NSUP)  !! OUTPUT CURRENT FIELD ARRAY (V-COMPONENT).
+REAL               :: US2(NINF:NSUP)  !! OUTPUT CURRENT FIELD ARRAY (U-COMPONENT).
+REAL               :: DS2(NINF:NSUP)  !! OUTPUT CURRENT FIELD ARRAY (V-COMPONENT).
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1209,8 +1382,8 @@ REAL               :: DS2(1:NSEA)  !! OUTPUT CURRENT FIELD ARRAY (V-COMPONENT).
 !       -----------------------------------------------------------------------!
 
 CDT1 = CDCA
-US1 = U
-DS1 = V
+US1(NINF:NSUP) = U(NINF:NSUP)
+DS1(NINF:NSUP) = V(NINF:NSUP)
 CDTH = CDT1
 CALL INCDATE (CDTH,IDELCO)
 IF (CD_START.NE.CDTH) THEN
@@ -1255,8 +1428,8 @@ DO
       MP = MP + 1
       CALL INCDATE(CDTH,IDELCO)
        CD_STORE(MP) = CDTH
-       U_STORE(:,MP) = US1 + REAL(N)*DEL*(US2-US1)
-       V_STORE(:,MP) = DS1 + REAL(N)*DEL*(DS2-DS1)
+       U_STORE(NINF:NSUP,MP) = US1(NINF:NSUP) + REAL(N)*DEL*(US2(NINF:NSUP)-US1(NINF:NSUP))
+       V_STORE(NINF:NSUP,MP) = DS1(NINF:NSUP) + REAL(N)*DEL*(DS2(NINF:NSUP)-DS1(NINF:NSUP))
    END DO
 
    IF (ITEST.GE.3) THEN
@@ -1267,8 +1440,8 @@ DO
 !     2.3 UPDATE CURRENT FIELD REQUEST TIME AND READ NEXT IF REQUESTED.        !
 !         -------------------------------------------------------------        !
 
-   US1 = US2
-   DS1 = DS2
+   US1(NINF:NSUP) = US2(NINF:NSUP)
+   DS1(NINF:NSUP) = DS2(NINF:NSUP)
    CDT1 = CDT2
    CALL INCDATE (CDTH,IDELCI)
    IF (CDTH.GT.CD_END) EXIT

@@ -34,6 +34,9 @@ USE WAM_TOPO_MODULE,       ONLY:  &
 USE WAM_CURRENT_MODULE,    ONLY:  &
 &       WAM_CURRENT                  !! READ AND PREPARE CURRENTS.
 
+USE WAM_SOURCE_MODULE,     ONLY:  &
+&       MAKE_SHALLOW_SNL             !! COMPUTE THE NONLINEAR TRANSFER FUNCTION
+                                     !! COEFFICIENTS FOR SHALLOW WATER.
 use wam_special_module,    only:  &
 &       chready                      !! wait for wind/ice files 
     
@@ -43,20 +46,22 @@ use wam_special_module,    only:  &
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
-USE WAM_GENERAL_MODULE, ONLY: DEG
+USE WAM_GENERAL_MODULE, ONLY: DEG, ROAIR
 
 USE WAM_FRE_DIR_MODULE, ONLY: KL, ML, FR, CO, TH, DELTH, DELTR, COSTH, SINTH,  &
 &                             GOM, C, INV_LOG_CO,                              &
 &                             DF, DF_FR2, DF_FR,                               &
 &                             DFIM, DFIMOFR, DFIM_FR2, DFIM_FR, FR5, FRM5,     &
+&                             RHOWG_DFIM,                                      &
 &                             FMIN, MO_TAIL, MM1_TAIL, MP1_TAIL, MP2_TAIL,     &
-&                             NDEPTH, TCGOND, TSIHKD, TFAK, TFAC_ST
+&                             MPM, KPM, JXO, JYO
 
 USE WAM_GRID_MODULE,    ONLY: HEADER, NX, NY, NSEA, NLON_RG,                   &
 &                             XDELLA, DELLAM, XDELLO, ZDELLO, DELPHI,          &
 &                             AMOWEP, AMOSOP, AMOEAP, AMONOP, IPER,            &
-&                             SINPH, COSPH, DEPTH_B, KLAT, KLON, IXLG, KXLT,   &
-&                             L_S_MASK, ONE_POINT, REDUCED_GRID
+&                             SINPH, COSPH, DEPTH_B, KLAT, KLON, WLAT,         &
+&                             IXLG, KXLT, KFROMIJ, L_S_MASK, ONE_POINT,        &
+&                             REDUCED_GRID, OBSLAT, OBSLON
 
 USE WAM_NEST_MODULE,    ONLY: N_NEST, MAX_NEST, N_NAME, n_code,                &
                               NBOUNC, IJARC, BLATC, BLNGC, DLAMAC, DPHIAC,     &
@@ -64,15 +69,19 @@ USE WAM_NEST_MODULE,    ONLY: N_NEST, MAX_NEST, N_NAME, n_code,                &
 &                             NBINP, NBOUNF, C_NAME, BLNGF, BLATF, IJARF,      &
 &                             IBFL, IBFR, BFW
 
-USE WAM_MODEL_MODULE,   ONLY: FL3, U10, UDIR, TAUW, USTAR, Z0, DEPTH, INDEP,   &
-&                             U, V
+USE WAM_MODEL_MODULE,   ONLY: FL3, U10, UDIR, TAUW, USTAR, Z0, ROAIRN, WSTAR,  &
+&                             DEPTH, INDEP, U, V
 
 USE WAM_TIMOPT_MODULE,  ONLY: CDATEA, CDATEE, CDTPRO, IDELPRO, IDELT, IDEL_WAM,&
 &                             COLDSTART, SPHERICAL_RUN, SHALLOW_RUN,           &
-&                             REFRACTION_C_RUN,                                &
+&                             REFRACTION_C_RUN, L_OBSTRUCTION,                 &
 &                             CDATEWO, ifcst,                                  &
 &                             CDTA, TOPO_RUN, CD_TOPO_NEW,                     &
 &                             CDCA, CURRENT_RUN, CD_CURR_NEW 
+
+USE WAM_TABLES_MODULE,  ONLY: NDEPTH, DEPTHA, DEPTHD, DEPTHE,                  &
+&                             FLMINFR, TCGOND, TFAK, TSIHKD, TFAC_ST, T_TAIL,  &
+&                             JUMAX, DELU
 
 USE WAM_FILE_MODULE,    ONLY: FILE03, IU06, ITEST, IU07, FILE07, FILE08, FILE09
 
@@ -82,7 +91,7 @@ USE WAM_TOPO_MODULE,    ONLY: IDELTI, IDELTO
 
 USE WAM_CURRENT_MODULE, ONLY: IDELCI, IDELCO
 
-USE WAM_PROPAGATION_MODULE, ONLY: NADV, DCO, DPSN, MP, MM, KP, KM
+USE WAM_PROPAGATION_MODULE, ONLY: NADV, DCO, DPSN
 
 USE WAM_ICE_MODULE,         ONLY: ICE_RUN
 
@@ -142,7 +151,7 @@ CONTAINS
 
 SUBROUTINE PREPARE_START
 
-INTEGER :: M, K, LEN
+INTEGER :: LEN
 LOGICAL :: ERROR
 
 ! ---------------------------------------------------------------------------- !
@@ -155,6 +164,8 @@ IF (ALLOCATED(UDIR  )) DEALLOCATE(UDIR )
 IF (ALLOCATED(USTAR )) DEALLOCATE(USTAR)
 IF (ALLOCATED(Z0    )) DEALLOCATE(Z0   )
 IF (ALLOCATED(TAUW  )) DEALLOCATE(TAUW )
+IF (ALLOCATED(ROAIRN)) DEALLOCATE(ROAIRN)
+IF (ALLOCATED(WSTAR )) DEALLOCATE(WSTAR)
 IF (ALLOCATED(DEPTH )) DEALLOCATE(DEPTH)
 IF (ALLOCATED(INDEP )) DEALLOCATE(INDEP)
 IF (ALLOCATED(FL3   )) DEALLOCATE(FL3  )
@@ -168,61 +179,43 @@ allocate (udir(nijs:nijl))
 allocate (ustar(nijs:nijl))
 allocate (z0(nijs:nijl))
 allocate (tauw(nijs:nijl))
+ALLOCATE (ROAIRN(NIJS:NIJL))
+ALLOCATE (WSTAR(NIJS:NIJL))
 
-ALLOCATE(DEPTH(1:NSEA))
-ALLOCATE(INDEP(1:NSEA))
-ALLOCATE(U    (1:NSEA))
-ALLOCATE(V    (1:NSEA))
+ALLOCATE(DEPTH(NINF:NSUP))
+ALLOCATE(INDEP(NINF:NSUP))
+ALLOCATE(U    (NINF:NSUP))
+ALLOCATE(V    (NINF:NSUP))
 
 USTAR = 0.
 TAUW  = 0.
 Z0    = 0.
+ROAIRN=ROAIR
+WSTAR = 0.
 U     = 0.
 V     = 0.
 DEPTH = 999.0
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     2. NEIGHBOUR INDEX FOR FREQUENCY AND DIRECTION.                          !
-!        --------------------------------------------                          !
-
-IF (.NOT.ALLOCATED(MP)) THEN
-   ALLOCATE(MP(1:ML))
-   MP = (/(MIN(M,ML),M=2,ML+1)/)
-END IF
-IF (.NOT.ALLOCATED(MM)) THEN
-   ALLOCATE(MM(1:ML))
-   MM = (/(MAX(M,1),M=0,ML-1)/)
-END IF
-IF (.NOT.ALLOCATED(KP)) THEN
-   ALLOCATE(KP(1:KL))
-   KP = CSHIFT((/(K,K=1,KL)/),1)
-END IF
-IF (.NOT.ALLOCATED(KM)) THEN
-   ALLOCATE(KM(1:KL))
-   KM = CSHIFT(KP,-2)
-END IF
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3. COSINE OF LATITUDE FACTORS (IF SPHERICAL GRID).                       !
+!     2. COSINE OF LATITUDE FACTORS (IF SPHERICAL GRID).                       !
 !        -----------------------------------------------                       !
 
 IF (SPHERICAL_RUN .AND. .NOT.ONE_POINT) THEN
    IF (.NOT.ALLOCATED(DCO))  ALLOCATE(DCO(NINF:NSUP))
    IF (.NOT.ALLOCATED(DPSN)) ALLOCATE(DPSN(nijs:nijl,2))
 
-   DCO(ninf:nsup) = 1./COSPH(KXLT(ninf:nsup))           !! COSINE OF LATITUDE.
+   DCO(ninf:nsup) = 1./COSPH(KFROMIJ(ninf:nsup))           !! COSINE OF LATITUDE.
    DPSN = 1.
-   WHERE (KLAT(nijs:nijl,1).NE.ninf-1) DPSN(nijs:nijl,1) =                     &
-&         DCO(nijs:nijl)/DCO(KLAT(nijs:nijl,1))         !! COS PHI FACTOR SOUTH.
-   WHERE (KLAT(nijs:nijl,2).NE.ninf-1) DPSN(nijs:nijl,2) =                     &
-&         DCO(nijs:nijl)/DCO(KLAT(nijs:nijl,2))         !! COS PHI FACTOR NORTH.
+   WHERE (KLAT(nijs:nijl,1,1).NE.ninf-1) DPSN(nijs:nijl,1) =                   &
+&         DCO(nijs:nijl)/DCO(KLAT(nijs:nijl,1,1))         !! COS PHI FACTOR SOUTH.
+   WHERE (KLAT(nijs:nijl,2,1).NE.ninf-1) DPSN(nijs:nijl,2) =                   &
+&         DCO(nijs:nijl)/DCO(KLAT(nijs:nijl,2,1))         !! COS PHI FACTOR NORTH.
 END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     4. GENERATE START FIELDS OR READ RESTART FILE.                           !
+!     3. GENERATE START FIELDS OR READ RESTART FILE.                           !
 !        -------------------------------------------                           !
 
 IF (COLDSTART) THEN
@@ -235,7 +228,7 @@ END IF
 
 ! ---------------------------------------------------------------------------- !
 !
-!     5. ICE INFORMATION.
+!     4. ICE INFORMATION.
 !        ----------------
 
 ICE_RUN = .FALSE.
@@ -276,7 +269,7 @@ END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     6. PREPARE FIRST DEPTH FIELD AND DATE FOR NEXT DEPTH FIELD.              !
+!     5. PREPARE FIRST DEPTH FIELD AND DATE FOR NEXT DEPTH FIELD.              !
 !        --------------------------------------------------------              !
 
 CALL PREPARE_FIRST_DEPTH
@@ -284,9 +277,16 @@ IF (ITEST.GE.2) THEN
    WRITE (IU06,*) '    SUB. PREPARE_START: PREPARE_FIRST_DEPTH DONE '
 END IF
 
+IF (SHALLOW_RUN) THEN
+   CALL MAKE_SHALLOW_SNL (DEPTH(nijs:nijl))
+   IF (ITEST.GE.2) THEN
+      WRITE (IU06,*) '    SUB. PREPARE_START: MAKE_SHALLOW_SNL DONE '
+   END IF
+END IF
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     7. PREPARE FIRST CURRENT FIELD AND DATE FOR NEXT CURRENT FIELD.          !
+!     6. PREPARE FIRST CURRENT FIELD AND DATE FOR NEXT CURRENT FIELD.          !
 !        ------------------------------------------------------------          !
 
 CALL PREPARE_FIRST_CURRENT
@@ -296,7 +296,7 @@ END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     8. NUMBER OF PROPAGATION TIME STEPS PER WAM MODEL CALL.                  !
+!     7. NUMBER OF PROPAGATION TIME STEPS PER WAM MODEL CALL.                  !
 !        ----------------------------------------------------                  !
 
 IF (ONE_POINT) THEN
@@ -335,7 +335,7 @@ IDEL_WAM = NADV*IDELPRO
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     9. INITIALIZE DATE FOR NEXT WIND FIELD.                                  !
+!     8. INITIALIZE DATE FOR NEXT WIND FIELD.                                  !
 !        ------------------------------------                                  !
 
 CDATEWO = CDTPRO
@@ -359,7 +359,7 @@ IF (IDELT.LT.IDELWO) CALL INCDATE(CDATEWO,IDELWO/2)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!    10. INITIALIZE DATE FOR NEXT DEPTH FIELD.                                 !
+!     9. INITIALIZE DATE FOR NEXT DEPTH FIELD.                                 !
 !        -------------------------------------                                 !
 
 IF (IDELTI.LE.0 .OR. .NOT.TOPO_RUN) THEN
@@ -393,7 +393,7 @@ END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!    11. INITIALIZE DATE FOR NEXT CURRENT FIELD.                               !
+!    10. INITIALIZE DATE FOR NEXT CURRENT FIELD.                               !
 !        ---------------------------------------                               !
 
 IF (IDELCI.LE.0 .OR. .NOT.CURRENT_RUN) THEN
@@ -459,6 +459,7 @@ SUBROUTINE READ_PREPROC_FILE
 !     ----------------                                                         !
 
 INTEGER  :: IOS, LEN, I
+LOGICAL  :: L_OBSTRUCTION_T
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -553,16 +554,25 @@ IF ( .NOT.ALLOCATED(DFIM_FR) ) ALLOCATE( DFIM_FR(ML) )
 IF ( .NOT.ALLOCATED(DFIM_FR2)) ALLOCATE( DFIM_FR2(ML))
 IF ( .NOT.ALLOCATED(FR5)     ) ALLOCATE( FR5(ML)     )
 IF ( .NOT.ALLOCATED(FRM5)    ) ALLOCATE( FRM5(ML)    )
+IF ( .NOT.ALLOCATED(RHOWG_DFIM)) ALLOCATE( RHOWG_DFIM(ML))
+IF (.NOT. ALLOCATED(MPM)     ) ALLOCATE(MPM(ML,-1:1))  !! FREQUENCY NEIGHTBOURS.
+IF (.NOT. ALLOCATED(KPM)     ) ALLOCATE(KPM(KL,-1:1))  !! DIRECTION NEIGHTBOURS.
+IF (.NOT. ALLOCATED(JXO)     ) ALLOCATE(JXO(KL,2))
+IF (.NOT. ALLOCATED(JYO)     ) ALLOCATE(JYO(KL,2))
+
 READ (IU07)  FR, DFIM, GOM, C, DELTH, DELTR, TH, COSTH, SINTH, INV_LOG_CO,     &
 &            DF, DF_FR, DF_FR2, DFIM, DFIMOFR, DFIM_FR, DFIM_FR2, FR5, FRM5,   &
+&            RHOWG_DFIM,                                                       &
 &            FMIN, MO_TAIL, MM1_TAIL, MP1_TAIL, MP2_TAIL
+
+READ (IU07)  MPM, KPM, JXO, JYO
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     4. READ GRID INFORMATION.                                                !
 !        ----------------------                                                !
 
-READ (IU07) NX, NY, NSEA, IPER, ONE_POINT, REDUCED_GRID
+READ (IU07) NX, NY, NSEA, IPER, ONE_POINT, REDUCED_GRID, L_OBSTRUCTION_T
 
 IF ( .NOT.ALLOCATED(L_S_MASK)) ALLOCATE( L_S_MASK(1:NX,1:NY) )
 IF ( .NOT.ALLOCATED(NLON_RG) ) ALLOCATE( NLON_RG(1:NY) )
@@ -572,31 +582,73 @@ IF ( .NOT.ALLOCATED(IXLG)    ) ALLOCATE( IXLG(1:NSEA) )
 IF ( .NOT.ALLOCATED(KXLT)    ) ALLOCATE( KXLT(1:NSEA) )
 IF ( .NOT.ALLOCATED(SINPH)   ) ALLOCATE( SINPH(1:NY)  )
 IF ( .NOT.ALLOCATED(COSPH)   ) ALLOCATE( COSPH(1:NY)  )
-IF ( .NOT.ALLOCATED(KLAT)    ) ALLOCATE( KLAT(1:NSEA,1:2) )
+IF ( .NOT.ALLOCATED(KLAT)    ) ALLOCATE( KLAT(1:NSEA,1:2,1:2) )
 IF ( .NOT.ALLOCATED(KLON)    ) ALLOCATE( KLON(1:NSEA,1:2) )
+IF ( .NOT.ALLOCATED(WLAT)    ) ALLOCATE( WLAT(1:NSEA,1:2) )
 IF ( .NOT.ALLOCATED(DEPTH_B) ) ALLOCATE( DEPTH_B(1:NSEA) )
+
+IF ( .NOT.ALLOCATED(OBSLAT ) ) ALLOCATE (OBSLAT (NSEA,2,ML))
+IF ( .NOT.ALLOCATED(OBSLON ) ) ALLOCATE (OBSLON (NSEA,2,ML))
 
 READ (IU07) NLON_RG
 READ (IU07) DELPHI, DELLAM, SINPH, COSPH, AMOWEP, AMOSOP, AMOEAP, AMONOP,      &
 &           XDELLA, XDELLO, ZDELLO
 READ (IU07) IXLG, KXLT, L_S_MASK
-READ (IU07) KLAT, KLON, DEPTH_B
+READ (IU07) KLAT, KLON, WLAT, DEPTH_B
+IF (L_OBSTRUCTION_T) THEN
+   READ (IU07) OBSLAT, OBSLON
+   IF (.NOT.L_OBSTRUCTION) THEN
+      OBSLAT = 1.
+      OBSLON = 1.
+   END IF
+ELSE
+   OBSLAT = 1.
+   OBSLON = 1.
+   IF (L_OBSTRUCTION) THEN
+      WRITE (IU06,*) ' ++++++++++++++++++++++++++++++++++++++++++++++++++++'
+      WRITE (IU06,*) ' +                                                  +'
+      WRITE (IU06,*) ' +     WARNING ERROR SUB. READ_PREPROC_FILE.        +'
+      WRITE (IU06,*) ' +     =======================================      +'
+      WRITE (IU06,*) ' +                                                  +'
+      WRITE (IU06,*) ' + REDUCTION DUE TO SUB-GRID FEATURES REQUESTED,    +'
+      WRITE (IU06,*) ' + BUT OBSTRUCTION FACTORS ARE NOT IN               +'
+      WRITE (IU06,*) ' + PREPROC OUTPUT FILE.                             +'
+      WRITE (IU06,*) ' +                                                  +'
+      WRITE (IU06,*) ' +               MODEL CONTINUES                    +'
+      WRITE (IU06,*) ' +              WITHOUT REDUCTION                   +'
+      WRITE (IU06,*) ' +                                                  +'
+      WRITE (IU06,*) ' ++++++++++++++++++++++++++++++++++++++++++++++++++++'
+      L_OBSTRUCTION = .FALSE.
+   END IF
+END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     7. READ SHALLOW WATER TABLES.                                            !
-!        --------------------------                                            !
+!     7. READ TABLES.                                                          !
+!        ------------                                                          !
 
-IF ( .NOT.ALLOCATED(TCGOND) ) ALLOCATE( TCGOND(NDEPTH,ML) )
-IF ( .NOT.ALLOCATED(TFAK)   ) ALLOCATE( TFAK(NDEPTH,ML)   )
-IF ( .NOT.ALLOCATED(TSIHKD) ) ALLOCATE( TSIHKD(NDEPTH,ML) )
-IF ( .NOT.ALLOCATED(TFAC_ST)) ALLOCATE( TFAC_ST(NDEPTH,ML))
+READ (IU07) NDEPTH, DEPTHA, DEPTHD, DEPTHE
 
-READ (IU07) TCGOND, TFAK, TSIHKD, TFAC_ST
+IF (ALLOCATED(FLMINFR)) DEALLOCATE (FLMINFR)
+ALLOCATE (FLMINFR(1:JUMAX,1:ML))
+IF (ALLOCATED(TCGOND) ) DEALLOCATE (TCGOND)
+ALLOCATE (TCGOND(NDEPTH,ML) )
+IF (ALLOCATED(TFAK)   ) DEALLOCATE (TFAK)
+ALLOCATE (TFAK(NDEPTH,ML)   )
+IF (ALLOCATED(TSIHKD) ) DEALLOCATE (TSIHKD)
+ALLOCATE (TSIHKD(NDEPTH,ML) )
+IF (ALLOCATED(TFAC_ST)) DEALLOCATE (TFAC_ST)
+ALLOCATE( TFAC_ST(NDEPTH,ML))
+IF (ALLOCATED(T_TAIL)) DEALLOCATE (T_TAIL)
+ALLOCATE( T_TAIL(NDEPTH,ML))
+
+READ (IU07) FLMINFR, TCGOND, TFAK, TSIHKD, TFAC_ST, T_TAIL
+
+READ (IU07) DELU
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     9. CLOSE FILE AND RETURN.                                                !
+!     8. CLOSE FILE AND RETURN.                                                !
 !        ----------------------                                                !
 
 CLOSE (UNIT=IU07, STATUS='KEEP')
@@ -661,7 +713,7 @@ IF (.NOT.TOPO_RUN) THEN
 
 !     3.1 DEPTH IS NOT DEFINED: USED BASIC DEPTH FROM PREPROC.                        !
 
-      DEPTH = DEPTH_B
+      DEPTH(ninf:nsup) = DEPTH_B(ninf:nsup)
       IF (ITEST.GE.3) THEN
          WRITE (IU06,*) '    SUB.PREPARE_FIRST_DEPTH:'
          WRITE (IU06,*) '        BASIC DEPTH FROM PREPROC'

@@ -1,0 +1,16 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+    
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
+
+SCRDIR=${PRODADMDIR}/mk
+OBJDIR=${PRODADMDIR}/obj
+EXECDIR=${PRODADMDIR}/abs
+cp $SCRDIR/pgrid.mk $OBJDIR
+cd $OBJDIR
+make -f pgrid.mk pgrid
+mv pgrid $EXECDIR
+rm -f pgrid.mk

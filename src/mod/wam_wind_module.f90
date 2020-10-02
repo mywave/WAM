@@ -18,7 +18,6 @@ USE WAM_GENERAL_MODULE,   ONLY:  &
 &       INCDATE                    !! INCREMENTS DATE TIME GROUP.
 
 USE WAM_GRID_MODULE,      ONLY:  &
-&       INTERPOLATION_TO_GRID,   & !! INTERPOLATE TO WAM POINTS.
 &       EQUAL_TO_M_GRID            !! COMPARES WIND GRID TO MODEL GRID.
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -29,10 +28,10 @@ USE WAM_GRID_MODULE,      ONLY:  &
 
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST, wpath, area
 USE WAM_GENERAL_MODULE, ONLY: PI, ZPI, G, RAD, ROAIR, XKAPPA
-USE WAM_GRID_MODULE,    ONLY: NSEA, L_S_MASK
+USE WAM_GRID_MODULE,    ONLY: AMOWEP, ZDELLO, AMOSOP, XDELLA, IFROMIJ, KFROMIJ
 USE WAM_MODEL_MODULE,   ONLY: U10, UDIR
 USE WAM_TIMOPT_MODULE,  ONLY: CDA, CDATEE, IDEL_WAM
-use wam_mpi_module,     only: nijs, nijl
+USE WAM_MPI_MODULE,     ONLY: NIJS, NIJL
 use wam_special_module, only: readyf
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -54,12 +53,12 @@ INTEGER :: NY_IN  =-1      !! NUMBER OF LATITUDES.
 LOGICAL :: PER =.FALSE.    !! .TRUE. IF PERIODIC GRID.
 INTEGER :: CODE_IN = 3     !! WIND CODE:
                            !! 1 = USTAR;  2 = USTRESS; 3 = U10
-INTEGER :: DX_IN  =-1.     !! STEPSIZE BETWEEN LONGITUDES [M_SEC].
-INTEGER :: DY_IN  =-1.     !! STEPSIZE BETWEEN LATITUDES [M_SEC].
-INTEGER :: SOUTH_IN =-1.   !! SOUTH LATITUDE OF GRID [M_SEC].
-INTEGER :: NORTH_IN =-1.   !! NORTH LATITUDE OF GRID [M_SEC].
-INTEGER :: WEST_IN =-1.    !! WEST LONGITUDE OF GRID [M_SEC].
-INTEGER :: EAST_IN =-1.    !! EAST LONGITUDE OF GRID [M_SEC].
+INTEGER :: DX_IN  =-1      !! STEPSIZE BETWEEN LONGITUDES [M_SEC].
+INTEGER :: DY_IN  =-1      !! STEPSIZE BETWEEN LATITUDES [M_SEC].
+INTEGER :: SOUTH_IN =-1    !! SOUTH LATITUDE OF GRID [M_SEC].
+INTEGER :: NORTH_IN =-1    !! NORTH LATITUDE OF GRID [M_SEC].
+INTEGER :: WEST_IN =-1     !! WEST LONGITUDE OF GRID [M_SEC].
+INTEGER :: EAST_IN =-1     !! EAST LONGITUDE OF GRID [M_SEC].
 LOGICAL :: EQUAL_GRID =.FALSE. !! .TRUE. IF WIND GRID IS EQUAL TO MODEL GRID.
     
 CHARACTER (LEN= 14) :: CD_READ =' '!! DATE OF LAST DATA READ FROM INPUT.
@@ -153,6 +152,11 @@ END INTERFACE
 !     E.  PRIVATE INTERFACES.                                                  !
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
+
+INTERFACE INTERPOLATION_TO_GRID       !! INTERPOLATES TO MODEL GRID POINTS. 
+   MODULE  PROCEDURE INTERPOLATION_TO_GRID
+END INTERFACE
+PRIVATE INTERPOLATION_TO_GRID
 
 INTERFACE NOTIM           !! STEERING SUB IF TIME INTERPOLATION IS NOT WANTED.
    MODULE PROCEDURE NOTIM
@@ -447,10 +451,15 @@ END IF
 WRITE (IU06,*) ' WIND CODE: 1 USTAR;  2 USTRESS; 3 U10.......: ', CODE_IN
 WRITE (IU06,*) '  '
 
-IF ( M_STORE.GT.0 .AND. ANY(CD_STORE.NE.' ')) THEN
-   WRITE (IU06,*) ' NUMBER OF WIND FIELDS STORED IN MODULE .....: ', M_STORE
-   WRITE (IU06,*) ' DATES OF WIND FIELDS ARE:'
-   WRITE (IU06,'(5(3X,A14,2X))')  CD_STORE
+
+IF ( M_STORE.GT.0) THEN
+   IF (ANY(CD_STORE.NE.' ')) THEN
+      WRITE (IU06,*) ' NUMBER OF WIND FIELDS STORED IN MODULE .....: ', M_STORE
+      WRITE (IU06,*) ' DATES OF WIND FIELDS ARE:'
+      WRITE (IU06,'(5(3X,A14,2X))')  CD_STORE
+   ELSE
+      WRITE (IU06,*) ' WIND FIELDS ARE NOT STORED IN MODULE'
+   END IF
 ELSE
    WRITE (IU06,*) ' WIND FIELDS ARE NOT STORED IN MODULE'
 END IF
@@ -1087,8 +1096,8 @@ SUBROUTINE WAM_WIND (US, DS, CD_START)
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
 
-REAL,          INTENT(OUT)    :: US(:)    !! WIND SPEED (U10).
-REAL,          INTENT(OUT)    :: DS(:)    !! DIRECTION.
+REAL,          INTENT(OUT)    :: US(NIJS:NIJL)    !! WIND SPEED (U10).
+REAL,          INTENT(OUT)    :: DS(NIJS:NIJL)    !! DIRECTION.
 CHARACTER (LEN=14),INTENT(IN) :: CD_START !! DATE OF FIELD TO BE LOOKED FOR.
 
 ! ---------------------------------------------------------------------------- !
@@ -1131,15 +1140,13 @@ END DO
 !     2. INTERPOLATE AND BLOCK WINDFIELD                                       !
 !        -------------------------------                                       !
 
-
-US = 0.  !! INITIALISE WIND ARRAY WITH ZERO.
-DS = 0.
 IF (EQUAL_GRID) THEN
-   US = PACK(U_IN, L_S_MASK)
-   DS = PACK(V_IN, L_S_MASK)
+   DO IJ = NIJS, NIJL
+      US(IJ)= U_IN(IFROMIJ(IJ),KFROMIJ(IJ))
+      DS(IJ)= V_IN(IFROMIJ(IJ),KFROMIJ(IJ))
+   END DO
 ELSE
-   CALL INTERPOLATION_TO_GRID (IU06, PER, DX_IN, DY_IN, WEST_IN, SOUTH_IN,     &
-&                              U_IN, US, V_IN, DS)
+   CALL INTERPOLATION_TO_GRID (US, DS)
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -1147,11 +1154,15 @@ END IF
 !     3. TRANSFORM TO MAGNITUDE AND DIRECTION.                                 !
 !         -------------------------------------                                !
 
-DO IJ = 1,SIZE(US)
+DO IJ = NIJS, NIJL
    UU = US(IJ)
    VV = DS(IJ)
    US(IJ) = SQRT(UU**2 + VV**2)
-   IF (US(IJ).NE.0.) DS(IJ) = ATAN2(UU,VV)
+   IF (US(IJ).NE.0.) THEN
+      DS(IJ) = ATAN2(UU,VV)
+   ELSE
+      DS(IJ) = 0.
+   ENDIF
    IF (DS(IJ).LT.0.) DS(IJ) = DS(IJ) + ZPI
 END DO
 
@@ -1166,7 +1177,7 @@ IF (CODE_IN.EQ.1) THEN
 !     3.2  INPUT IS FRICTION VELOCITY.                                         !
 !          ---------------------------                                         !
 
-   DO IJ = 1,SIZE(US)
+   DO IJ = NIJS, NIJL
          USTAR = MAX(0.01,US(IJ))
          Z0  = ALPHACH/G*USTAR**2
          CD  = XKAPPA/ALOG(10./Z0)
@@ -1178,7 +1189,7 @@ ELSE IF (CODE_IN.EQ.2) THEN
 !     3.3 INPUT WINDS ARE SURFACE STRESSES.                                    !
 !         ---------------------------------                                    !
 !                                                                              !
-   DO IJ = 1,SIZE(US)
+   DO IJ = NIJS, NIJL
          USTAR = MAX (0.01, SQRT(US(IJ)/ROAIR))
          Z0  = ALPHACH/G*USTAR**2
          CD  = XKAPPA/ALOG(10./Z0)
@@ -1186,18 +1197,20 @@ ELSE IF (CODE_IN.EQ.2) THEN
    END DO
 END IF
 
+US(NIJS:NIJL)  = MAX(US(NIJS:NIJL), 2.0)
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     4. TEST OUTPUT OF WAVE MODEL BLOCKS                                      !
 !        ---------------------------------                                     !
 
 IF (ITEST.GE.3) THEN
-   IJ = MIN (10,SIZE(US))
+   IJ = MIN(NIJS+10,NIJL)
    WRITE (IU06,*) ' '
    WRITE (IU06,*) '      SUB. WAM_WIND: WINDFIELDS CONVERTED TO MODEL GRID'
    WRITE (IU06,*) ' '
-   WRITE (IU06,*) ' US(1:10) = ', US(1:IJ)
-   WRITE (IU06,*) ' DS(1:10) = ', DS(1:IJ)
+   WRITE (IU06,*) ' US(NIJS:NIJS+10) = ', US(NIJS:IJ)
+   WRITE (IU06,*) ' DS(NIJS:NIJS+10) = ', DS(NIJS:IJ)
 END IF
 
 END SUBROUTINE WAM_WIND
@@ -1206,6 +1219,163 @@ END SUBROUTINE WAM_WIND
 !                                                                              !
 !     G. PRIVAT MODULE PROCEDURES.                                             !
 !                                                                              !
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE INTERPOLATION_TO_GRID (US, VS)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!   INTERPOLATION_TO_GRID - INTERPOLATES TO MODEL GRID POINTS.                 !
+!                                                                              !
+!     H. GUNTHER    GKSS  DECEMBER 2001.                                       !
+!                                                                              !
+!     PURPOSE.                                                                 !
+!     --------                                                                 !
+!                                                                              !
+!        LOCATE AND INTERPOLATE IN INPUT GRID.                                 !
+!                                                                              !
+!     METHOD.                                                                  !
+!     -------                                                                  !
+!                                                                              !
+!       DOUBLE LINEAR INTERPOLATION IN INPUT GRID. OPTIONAL A SECOND INPUT     !
+!       CAN BE INTERPOLATED AT THE SAME CALL.                                  !
+!                                                                              !
+!     REFERENCE.                                                               !
+!     ----------                                                               !
+!                                                                              !
+!       NONE.                                                                  !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.
+!     --------------------
+
+REAL,    INTENT(OUT)  :: US(NIJS:NIJL)  !! SPACE INTERPOLATED OUTPUT FIELD.
+REAL,    INTENT(OUT)  :: VS(NIJS:NIJL)  !! OPTIONAL SECOND OUTPUT FIELD.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.
+!     ----------------
+
+LOGICAL, SAVE :: FRSTIME = .TRUE.
+
+INTEGER :: IJ
+INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: I1, I2, K1, K2
+REAL,    SAVE ,ALLOCATABLE, DIMENSION(:) :: DI, DK
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     1. INITIALIZE INTERPOLATION WEIGHTS.                                     !
+!        ---------------------------------                                     !
+
+IF (FRSTIME) THEN
+   CALL INITIALIZE
+   FRSTIME =.FALSE.
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. LINEAR INTERPOLATION.                                                 !
+!        ----------------------                                                !
+
+!     2.1 FIRST FIELD.
+
+DO IJ = NIJS,NIJL
+   US(IJ) = (U_IN(I1(IJ),K1(IJ))*(1.-DI(IJ))+U_IN(I2(IJ),K1(IJ))*DI(IJ))*(1.-DK(IJ)) &
+&         + (U_IN(I1(IJ),K2(IJ))*(1.-DI(IJ))+U_IN(I2(IJ),K2(IJ))*DI(IJ))*DK(IJ)
+END DO
+
+!     2.2 SECOND FIELD.
+
+DO IJ =  NIJS,NIJL
+   VS(IJ) = (V_IN(I1(IJ),K1(IJ))*(1.-DI(IJ))+V_IN(I2(IJ),K1(IJ))*DI(IJ))*(1.-DK(IJ)) &
+&         + (V_IN(I1(IJ),K2(IJ))*(1.-DI(IJ))+V_IN(I2(IJ),K2(IJ))*DI(IJ))*DK(IJ)
+END DO
+
+CONTAINS
+
+SUBROUTINE INITIALIZE
+
+ALLOCATE (I1(NIJS:NIJL))
+ALLOCATE (I2(NIJS:NIJL))
+ALLOCATE (K1(NIJS:NIJL))
+ALLOCATE (K2(NIJS:NIJL))
+ALLOCATE (DI(NIJS:NIJL))
+ALLOCATE (DK(NIJS:NIJL))
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     1. TRANSFORM MODEL COORDINATES TO INPUT GRID.                            !
+!        ------------------------------------------                            !
+
+I1(NIJS:NIJL) = AMOWEP + (IFROMIJ(NIJS:NIJL)-1)*ZDELLO(KFROMIJ(NIJS:NIJL)) - WEST_IN
+I1(NIJS:NIJL) = MOD(I1(NIJS:NIJL)+2*M_S_PER,M_S_PER)
+DI(NIJS:NIJL) = REAL(I1(NIJS:NIJL))/REAL(DX_IN)
+
+K1(NIJS:NIJL) = AMOSOP + (KFROMIJ(NIJS:NIJL)-1)*XDELLA - SOUTH_IN
+DK(NIJS:NIJL) = REAL(K1(NIJS:NIJL))/REAL(DY_IN)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. COMPUTE CORNER POINT INDICES IN INPUT GRID.                           !
+!        -------------------------------------------                           !
+
+I1(NIJS:NIJL)  = INT(DI(NIJS:NIJL))+1
+K1(NIJS:NIJL)  = INT(DK(NIJS:NIJL))+1
+K2(NIJS:NIJL)  = MIN(NY_IN,K1(NIJS:NIJL)+1)
+I2(NIJS:NIJL)  = I1(NIJS:NIJL)+1
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3. DISTANCES OF INTERPOLATION POINT FROM LOW LEFT CORNER POINT.          !
+!        ------------------------------------------------------------          !
+
+DI(NIJS:NIJL) = DI(NIJS:NIJL)-REAL(I1(NIJS:NIJL))+1.
+DK(NIJS:NIJL) = DK(NIJS:NIJL)-REAL(K1(NIJS:NIJL))+1.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     4. CORRECTIONOF FIRST AND LAST GRID LINES (PERIODIC OR UNPERIODIC GRID). !
+!        --------------------------------------------------------------------- !
+
+IF (PER) THEN
+   WHERE (I1(NIJS:NIJL).EQ.NX_IN) I2(NIJS:NIJL) = 1
+   WHERE (I1(NIJS:NIJL).EQ.0 ) I1(NIJS:NIJL) = NX_IN
+ELSE
+   WHERE (I1(NIJS:NIJL).EQ.NX_IN) I2(NIJS:NIJL) = NX_IN
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     5. CHECK WHETHER POINTS ARE IN GRID.                                     !
+!        ---------------------------------                                     !
+
+IF (MINVAL(I1).LT.1 .OR. MAXVAL(I1).GT.NX_IN .OR.                              &
+&   MINVAL(K1).LT.1 .OR. MAXVAL(K1).GT.NY_IN) THEN
+   WRITE(IU06,*) ' *******************************************'
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *  FATAL ERROR IN INTERPOLATION_TO_GRID   *'
+   WRITE(IU06,*) ' *  ====================================   *'
+   WRITE(IU06,*) ' * POINT IS OUTSIDE OF INPUT GRID          *'
+   WRITE(IU06,*) ' * DIMENSION OF INPUT GRID IS   NX_IN = ', NX_IN
+   WRITE(IU06,*) ' *                              NY_IN = ', NY_IN
+   WRITE(IU06,*) ' * MIN AND MAX OF INDEX ARE                *'
+   WRITE(IU06,*) ' * I1:  MIN, MAX = ', MINVAL(I1), MAXVAL(I1)
+   WRITE(IU06,*) ' * I2:  MIN, MAX = ', MINVAL(I2), MAXVAL(I2)
+   WRITE(IU06,*) ' * K1:  MIN, MAX = ', MINVAL(K1), MAXVAL(K1)
+   WRITE(IU06,*) ' * K2:  MIN, MAX = ', MINVAL(K2), MAXVAL(K2)
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *  PROGRAM ABORTS     PROGRAM ABORTS      *'
+   WRITE(IU06,*) ' *                                         *'
+   WRITE(IU06,*) ' *******************************************'
+   CALL ABORT1
+END IF
+
+END SUBROUTINE INITIALIZE
+
+END SUBROUTINE INTERPOLATION_TO_GRID
+
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 SUBROUTINE NOTIM (CD_START, CD_END)
@@ -1250,8 +1420,8 @@ CHARACTER (LEN=14), INTENT(IN)  :: CD_END    !! DATE OF LAST WIND FIELD.
 
 INTEGER            :: MP
 CHARACTER (LEN=14) :: CDTWIH
-REAL               :: US(1:NSEA)  !! OUTPUT WIND FIELD ARRAY (U10).
-REAL               :: DS(1:NSEA)  !! OUTPUT WIND FIELD ARRAY (DIRECTION).
+REAL               :: US(nijs:nijl)  !! OUTPUT WIND FIELD ARRAY (U10).
+REAL               :: DS(nijs:nijl)  !! OUTPUT WIND FIELD ARRAY (DIRECTION).
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1271,8 +1441,8 @@ DO WHILE (CDTWIH.LE.CD_END)
 !     1.2 SAVE IN MODULE WAM_WIND.                                             !
 !         ------------------------                                             !
 
-   U_STORE(:,MP)  = US(nijs:nijl)
-   D_STORE(:,MP)  = DS(nijs:nijl)
+   U_STORE(nijs:nijl,MP)  = US(nijs:nijl)
+   D_STORE(nijs:nijl,MP)  = DS(nijs:nijl)
    CD_STORE(MP) = CDTWIH
 
    IF (ITEST.GE.3) THEN
@@ -1337,8 +1507,8 @@ CHARACTER (LEN=14) :: CDT1, CDT2, CDTH
 
 REAL               :: US1(nijs:nijl)  !! OUTPUT WIND FIELD ARRAY (U10).
 REAL               :: DS1(nijs:nijl)  !! OUTPUT WIND FIELD ARRAY (DIRECTION).
-REAL               :: US2(1:NSEA)     !! OUTPUT WIND FIELD ARRAY (U10).
-REAL               :: DS2(1:NSEA)     !! OUTPUT WIND FIELD ARRAY (DIRECTION).
+REAL               :: US2(nijs:nijl)  !! OUTPUT WIND FIELD ARRAY (U10).
+REAL               :: DS2(nijs:nijl)  !! OUTPUT WIND FIELD ARRAY (DIRECTION).
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1392,13 +1562,15 @@ DO
       MP = MP + 1
       CALL INCDATE(CDTH,IDELWO)
       CD_STORE(MP) = CDTH
-      U_STORE(:,MP) = US1(:) + REAL(N)*DEL*(US2(nijs:nijl)-US1(:))
-      D_STORE(:,MP) = DS2(nijs:nijl) - DS1(:)
+      U_STORE(nijs:nijl,MP) = US1(nijs:nijl) +                                 &
+&                             REAL(N)*DEL*(US2(nijs:nijl)-US1(nijs:nijl))
+      D_STORE(nijs:nijl,MP) = DS2(nijs:nijl) - DS1(nijs:nijl)
 
-      WHERE (ABS(D_STORE(:,MP)).GT.PI)                                         &
-&           D_STORE(:,MP) = D_STORE(:,MP)-ZPI*SIGN(1.,D_STORE(:,MP))
-      D_STORE(:,MP) = DS1(:) + REAL(N)*DEL*D_STORE(:,MP)
-      D_STORE(:,MP) = MOD(D_STORE(:,MP)+ZPI,ZPI)
+      WHERE (ABS(D_STORE(nijs:nijl,MP)).GT.PI)                                 &
+&           D_STORE(nijs:nijl,MP) = D_STORE(nijs:nijl,MP)                      &
+&                                 -ZPI*SIGN(1.,D_STORE(nijs:nijl,MP))
+      D_STORE(nijs:nijl,MP) = DS1(nijs:nijl) + REAL(N)*DEL*D_STORE(nijs:nijl,MP)
+      D_STORE(nijs:nijl,MP) = MOD(D_STORE(:,MP)+ZPI,ZPI)
    END DO
 
    IF (ITEST.GE.3) THEN
@@ -1409,8 +1581,8 @@ DO
 !     2.3 UPDATE WIND FIELD REQUEST TIME AND READ NEXT IF REQUESTED.           !
 !         ----------------------------------------------------------           !
 
-   US1(:) = US2(nijs:nijl)
-   DS1(:) = DS2(nijs:nijl)
+   US1(nijs:nijl) = US2(nijs:nijl)
+   DS1(nijs:nijl) = DS2(nijs:nijl)
    CDT1 = CDT2
    CALL INCDATE (CDTH,IDELWI)
    IF (CDTH.GT.CD_END) EXIT

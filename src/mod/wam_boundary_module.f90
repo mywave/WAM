@@ -3,7 +3,9 @@ MODULE WAM_BOUNDARY_MODULE
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !   THIS MODULE STORES THE BOUNDARY INPUT VALUES FOR A FINE GRID RUN.          !
-!   THE VALUES WERE PRODUCED BY A PREVIOUS COARSE GRID RUN.                    !
+!   THE VALUES PRODUCED BY A PREVIOUS COARSE GRID RUN ARE INTERPOLATED AND     !
+!   INSERTED INTO THE FINE GRID MODEL.                                         !
+!   THE OUTPUT OF BOUNDARY VALUES FROM A COARSE GRID RUN IS DONE TOO.          !
 !                                                                              !
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -35,7 +37,8 @@ use wam_mpi_comp_module, only:   &  !! gather boundary values
 USE WAM_FILE_MODULE,          ONLY: IU06, ITEST, FILE02, IU10, FILE10,         &
 &                                   IU19, FILE19
 USE WAM_OUTPUT_SET_UP_MODULE, ONLY: IDEL_OUT
-USE WAM_TIMOPT_MODULE,        ONLY: CDATEE, CDTPRO, IDELPRO, IDELT, COLDSTART
+USE WAM_TIMOPT_MODULE,        ONLY: CDATEE, CDTPRO, IDELPRO, IDELT, COLDSTART, &
+&                                   L_DECOMP
 USE WAM_FRE_DIR_MODULE,       ONLY: KL, ML, CO, FR, TH
 USE WAM_GRID_MODULE,          ONLY: NX, NY, XDELLA, XDELLO,                    &
 &                                   AMOWEP, AMOSOP, AMOEAP, AMONOP, IPER
@@ -44,7 +47,8 @@ USE WAM_NEST_MODULE,          ONLY: COARSE, FINE, N_NEST, n_code, MAX_NEST,    &
 &                                   NBINP, NBOUNF,IJARF,IBFL,IBFR, BFW,        &
 &                                   NBOUNC, BLNGC, BLATC, IJARC 
 
-use wam_mpi_module,  only: irank, i_out_b_spec, nijs, nijl
+use wam_mpi_module,  only: irank, i_out_b_spec, nijs, nijl, petotal, IJ2NEWIJ, &
+&                          NSTART, NEND, nbounc_ga, ijarc_ga, ngouc_ga
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -317,6 +321,7 @@ SUBROUTINE BOUNDARY_OUTPUT
 
 INTEGER :: IJ, itag, iz, i, iu
 REAL    :: FBC(1:MAX_NEST,SIZE(FL3,2),SIZE(FL3,3),N_NEST)
+REAL    :: depthbc(1:MAX_NEST, N_NEST)
 REAL    :: THQC   (1:MAX_NEST)
 REAL    :: EMEANC (1:MAX_NEST)
 REAL    :: FMEANC (1:MAX_NEST)
@@ -335,7 +340,7 @@ iz = iz+1
 !        ------------------------                                              !
 
 itag  = 850+iz
-call mpi_gather_bound (i_out_b_spec, itag, fl3, fbc)
+call mpi_gather_bound (i_out_b_spec, itag, fl3, depth, fbc, depthbc)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -355,17 +360,18 @@ if (irank==i_out_b_spec) then
       CALL FEMEAN (FBC(1:NBOUNC(I),1:KL,1:ML,I), EMEANC(1:NBOUNC(I)),          &
 &                  FM=FMEANC(1:NBOUNC(I)))
       CALL MEAN_DIRECTION (FBC(1:NBOUNC(I),1:KL,1:ML,I), THQ=THQC(1:NBOUNC(I)))
+
       IU = IU+1
       if (n_code(i)==1) then
          do ij = 1,nbounc(i)
             write (iu,*) BLNGC(IJ,I), BLATC(IJ,I), CDTPRO, EMEANC(IJ),         &
-&                        THQC(IJ), FMEANC(IJ)
+&                        THQC(IJ), FMEANC(IJ), depthBC(IJ,I)
             write (iu,*) FBC(IJ,1:KL,1:ML,I)
          enddo
       else
          DO IJ = 1,NBOUNC(I)
             WRITE(IU) BLNGC(IJ,I), BLATC(IJ,I), CDTPRO, EMEANC(IJ),            &
-&                     THQC(IJ), FMEANC(IJ)
+&                     THQC(IJ), FMEANC(IJ), depthBC(IJ,I)
             WRITE(IU) FBC(IJ,1:KL,1:ML,I)
          END DO
       endif
@@ -418,6 +424,13 @@ SUBROUTINE PREPARE_BOUNDARY
 !                                                                              !
 !       NONE.                                                                  !
 !                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------                                                         !
+
+INTEGER :: IC, IJ, IP, NGOU
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. CHECK NEST OPTION WITH PREPROC OUTPUT.                                !
@@ -502,6 +515,46 @@ IF (COARSE) THEN
       WRITE (IU06,*) ' ++++++++++++++++++++++++++++++++++++++++++++++'
    END IF
 
+   IF (petotal.gt.1) THEN
+      IF (.not.L_DECOMP) THEN
+         DO IC = 1, N_NEST
+            DO IJ = 1, NBOUNC(IC)
+               IJARC(IJ,IC) = IJ2NEWIJ(IJARC(IJ,IC))
+            END DO
+         END DO
+      END IF
+
+      If (allocated (nbounc_ga)) deallocate (nbounc_ga)
+      If (allocated (ijarc_ga)) deallocate (ijarc_ga)
+      If (allocated (ngouc_ga )) deallocate (ngouc_ga)
+      allocate (nbounc_ga(petotal,N_NEST))
+      allocate (ijarc_ga (MAX_NEST,petotal,N_NEST))
+      allocate (ngouc_ga (MAX_NEST,petotal,N_NEST))
+      nbounc_ga = 0
+      ijarc_ga = 0
+      ngouc_ga = 0
+      DO IC = 1, N_NEST
+         do ngou = 1,NBOUNC(IC)
+            ij = ijarc(ngou,ic)
+            do ip = 1, petotal
+               if (ij>=nstart(ip).and.ij<=nend(ip)) then
+                  nbounc_ga(ip,IC) = nbounc_ga(ip,IC) + 1
+                  ijarc_ga(nbounc_ga(ip,IC),ip,IC) = ij
+                  ngouc_ga(nbounc_ga(ip,IC),ip,IC) = ngou
+                  exit
+               end if
+            END DO
+         END DO
+
+         IF (sum(nbounc_ga(:,IC)).NE.NBOUNC(IC)) THEN
+            write (iu06,*) ' +++ error: Sub. prepare_boundary'
+            write (iu06,*) ' +++ decomposion error for output spectra'
+            write (iu06,*) ' +++ ', nbounc_ga(:,IC)
+            write (iu06,*) ' +++ ', sum(NBOUNC_ga(:,IC)), NBOUNC(IC)
+            call abort1
+         end if
+      END DO
+   END IF
 !     TIME COUNTER FOR NEXT OUTPUT.                                         !
 
    CDT_B_OUT = ' '
@@ -521,6 +574,7 @@ IF (COARSE) THEN
    END IF
    CALL SAVE_BOUNDARY_FILE
    IF (COLDSTART) CALL BOUNDARY_OUTPUT
+
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -558,6 +612,11 @@ IF (FINE) THEN
    IF (ITEST.GT.3)  WRITE (IU06,*)                                            &
 &  '       SUB. PREPARE_BOUNDARY: FIRST BOUNDARY VALUES READ CDATE2 = ', CDATE2
 
+   IF (petotal.gt.1 .and. .not.L_DECOMP) THEN
+      DO IJ = 1, NBOUNF
+         IJARF(IJ) = IJ2NEWIJ(IJARF(IJ))
+      ENDDO
+   ENDIF
 END IF
 
 END SUBROUTINE PREPARE_BOUNDARY
@@ -738,11 +797,9 @@ if (cdtpro<cdatee) then
             write (iu,*) real(kl), real(ml), th(1), fr(1),                     &
 &                        co, real(nbounc(i)), real(idel_b_out),                &
 &                        real(idel_bo_file)
-            write (iu,*) depth(ijarc(1:nbounc(i),i))
          else
             WRITE (IU) REAL(KL), REAL(ML), TH(1), FR(1), CO, REAL(NBOUNC(I)),  &
 &                      REAL(IDEL_B_OUT), REAL(IDEL_BO_FILE)
-            write (iu) depth(ijarc(1:nbounc(i),i))
          endif
       endif
    END DO

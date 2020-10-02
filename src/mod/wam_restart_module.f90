@@ -19,7 +19,8 @@ USE WAM_GENERAL_MODULE,   ONLY:  &
 
 use wam_mpi_comp_module, only:   &
 &       mpi_gather_fl,           &
-&       mpi_gather_block
+&       mpi_gather_block,        &
+&       mpi_exchng
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -30,13 +31,16 @@ use wam_mpi_comp_module, only:   &
 USE WAM_MODEL_MODULE,   ONLY: FL3, U10, UDIR, TAUW, DEPTH, U, V
 
 USE WAM_TIMOPT_MODULE,  ONLY: CDATEA, CDATEE, CDTPRO, CDTSOU, CDA, CDTA, CDCA, & 
-&                             IDEL_WAM, cdtstop
+&                             IDEL_WAM, cdtstop, L_DECOMP
 
 USE WAM_FILE_MODULE,    ONLY: IU06, IU17, FILE17
 
 use wam_fre_dir_module, only: ml, kl
 use wam_grid_module,    only: nsea
-use wam_mpi_module,     only: irank, nijs, nijl, i_out_restart
+use wam_mpi_module,     only: irank, nijs, nijl, ninf, nsup, i_out_restart,    &
+&                             NGBTOPE, NTOPEMAX, NTOPELST, NTOPE, IJTOPE,      &
+&                             NGBFROMPE, NFROMPEMAX, NFROMPELST, NFROMPE,      &
+&                             NIJSTART,IJ2NEWIJ
 use wam_special_module, only: ispec2d, ispecode
   
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -128,7 +132,6 @@ SUBROUTINE CONNECT_RESTART
 !     -------------------------------
 
 real, allocatable, dimension (:,:,:) :: rfl
-real, allocatable, dimension (:)     :: ru10, rudir, rtauw
 
 !     local variables
 !     ----------------                                                         !
@@ -153,8 +156,7 @@ endif
 !        -----------------------------------                                   !
 
 allocate (rfl(1:nsea,1:kl,1:ml))
-allocate (ru10(1:nsea), rudir(1:nsea), rtauw(1:nsea))
- 
+
 ios = 0
 if (unformatted) then
    READ (IU17,iostat=ios)  NSEA_R, CDTPRO, CDTSOU, CDA, CDTA, CDCA
@@ -172,14 +174,14 @@ if (.not.unformatted) then
    read (iu17,*) nsea_r, cdtpro, cdtsou, cda, cdta, cdca
 endif
 
-IF (NSEA_R.NE.SIZE(ru10)) THEN
+IF (NSEA_R.NE.NSEA) THEN
    WRITE(IU06,*) ' *****************************************************'
    WRITE(IU06,*) ' *                                                   *'
    WRITE(IU06,*) ' *        FATAL ERROR IN SUB. CONNECT_RESTART        *'
    WRITE(IU06,*) ' *        ===================================        *'
    WRITE(IU06,*) ' *                                                   *'
    WRITE(IU06,*) ' * RESTART FIELDS ARE INCONSISTENT WITH MODEL GRID.  *'
-   WRITE(IU06,*) ' * NO. OF SEA POINTS IN MODEL GRID IS       NSEA = ', SIZE(ru10)
+   WRITE(IU06,*) ' * NO. OF SEA POINTS IN MODEL GRID IS       NSEA = ', NSEA
    WRITE(IU06,*) ' * NO. OF SEA POINTS IN RESTART FIELDS IS NSEA_R = ', NSEA_R
    WRITE(IU06,*) ' *                                                   *'
    WRITE(IU06,*) ' *           PROGRAM ABORTS     PROGRAM ABORTS       *'
@@ -189,32 +191,99 @@ IF (NSEA_R.NE.SIZE(ru10)) THEN
 END IF
 
 if (unformatted) then                       !! binary code
-   READ (IU17) ru10
-   READ (IU17) rudir
-   READ (IU17) rtauw
-   READ (IU17) rfl
-   IF (CDTA.NE.' ') READ (IU17) DEPTH
-   IF (CDCA.NE.' ') READ (IU17) U, V
-else                                        !! ascii code
-   read (iu17,*) ru10
-   read (iu17,*) rudir
-   read (iu17,*) rtauw
-   read (iu17,*) rfl
-   if (cdta/='xxxxxxxxxxxxxx') read (iu17,*) depth
-   if (cdca/='xxxxxxxxxxxxxx') read (iu17,*) u, v
-   if (cdta=='xxxxxxxxxxxxxx') cdta = ' '
-   if (cdca=='xxxxxxxxxxxxxx') cdca = ' '
+   IF (L_DECOMP) THEN
+     read (iu17) rfl(1:nsea,1,1)
+     u10(:)     = rfl(nijs:nijl,1,1)
+     read (iu17) rfl(1:nsea,1,1)
+     udir(:)    = rfl(nijs:nijl,1,1)
+     read (iu17) rfl(1:nsea,1,1)
+     tauw(:)    = rfl(nijs:nijl,1,1)
+     read (iu17) rfl(1:nsea,:,:)
+     fl3(:,:,:) = rfl(nijs:nijl,:,:)
+   ELSE
+     read (iu17) rfl(IJ2NEWIJ(1:nsea),1,1)
+     u10(:)     = rfl(nijs:nijl,1,1)
+     read (iu17) rfl(IJ2NEWIJ(1:nsea),1,1)
+     udir(:)    = rfl(nijs:nijl,1,1)
+     read (iu17) rfl(IJ2NEWIJ(1:nsea),1,1)
+     tauw(:)    = rfl(nijs:nijl,1,1)
+     read (iu17) rfl(IJ2NEWIJ(1:nsea),:,:)
+     fl3(:,:,:) = rfl(nijs:nijl,:,:)
+   END IF
+   IF (CDTA.NE.' ') then
+      IF (L_DECOMP) THEN
+         READ (IU17) rfl(1:nsea,1,1)
+         depth(ninf:nsup) = rfl(ninf:nsup,1,1)
+      ELSE
+        READ (IU17) rfl(IJ2NEWIJ(1:nsea),1,1)
+	    depth(nijs:nijl)=rfl(nijs:nijl,1,1)
+	    call mpi_exchng(depth)
+      END IF
+   end if
+   IF (CDCA.NE.' ') then
+      IF (L_DECOMP) THEN
+         READ (IU17) rfl(1:nsea,1,1), rfl(1:nsea,2,1)
+         u(ninf:nsup) = rfl(ninf:nsup,1,1)
+         v(ninf:nsup) = rfl(ninf:nsup,2,1)
+      ELSE
+         READ (IU17) rfl(IJ2NEWIJ(1:nsea),1,1), rfl(IJ2NEWIJ(1:nsea),2,1)
+	     u(nijs:nijl)=rfl(nijs:nijl,1,1)
+	     call mpi_exchng(u)
+	     v(nijs:nijl)=rfl(nijs:nijl,2,1)
+	     call mpi_exchng(v)
+      END IF
+   end if
+else                           !! ascii code
+
+   IF (L_DECOMP) THEN
+      read (iu17,*) rfl(1:nsea,1,1)
+      u10(:)     = rfl(nijs:nijl,1,1)
+      read (iu17,*) rfl(1:nsea,1,1)
+      udir(:)    = rfl(nijs:nijl,1,1)
+      read (iu17,*) rfl(1:nsea,1,1)
+      tauw(:)    = rfl(nijs:nijl,1,1)
+      read (iu17,*) rfl(1:nsea,:,:)
+      fl3(:,:,:) = rfl(nijs:nijl,:,:)
+   ELSE
+      read (iu17,*) rfl(IJ2NEWIJ(1:nsea),1,1)
+      u10(:)     = rfl(nijs:nijl,1,1)
+      read (iu17,*) rfl(IJ2NEWIJ(1:nsea),1,1)
+      udir(:)    = rfl(nijs:nijl,1,1)
+      read (iu17,*) rfl(IJ2NEWIJ(1:nsea),1,1)
+      tauw(:)    = rfl(nijs:nijl,1,1)
+      read (iu17,*) rfl(IJ2NEWIJ(1:nsea),:,:)
+      fl3(:,:,:) = rfl(nijs:nijl,:,:)
+   END IF
+   if (cdta/='xxxxxxxxxxxxxx') then
+      IF (L_DECOMP) THEN
+         READ (IU17,*) rfl(1:nsea,1,1)
+         depth(ninf:nsup) = rfl(ninf:nsup,1,1)
+      else
+         READ (IU17,*) rfl(IJ2NEWIJ(1:nsea),1,1)
+	     depth(nijs:nijl)=rfl(nijs:nijl,1,1)
+	     call mpi_exchng(depth)
+      end if
+   else
+      cdta = ' '
+   end if
+   if (cdca/='xxxxxxxxxxxxxx') then
+      IF (L_DECOMP) THEN
+         READ (IU17,*) rfl(1:nsea,1,1), rfl(1:nsea,2,1)
+         u(ninf:nsup) = rfl(ninf:nsup,1,1)
+         v(ninf:nsup) = rfl(ninf:nsup,2,1)
+     else
+        READ (IU17,*) rfl(IJ2NEWIJ(1:nsea),1,1), rfl(IJ2NEWIJ(1:nsea),2,1)
+	    u(nijs:nijl)=rfl(nijs:nijl,1,1)
+	    call mpi_exchng(u)
+	    v(nijs:nijl)=rfl(nijs:nijl,2,1)
+	    call mpi_exchng(v)
+     end if
+   else
+     cdca = ' '
+   end if
 endif
+deallocate(rfl)
 
-!    keep only part of the restart file that is needed
-
-fl3(:,:,:) = rfl(nijs:nijl,:,:)
-u10(:)     = ru10(nijs:nijl)
-udir(:)    = rudir(nijs:nijl)
-tauw(:)    = rtauw(nijs:nijl)
-
-deallocate(rfl,ru10,rudir,rtauw)
-    
 CLOSE (UNIT=IU17, STATUS="KEEP")
 
 WRITE(IU06,*) ' '
@@ -377,7 +446,7 @@ SUBROUTINE SAVE_RESTART_FILE
 !     -------------------------------
 
 real, allocatable, dimension (:,:,:) :: rfl
-real, allocatable, dimension (:)     :: ru10, rudir, rtauw
+real, allocatable, dimension (:)     :: ru10, rudir, rtauw, ru, rv, rdepth
 
 !     local variables
 !     ---------------
@@ -391,7 +460,6 @@ integer :: ierr
 !        ------------------------                                              !
 
 if (irank==i_out_restart) then
-
    allocate (rfl(1:nsea,1:kl,1:ml))
    allocate (ru10(1:nsea), rudir(1:nsea), rtauw(1:nsea))
 
@@ -403,38 +471,74 @@ if (irank==i_out_restart) then
    CALL mpi_barrier(MPI_COMM_WORLD,ierr)
    CALL mpi_gather_block(i_out_restart, tauw, rtauw)
    CALL mpi_barrier(MPI_COMM_WORLD,ierr)
-
+   IF (CDTA.NE.' ') then
+      allocate (rdepth(1:nsea))
+      CALL mpi_gather_block(i_out_restart, depth(nijs:nijl), rdepth)
+      CALL mpi_barrier(MPI_COMM_WORLD,ierr)
+   end if
+   IF (CDCA.NE.' ') then
+      allocate (ru(1:nsea), rv(1:nsea))
+      CALL mpi_gather_block(i_out_restart, u(nijs:nijl), ru)
+      CALL mpi_barrier(MPI_COMM_WORLD,ierr)
+      CALL mpi_gather_block(i_out_restart, v(nijs:nijl), rv)
+      CALL mpi_barrier(MPI_COMM_WORLD,ierr)
+   end if
    REWIND IU17
    if (ispecode==1) then                                   !! asci code
-      call open_file (iu06, iu17, file17, cdtpro, 'unknown', ifail,'formatted')
+      call open_file (iu06, iu17, file17, cdtpro, 'unknown', ifail, 'FORMATTED')
       if (ifail/=0) call abort1
       if (cdta==' ') cdta = 'xxxxxxxxxxxxxx'
       if (cdca==' ') cdca = 'xxxxxxxxxxxxxx'
       write (iu17,'(i8,5(2x,a14))') nsea, cdtpro, cdtsou, cda, cdta, cdca
-      write (iu17,*) ru10
-      write (iu17,*) rudir
-      write (iu17,*) rtauw
-      write (iu17,*) rfl
-      if (cdta/='xxxxxxxxxxxxxx') write (iu17,*) depth
-      if (cdca/='xxxxxxxxxxxxxx') write (iu17,*) u, v
+
+      IF (L_DECOMP) THEN
+         write (iu17,*) ru10
+         write (iu17,*) rudir
+         write (iu17,*) rtauw
+         write (iu17,*) rfl
+         if (cdta/='xxxxxxxxxxxxxx') write (iu17,*) rdepth
+         if (cdca/='xxxxxxxxxxxxxx') write (iu17,*) ru, rv
+      ELSE
+         write (iu17,*) ru10(IJ2NEWIJ(1:NSEA))
+         write (iu17,*) rudir(IJ2NEWIJ(1:NSEA))
+         write (iu17,*) rtauw(IJ2NEWIJ(1:NSEA))
+         write (iu17,*) rfl(IJ2NEWIJ(1:NSEA),:,:)
+         if (cdta/='xxxxxxxxxxxxxx') write (iu17,*) rdepth(IJ2NEWIJ(1:NSEA))
+         if (cdca/='xxxxxxxxxxxxxx') write (iu17,*) ru(IJ2NEWIJ(1:NSEA)), rv(IJ2NEWIJ(1:NSEA))
+      ENDIF
       if (cdta=='xxxxxxxxxxxxxx') cdta = ' '
       if (cdca=='xxxxxxxxxxxxxx') cdca = ' '
+
    else                                                    !! binary code
       call open_file (iu06, iu17, file17, cdtpro, 'unknown', ifail)
       if (ifail/=0) call abort1
-      WRITE (IU17) NSEA, CDTPRO, CDTSOU, CDA, CDTA, CDCA
-      WRITE (IU17) ru10
-      WRITE (IU17) rudir
-      WRITE (IU17) rtauw
-      WRITE (IU17) rfl
-      IF (CDTA.NE.' ') WRITE (IU17) DEPTH
-      IF (CDCA.NE.' ') WRITE (IU17) U, V
+
+      IF (L_DECOMP) THEN
+         WRITE (IU17) NSEA, CDTPRO, CDTSOU, CDA, CDTA, CDCA
+         WRITE (IU17) ru10
+         WRITE (IU17) rudir
+         WRITE (IU17) rtauw
+         WRITE (IU17) rfl
+         IF (CDTA.NE.' ') WRITE (IU17) rdepth
+         IF (CDCA.NE.' ') WRITE (IU17) rU, rV
+      ELSE
+         WRITE (IU17) NSEA, CDTPRO, CDTSOU, CDA, CDTA, CDCA
+         WRITE (IU17) ru10(IJ2NEWIJ(1:NSEA))
+         WRITE (IU17) rudir(IJ2NEWIJ(1:NSEA))
+         WRITE (IU17) rtauw(IJ2NEWIJ(1:NSEA))
+         WRITE (IU17) rfl(IJ2NEWIJ(1:NSEA),:,:)
+         IF (CDTA.NE.' ') WRITE (IU17) rdepth(IJ2NEWIJ(1:NSEA))
+         IF (CDCA.NE.' ') WRITE (IU17) rU(IJ2NEWIJ(1:NSEA)), rV(IJ2NEWIJ(1:NSEA))
+      ENDIF
    endif
    CLOSE (UNIT=IU17, STATUS="KEEP")
+   if (allocated(rdepth)) deallocate(rdepth)
    if (allocated(rfl)) deallocate(rfl)
    if (allocated(ru10)) deallocate(ru10)
    if (allocated(rudir)) deallocate(rudir)
    if (allocated(rtauw)) deallocate(rtauw)
+   if (allocated(ru)) deallocate(ru)
+   if (allocated(rv)) deallocate(rv)
 else
    CALL mpi_gather_fl(i_out_restart,121,fl3)
    CALL mpi_barrier(MPI_COMM_WORLD,ierr)
@@ -444,6 +548,16 @@ else
    CALL mpi_barrier(MPI_COMM_WORLD,ierr)
    CALL mpi_gather_block(i_out_restart, tauw)
    CALL mpi_barrier(MPI_COMM_WORLD,ierr)
+   IF (CDTA.NE.' ') then
+      CALL mpi_gather_block(i_out_restart, depth(nijs:nijl))
+      CALL mpi_barrier(MPI_COMM_WORLD,ierr)
+   end if
+   IF (CDCA.NE.' ') then
+      CALL mpi_gather_block(i_out_restart, u(nijs:nijl))
+      CALL mpi_barrier(MPI_COMM_WORLD,ierr)
+      CALL mpi_gather_block(i_out_restart, v(nijs:nijl))
+      CALL mpi_barrier(MPI_COMM_WORLD,ierr)
+   end if
 endif
 
 ! ---------------------------------------------------------------------------- !

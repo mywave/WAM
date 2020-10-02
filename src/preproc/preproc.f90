@@ -99,6 +99,9 @@ USE PREPROC_MODULE, ONLY:        &
 &       PRINT_PREPROC_STATUS,    &  !! PRINT WAM CONST MODULE
 &       WRITE_PREPROC_FILE          !! WRITES PREPROC OUTPUT FILE.
 
+USE WAM_TABLES_MODULE,    ONLY:  &
+&       PREPARE_TABLES              !! PRE-COMPUTE TABLES
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     MODULE VARIABLES.                                                        !
@@ -135,8 +138,14 @@ OPEN (UNIT=IU06, FILE=FILE06, FORM='FORMATTED', STATUS='UNKNOWN')
 CALL READ_PREPROC_USER
 IF (ITEST.GT.0) WRITE (IU06,*) ' SUB READ_INPUT_PREPROC DONE'
 
-CALL READ_TOPOGRAPHY
-IF (ITEST.GT.0) WRITE (IU06,*) ' SUB READ_TOPOGRAPHY DONE'
+!IF (L_OBSTRUCTION_T) THEN
+!   CALL ETOPO_INPUT
+!   IF (ITEST.GT.0) WRITE (IU06,*) ' SUB ETOPO_INPUT DONE'
+!   IF (ITEST.GT.0) CALL PRINT_ETOPO_STATUS
+!ELSE
+   CALL READ_TOPOGRAPHY
+   IF (ITEST.GT.0) WRITE (IU06,*) ' SUB READ_TOPOGRAPHY DONE'
+!END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -148,7 +157,15 @@ IF (ITEST.GT.0) WRITE (IU06,*) ' SUB PREPARE_CONST DONE'
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     4. WRITE THE COMPUTED INFORMATION TO FILE.                               !
+!     4. PREPARE WAM TABLES MODULE.                                            !
+!        -------------------------                                             !
+
+CALL PREPARE_TABLES
+IF (ITEST.GT.0) WRITE (IU06,*) ' SUB PREPARE_TABLES DONE'
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     5. WRITE THE COMPUTED INFORMATION TO FILE.                               !
 !        ---------------------------------------                               !
 
 CALL WRITE_PREPROC_FILE
@@ -156,7 +173,7 @@ IF (ITEST.GT.0) WRITE (IU06,*) ' SUB WRITE_PREPROC_FILE DONE'
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     5. PRINT THE COMPUTED INFORMATION.                                       !
+!     6. PRINT THE COMPUTED INFORMATION.                                       !
 !        -------------------------------                                       !
 
 WRITE(IU06,*) '  '
@@ -172,6 +189,7 @@ CALL PRINT_PREPROC_STATUS
 
 WRITE (IU06,*) ' '
 WRITE (IU06,*) ' PROGRAM PREPROC: ALL DONE'
+WRITE (*,*) ' PROGRAM PREPROC: ALL DONE'
 
 call mpi_finalize (ierror)
 END PROGRAM PREPROC

@@ -36,7 +36,7 @@ PRIVATE
 
 ! ---------------------------------------------------------------------------- !
 !
-!     5. GENERAL MODEL GRID INFORMATION.
+!     1. GENERAL MODEL GRID INFORMATION.
 !        -------------------------------                                       !
 
 CHARACTER (LEN=80)   :: HEADER=' ' !! HEADER OF MODEL RUN.
@@ -65,14 +65,41 @@ REAL,    ALLOCATABLE :: DEPTH_B(:) !! WATER DEPTH [M].
 INTEGER, ALLOCATABLE :: IXLG(:)    !! LONGITUDE GRID INDEX.
 INTEGER, ALLOCATABLE :: KXLT(:)    !! LATITUDE GRID INDEX.
 
-INTEGER, ALLOCATABLE :: KLAT(:,:)  !! INDEX OF GRIDPOINT SOUTH AND NORTH
-                                   !! LANDPOINTS ARE MARKED BY ZERO.
-INTEGER, ALLOCATABLE :: KLON(:,:)  !! INDEX OF GRIDPOINT WEST AND EAST
-                                   !! LANDPOINTS ARE MARKED BY ZERO.
+INTEGER, ALLOCATABLE :: KLAT(:,:,:) !! INDEX OF GRIDPOINT SOUTH AND NORTH
+                                    !! LANDPOINTS ARE MARKED BY ZERO.
+INTEGER, ALLOCATABLE :: KLON(:,:)   !! INDEX OF GRIDPOINT WEST AND EAST
+                                    !! LANDPOINTS ARE MARKED BY ZERO.
+REAL,    ALLOCATABLE :: WLAT(:,:)   !! WEIGHT IN ADVECTION SCHEME FOR
+                                    !! CLOSEST GRIDPOINT IN THE
+
+INTEGER, ALLOCATABLE :: IFROMIJ(:)  !! LONGITUDE GRID INDEX FOR A GIVEN IJ
+                                    !! FOR ALL IJ'S LOCAL TO A GIVEN PE
+                                    !! AND THEIR HALO.
+                                    !! THIS IS THE LOCAL VERSION OF IXLG,
+                                    !! WHICH IS DEFINED GLOBALLY, HENCE IXLG
+                                    !! IS NOT VALID OVER THE HALO.
+
+INTEGER, ALLOCATABLE :: KFROMIJ(:)  !! LATITUDE GRID INDEX FOR A GIVEN IJ
+                                    !! FOR ALL IJ'S LOCAL TO A GIVEN PE
+                                    !! AND THEIR HALO.
+                                    !! THIS IS THE LOCAL VERSION OF KXLG,
+                                    !! WHICH IS DEFINED GLOBALLY, HENCE KXLG
+                                    !! IS NOT VALID OVER THE HALO.
 
 PUBLIC :: HEADER, NX, NY, NSEA, NLON_RG, IPER, AMOWEP, AMOSOP, AMOEAP, AMONOP,&
 &         XDELLA, XDELLO, DELPHI, ZDELLO, DELLAM, SINPH, COSPH, DEPTH_B,      &
-&         IXLG, KXLT, KLAT, KLON, L_S_MASK, REDUCED_GRID, ONE_POINT 
+&         IXLG, KXLT, KLAT, KLON, WLAT, IFROMIJ, KFROMIJ,                     &
+&         L_S_MASK, REDUCED_GRID, ONE_POINT
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2. OBSTRUCTION COEFICENTS.                                               !
+!        -----------------------                                               !
+
+REAL,    ALLOCATABLE, DIMENSION(:,:,:) :: OBSLAT   !! NORTH-SOUTH
+REAL,    ALLOCATABLE, DIMENSION(:,:,:) :: OBSLON   !! EAST-WEST
+
+PUBLIC :: OBSLAT, OBSLON
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -89,11 +116,6 @@ INTERFACE FIND_SEA_POINT              !! FIND SEA POINT NUMBER.
    MODULE  PROCEDURE FIND_SEA_POINT
 END INTERFACE
 PUBLIC FIND_SEA_POINT
-
-INTERFACE INTERPOLATION_TO_GRID       !! INTERPOLATES TO MODEL GRID POINTS. 
-   MODULE  PROCEDURE INTERPOLATION_TO_GRID
-END INTERFACE
-PUBLIC INTERPOLATION_TO_GRID
 
 INTERFACE EQUAL_TO_M_GRID             !! COMPARES A GRID TO MODEL GRID. 
    MODULE  PROCEDURE EQUAL_TO_M_GRID
@@ -223,13 +245,19 @@ END IF
 IF (NSEA.GT.0) THEN
    WRITE(IU06,*) ' '
    WRITE (IU06,'('' NUMBER OF SEAPOINTS IS       NSEA = '',I7)') NSEA
-   GRID = UNPACK(MIN(DEPTH_B,999.),L_S_MASK,99999.)
-   DO I=1,NY
-       GRID(NLON_RG(I)+1:NX,I) = -99
-   END DO
-   WRITE (IU06,*) ' '
-   TITL = 'BASIC WATER DEPTH (M). (DEPTH DEEPER THAN 999M ARE PRINTED AS 999)'
-   CALL PRINT_ARRAY (IU06, ZERO, TITL, GRID, AMOWEP, AMOSOP, AMOEAP, AMONOP)
+   IF (SIZE(DEPTH_B).EQ.NSEA) THEN
+      GRID = 99999.
+      DO I = 1, NSEA
+         GRID (IXLG(I), KXLT(I)) = MIN(DEPTH_B(I),999.)
+      END DO
+
+      WRITE (IU06,*) ' '
+      TITL = 'BASIC WATER DEPTH (M). (DEPTH DEEPER THAN 999M ARE PRINTED AS 999)'
+      CALL PRINT_ARRAY (IU06, ZERO, TITL, GRID, AMOWEP, AMOSOP, AMOEAP, AMONOP,&
+&                    NG_R=NLON_RG)
+   ELSE
+      WRITE (IU06,*) 'THIS IS AN MPI RUN. SEE PREPROC OUTPUT FOR BASIC WATER DEPTH'
+   END IF
 ELSE
    WRITE (IU06,*) '  MODULE DATA ARE NOT PREPARED'
 END IF
@@ -276,7 +304,7 @@ INTEGER, INTENT(OUT)   :: POINT_NO(*)  !! OUTPUT SEA POINT NUMBERS.
 !     LOCAL VARIABLES.
 !     ----------------
 
-INTEGER  :: IO, IOLT, IOLG
+INTEGER  :: IO, IOLT, IOLG, IJ
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -288,8 +316,12 @@ POINT: DO IO = 1,NUMBER
 
 !     1.1 COMPUTE GRID MATRIX INDICES.                                         !
 !         ----------------------------                                         !
+   IF (NY.EQ.1) THEN
+      IOLT = 1
+   ELSE
+      IOLT = NINT(REAL(LATITUDE(IO)-AMOSOP)/REAL(XDELLA)+1.0)
+   ENDIF
 
-   IOLT = NINT(REAL(LATITUDE(IO)-AMOSOP)/REAL(XDELLA)+1.0)
    IF (IOLT.LT.1.OR.IOLT.GT.NY) CYCLE POINT
    IOLG = NINT(REAL(MOD(LONGITUDE(IO)-AMOWEP+2*M_S_PER,M_S_PER))               &
 &             / REAL(ZDELLO(IOLT))+1.0)
@@ -300,165 +332,17 @@ POINT: DO IO = 1,NUMBER
 
    IF (IOLG.LT.1.OR.IOLG.GT.NLON_RG(IOLT)) CYCLE POINT
    IF (.NOT. L_S_MASK(IOLG,IOLT)) CYCLE POINT
-   POINT_NO(IO) = COUNT(L_S_MASK(1:IOLG,IOLT))
-   IF (IOLT.GT.1) POINT_NO(IO) = POINT_NO(IO) + COUNT(L_S_MASK(1:NX,1:IOLT-1))
+
+   DO IJ = 1,NSEA
+      IF (IXLG(IJ).EQ.IOLG .AND. KXLT(IJ).EQ.IOLT) THEN
+         POINT_NO(IO) = IJ
+         EXIT
+      END IF
+   END DO
 
 END DO POINT
 
 END SUBROUTINE FIND_SEA_POINT
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
-SUBROUTINE INTERPOLATION_TO_GRID (IU06, IGPER, DLAM, DPHI, RLONL, RLATS,       &
-&                                 U, US, V, VS)
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!   INTERPOLATION_TO_GRID - INTERPOLATES TO MODEL GRID POINTS.                 !
-!                                                                              !
-!     H. GUNTHER    GKSS  DECEMBER 2001.                                       !
-!                                                                              !
-!     PURPOSE.                                                                 !
-!     --------                                                                 !
-!                                                                              !
-!        LOCATE AND INTERPOLATE IN INPUT GRID.                                 !
-!                                                                              !
-!     METHOD.                                                                  !
-!     -------                                                                  !
-!                                                                              !
-!       DOUBLE LINEAR INTERPOLATION IN INPUT GRID. OPTIONAL A SECOND INPUT     !
-!       CAN BE INTERPOLATED AT THE SAME CALL.                                  !
-!                                                                              !
-!     REFERENCE.                                                               !
-!     ----------                                                               !
-!                                                                              !
-!       NONE.                                                                  !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     INTERFACE VARIABLES.
-!     --------------------
-
-INTEGER, INTENT(IN)           :: IU06   !! PRINTER OUTPUT UNIT.
-LOGICAL, INTENT(IN)           :: IGPER  !! .TRUE. = PERIODIC INPUT GRID 
-                                        !! OTHERWISE NON-PERIODICAL
-INTEGER, INTENT(IN)           :: DLAM   !! INPUT LONGITUDE STEP    (M_SEC).
-INTEGER, INTENT(IN)           :: DPHI   !! INPUT LATITUDE  STEP    (M_SEC).
-INTEGER, INTENT(IN)           :: RLATS  !! INPUT SOUTHERN LATITUDE (M_SEC).
-INTEGER, INTENT(IN)           :: RLONL  !! INPUT WESTERN LONGITUDE (M_SEC).
-
-REAL,    INTENT(IN)           :: U(:,:) !! INPUT FIELD.
-REAL,    INTENT(OUT)          :: US(:)  !! SPACE INTERPOLATED OUTPUT FIELD.
-
-REAL,    INTENT(IN), OPTIONAL :: V(:,:) !! OPTIONAL SECOND INPUT FIELD.
-REAL,    INTENT(OUT),OPTIONAL :: VS(:)  !! OPTIONAL SECOND OUTPUT FIELD.
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     LOCAL VARIABLES.
-!     ----------------
-
-INTEGER :: NC, NR, NSEA
-INTEGER :: IJ, I1(1:SIZE(US)), I2(1:SIZE(US)), K1(1:SIZE(US)), K2(1:SIZE(US))
-REAL    :: DI(1:SIZE(US)), DK(1:SIZE(US))
-
-NC = SIZE(U,1)
-NR = SIZE(U,2)
-NSEA = SIZE(US)
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     1. TRANSFORM MODEL COORDINATES TO INPUT GRID.                            !
-!        ------------------------------------------                            !
-
-I1(:) = AMOWEP + (IXLG(:)-1)*ZDELLO(KXLT(:)) - RLONL
-I1(:) = MOD(I1(:)+2*M_S_PER,M_S_PER)
-DI(:) = REAL(I1(:))/REAL(DLAM)+1.00001
-
-K1(:) = AMOSOP + (KXLT(:)-1)*XDELLA - RLATS
-DK(:) = REAL(K1(:))/REAL(DPHI)+1.00001
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     2. COMPUTE CORNER POINT INDICES IN INPUT GRID.                           !
-!        -------------------------------------------                           !
-
-I1  = INT(DI)
-K1  = INT(DK)
-K2  = MIN(NR,K1+1)
-I2  = I1+1
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3. DISTANCES OF INTERPOLATION POINT FROM LOW LEFT CORNER POINT.          !
-!        ------------------------------------------------------------          !
-
-DI = DI-REAL(I1)
-DK = DK-REAL(K1)
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     4. CORRECTIONOF FIRST AND LAST GRID LINES (PERIODIC OR UNPERIODIC GRID). !
-!        --------------------------------------------------------------------- !
-
-IF (IGPER) THEN
-   WHERE (I1.EQ.NC) I2 = 1
-   WHERE (I1.EQ.0 ) I1 = NC
-ELSE
-   WHERE (I1.EQ.NC) I2 = NC
-END IF
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     5. CHECK WHETHER POINTS ARE IN GRID.                                     !
-!        ---------------------------------                                     !
-
-IF (MINVAL(I1).LT.1 .OR. MAXVAL(I1).GT.NC .OR.                                 &
-&   MINVAL(K1).LT.1 .OR. MAXVAL(K1).GT.NR) THEN
-    WRITE(IU06,*) ' *******************************************'
-    WRITE(IU06,*) ' *                                         *'
-    WRITE(IU06,*) ' *  FATAL ERROR IN INTERPOLATION_TO_GRID   *'
-    WRITE(IU06,*) ' *  ====================================   *'
-    WRITE(IU06,*) ' * POINT IS OUTSIDE OF INPUT GRID          *'
-    WRITE(IU06,*) ' * DIMENSION OF INPUT GRID IS   NC = ', NC
-    WRITE(IU06,*) ' *                              NR = ', NR
-    WRITE(IU06,*) ' * MIN AND MAX OF INDEX ARE                *'
-    WRITE(IU06,*) ' * I1:  MIN, MAX = ', MINVAL(I1), MAXVAL(I1)
-    WRITE(IU06,*) ' * I2:  MIN, MAX = ', MINVAL(I2), MAXVAL(I2)
-    WRITE(IU06,*) ' * K1:  MIN, MAX = ', MINVAL(K1), MAXVAL(K1)
-    WRITE(IU06,*) ' * K2:  MIN, MAX = ', MINVAL(K2), MAXVAL(K2)
-    WRITE(IU06,*) ' *                                         *'
-    WRITE(IU06,*) ' *  PROGRAM ABORTS     PROGRAM ABORTS      *'
-    WRITE(IU06,*) ' *                                         *'
-    WRITE(IU06,*) ' *******************************************'
-    CALL ABORT1
-END IF
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     6. LINEAR INTERPOLATION.                                                 !
-!        ----------------------                                                !
-
-!     6.1 FIRST FIELD.
-
-US = 0.
-DO IJ = 1,NSEA
-   US(IJ) = (U(I1(IJ),K1(IJ))*(1.-DI(IJ))+U(I2(IJ),K1(IJ))*DI(IJ))*(1.-DK(IJ)) &
-&         + (U(I1(IJ),K2(IJ))*(1.-DI(IJ))+U(I2(IJ),K2(IJ))*DI(IJ))*DK(IJ)
-END DO
-
-!     6.2 OPTIONAL SECOND FIELD.
-
-IF (PRESENT(V) .AND. PRESENT(VS)) THEN
-   VS = 0.
-   DO IJ = 1,NSEA
-      VS(IJ) = (V(I1(IJ),K1(IJ))*(1.-DI(IJ))+V(I2(IJ),K1(IJ))*DI(IJ))         &
-&                                                                *(1.-DK(IJ)) &
-&            + (V(I1(IJ),K2(IJ))*(1.-DI(IJ))+V(I2(IJ),K2(IJ))*DI(IJ))*DK(IJ)
-   END DO
-END IF      
-
-END SUBROUTINE INTERPOLATION_TO_GRID
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 

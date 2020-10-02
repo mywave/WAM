@@ -1,0 +1,2084 @@
+  +++ This is a parallel run using MPI 
+  +++ rank of local process      :            0
+  +++ total number of processors :            4
+ 
+  ++++++++++++++++++++++++++++++++++++++++++++++++++++
+  +                                                  +
+  +     INFORMATION FROM SUB. READ_WAM_USER          +
+  +     ===================================          +
+  +                                                  +
+  + THE WAM USER FILE COULD BE OPENED.               +
+  + BUT DOES NOT CONTAIN THE WAM NAMELIST.           +
+  + WAM USER FILE NAME IS FILE05 = WAM_User
+  +         UNIT IS         IU05 =           55
+  +                                                  +
+  *   PROGRAM TRIES FOR FIXED FORMATTED TEXT FILE    +
+  +                                                  +
+  ++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+    SUB. READ_WAM_USER SUCCESSFULLY COMPLETED. 
+    SUB. INITMDL: READ_WAM_USER DONE
+    SUB. INITMDL: READ_PREPROC_FILE DONE
+    mpi_decomp: Sea point distribution to processors
+ 
+  process number                          :            1
+  first sea point number           nstart :            1
+  last sea point number              nend :          124
+  number of sea points               nlen :          124
+  points from previous process,   klenbot :            0
+  points from next     process,   klentop :           23
+  -------------------------------------------------------
+ 
+  process number                          :            2
+  first sea point number           nstart :          125
+  last sea point number              nend :          248
+  number of sea points               nlen :          124
+  points from previous process,   klenbot :            8
+  points from next     process,   klentop :           16
+  -------------------------------------------------------
+ 
+  process number                          :            3
+  first sea point number           nstart :          249
+  last sea point number              nend :          372
+  number of sea points               nlen :          124
+  points from previous process,   klenbot :           16
+  points from next     process,   klentop :            8
+  -------------------------------------------------------
+ 
+  process number                          :            4
+  first sea point number           nstart :          373
+  last sea point number              nend :          496
+  number of sea points               nlen :          124
+  points from previous process,   klenbot :           23
+  points from next     process,   klentop :            0
+  -------------------------------------------------------
+ 
+ 
+  local process number                irank :            1
+  first sea point number               nijs :            1
+  last sea point number                nijl :          124
+  number of sea points                 npoi :          124
+  first index used for propagation     ninf :            1
+  last  index used for propagation     nsup :          147
+  number of processes recieving data from local pe ngbtope:            2
+  process numbers recieving data    ntopelst:            2           3
+  number of points send to other processors    ntope :            0           8
+          15           0
+  sea point indices to be send by the local pe  IP IJTOPE :            2
+         117         118         119         120         121         122
+         123         124
+  sea point indices to be send by the local pe  IP IJTOPE :            3
+           8          16          24          32          40          48
+          56          64          72          80          88          96
+         104         112         120
+  number of processes sending data ngbfrompe:            2
+  process numbers sending data    nfrompelst:            2           3
+  number of points received to other processors   nfrompe :            0
+           8          15           0
+  INDEX OF THE FIRST HALO POINT  from pe IP  NIJSTART :            2         125
+  INDEX OF THE FIRST HALO POINT  from pe IP  NIJSTART :            3         133
+  ----------------------------------------------------------
+ 
+     sub. mpi_crtbl: Input / output processors
+  process number for :
+  parameter output           i_out_par     :            4
+  spectra output             i_out_spec    :            1
+  boundary spectra output    i_out_b_spec  :            3
+  restart field input/output i_out_restart :            3
+     sub. mpi_crtbl: processors for output parameter computations
+  ipfgtbl :            4           4           4           4           4
+           4           4           4           4           4           4
+           4           4           4           4           4           4
+           4           4           4           4           4           4
+           4           4           4           4           4           4
+           4           4           4           4           4           4
+           4           3
+ 
+     sub. impi_decomp: mpi_crtbl done
+    SUB. INITMDL: mpi_decomp: mpi_decomp
+   
+  ------------------------------------------------- 
+               WIND MODULE STATUS:
+  ------------------------------------------------- 
+   
+  MODEL WIND INPUT TIME STEP .................:        86400  SECS
+  MODEL WIND OUTPUT TIME STEP.................:        43200  SECS
+  WIND FIELDS ARE INTERPOLATED IN TIME
+   
+  DATE OF LAST WIND FIELD GIVEN TO MODULE.....:               
+  DATE OF LAST WIND FIELD GIVEN TO WAVE MODEL.: 19780906060000
+   
+ WIND INPUT GRID SPECIFICATION ARE: 
+  NUMBER OF LONGITUDE ..........:            4
+  WESTERN MOST LONGITUDE........: +000:00:00.00
+  EASTERN MOST LONGITUDE........: +270:00:00.00
+  LONGITUDE INCREMENT ..........: +090:00:00.00
+  NUMBER OF LATITUDE ...........:            2
+  SOUTHERN MOST LATITUDE .......: -080:00:00.00
+  NORTHERN MOST LATITUDE .......: +080:00:00.00
+  LATITUDE INCREMENT ...........: +160:00:00.00
+ THE GRID IS EAST-WEST PERIODIC
+ GRID IS NOT IDENTICAL TO MODEL GRID: SPACE INTERPOLATION
+  WIND CODE: 1 USTAR;  2 USTRESS; 3 U10.......:            3
+   
+  WIND FIELDS ARE NOT STORED IN MODULE
+   
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780906060000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  
+       SUB. WAM_WIND: WINDFIELDS CONVERTED TO MODEL GRID
+  
+  US(NIJS:NIJS+10) =    18.45000       18.45000       18.45000    
+   18.45000       18.45000       18.45000       18.45000       18.45000    
+   18.45000       18.45000       18.45000    
+  DS(NIJS:NIJS+10) =   0.0000000E+00  0.0000000E+00  0.0000000E+00
+  0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00
+  0.0000000E+00  0.0000000E+00  0.0000000E+00
+       SUB. PREPARE_COLDSTART: WAM_WIND DONE
+         FIRST WIND FIELD PROCESSED
+         DATE IS ................ CDA = 19780906060000
+         FIELD IS SAVED IN WAM_MODEL_MODULE
+   
+       SUB. PREPARE_COLDSTART: FETCH_LAW DONE
+       SUB. PREPARE_COLDSTART: SPECTRA DONE
+     SUB. PREPARE_START: PREPARE_COLDSTART DONE
+  +++ WAM runs without wind ready files
+     SUB. PREPARE_START: PREPARE_FIRST_DEPTH DONE 
+     SUB. PREPARE_START: PREPARE_FIRST_CURRENT DONE 
+         NEXT DEPTH DATE IS  CD_TOTO_NEW = 99991231235900
+         NEXT CURRENT DATE IS CD_CURR_NEW = 99991231235900
+    SUB. INITMDL: PREPARE_START DONE
+     SUB. PREPARE_PROPAGATION: PREPARE_PROPAGATION_COEF DONE
+     SUB. PREPARE_PROPAGATION: CHECK_CFL DONE
+    SUB. INITMDL: PREPARE_PROPAGATION DONE
+     SUB. PREPARE_SOURCE: NLWEIGT DONE
+     SUB. PREPARE_SOURCE: INIT_SNONLIN
+    SUB. INITMDL: PREPARE_SOURCE DONE
+  +++++++++++++++++++++++++++++++++++++++++++++++
+  +                                             +
+  +  WARNING ERROR FROM SUB. MAKE_OUTPUT_SITES  +
+  +  =========================================  +
+  +                                             +
+  + A SEAPOINT WAS NOT FOUND FOR           11
+  + OUTPUT SITE REQUESTS.                       +
+  + THE FOLLOWING SITES ARE IGNORED.            +
+        1  +010:00:00.00  -009:30:00.00  Station 1           
+        2  +010:00:00.00  -009:00:00.00  Station 2           
+        3  +010:00:00.00  -008:30:00.00  Station 3           
+        4  +010:00:00.00  -008:00:00.00  Station 4           
+        5  +010:00:00.00  -007:30:00.00  Station 5           
+        6  +010:00:00.00  -007:00:00.00  Station 6           
+        7  +010:00:00.00  -005:30:00.00  Station 7           
+        8  +010:00:00.00  -005:00:00.00  Station 8           
+        9  +010:00:00.00  -004:30:00.00  Station 9           
+       16  +010:00:00.00  +006:00:00.00  Station 16          
+       17  +010:00:00.00  +010:00:00.00  Station 17          
+  + NUMBER OF OUTPUT POINTS IS NGOUT =            7
+  +                                             +
+  +++++++++++++++++++++++++++++++++++++++++++++++
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =          20  FILE NAME IS: 
+ MAP119780906060000
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =          25  FILE NAME IS: 
+ OUT119780906060000
+    SUB. INITMDL: PREPARE_OUTPUT DONE
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =           2  FILE NAME IS: 
+ /gpfs/work/behrens/WAM_Cycle_6/coarse/JAN/C0119780906060000
+  
+  BOUNDARY VALUE INPUT FILE HEADER IS:
+  NO. OF DIRECTIONS IS ........ KL1 =           12
+  NO. OF FREQUENCIES IS ....... ML1 =           25
+  FIRST DIRECTION IS .......... TH0 =   0.2617994    
+  FIRST FREQUENCY IS .......... FR1 =   4.1772481E-02
+  FREQUENCY RATIO IS .......... CO1 =    1.100000    
+  NO. OF BOUNDRAY POINTS     NBOINP =           60
+  TIME STEP OF DATA IS   IDEL_B_INP =         3600
+  TIME STEP OF FILE IS IDEL_BI_FILE =        86400
+        SUB. PREPARE_BOUNDARY: FIRST BOUNDARY VALUES READ CDATE2 = 
+ 19780906060000
+    SUB. INITMDL: PREPARE_BOUNDARY DONE
+     SUB. INITMDL: PREPARE_RESTART_FILE DONE 
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =          20  FILE NAME IS: 
+ MAP119780907060000
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =          25  FILE NAME IS: 
+ OUT119780907060000
+     SUB. INITMDL: MODEL_OUTPUT_CONTROL DONE
+  
+         MODULE STATUS AFTER INITIALISATION
+         ----------------------------------
+  
+   
+  ------------------------------------------------- 
+               MODEL TIMOPT STATUS:
+  ------------------------------------------------- 
+   
+  START DATE (YYYYMMDDHHMMSS) IS.....: 19780906060000
+  END   DATE (YYYYMMDDHHMMSS) IS.....: 19780908060000
+  DATE OF PROPAGATION INTEGRATION IS.: 19780906060000
+  DATE OF SOURCE INTEGRATION IS......: 19780906060000
+  DATE OF WINDFIELD IS...............: 19780906060000
+  DATE FOR NEXT WIND FIELD IS........: 19780906120000
+  DATE OF DEPTH FIELD IS.............:               
+  DATE FOR NEXT DEPTH FIELD IS.......: 99991231235900
+  DATE OF CURRENT FIELD IS...........:               
+  DATE FOR NEXT CURRENT FIELD IS.....: 99991231235900
+   
+  MODEL TIME STEPS:
+  SOURCE TERM INTEGRATION TIME STEP..:         1200  SECS
+  PROPAGATION TIME STEP .............:         1200  SECS
+  WAMODEL TIME STEP .................:        86400  SECS
+   
+  MODEL OPTIONS:
+  PROPAGATION GRID CARTESIAN COORDINATES
+  THIS IS A DEEP WATER RUN 
+  MODEL RUNS WITHOUT DEPTH REFRACTION
+  MODEL RUNS WITHOUT CURRENT REFRACTION
+  ECMWF CY45R1 PARAMETERISATION FOR INPUT AND OPEN OCEAN DISSIPATION
+  MODEL RUNS WITHOUT OBSTRUCTION
+  IF MPI-RUN, THEN 2D DECOMPOSITION OF GRID
+  MODEL RUNS WITHOUT WAVE BREAKING
+  MODEL RUNS WITHOUT PHILLIPS SOURCE TERM
+  INITIAL VALUES ARE PROCESSED DUE TO OPTION (COLD START).
+  OLD DEPTH SCALING FOR SNL SOURCE FUNCTION.
+  CALCULATION OF THE FLUXES ARE PERFORMED.
+   
+
+ -------------------------------------------------
+                 WAM GENARAL MODULE DATA
+ -------------------------------------------------
+  
+  ACCELERATION OF GRAVITY [M/S**2] .............. G =    9.806000    
+  PI ........................................... PI =    3.141593    
+  2.* PI ...................................... ZPI =    6.283185    
+  SQRT(PI) ................................ ZPISQRT =    1.772454    
+  COVERTION FROM RADIANS TO DEGREE ............ DEG =    57.29578    
+  COVERTION FROM DEGREE TO RADIANS ............ RAD =   1.7453292E-02
+  EARTH CIRCUMFERENCE [M] .....................CIRC =   4.0000000E+07
+  EARTH RADIUS [M] .............................. R =    6366198.    
+  EULER CONSTANT .......................... GAMMA_E =   0.5772157    
+  
+  AIR DENSITY ............................... ROAIR =    1.225000    
+  WATER DENSITY ........................... ROWATER =    1000.000    
+  ROAIR/ROWATER............................... XEPS =   1.2250000E-03
+  1./XEPS ................................. XINVEPS =    816.3265    
+  PARAMETER FOR WIND INPUT ................ BETAMAX =    1.200000    
+  SHIFTS GROWTH CURVE ........................ ZALP =   8.0000004E-03
+  MINIMUM CHARNOCK CONSTANT ................. ALPHA =   7.4999998E-03
+  SHELTERING COEFFICIENT .............. TAUWSHELTER =   0.0000000E+00
+  VON KARMAN CONSTANT ...................... XKAPPA =   0.4000000    
+  DEFAULT CHARNOCK VALUE FOR ICE AND DRY SEA  RCHAR =   1.7999999E-02
+  
+  MAXIMUM VALUE OF DEPTH*WAVENUMBER ......... DKMAX =    40.00000    
+  MINIMUM VALUE ALLOWED FOR BFI SQUARED .... BF2MIN =   -10.00000    
+  MAXIMUM VALUE ALLOWED FOR BFI SQUARED .... BF2MAX =    10.00000    
+  MINIMUM VALUE ALLOWED FOR KURTOSIS ........ C4MIN =  -0.3300000    
+  MAXIMUM VALUE ALLOWED FOR KURTOSIS ........ C4MAX =    1.000000    
+   
+  ------------------------------------------------- 
+               MODEL COLDSTART STATUS:
+  ------------------------------------------------- 
+   
+   
+  COLD START VALUES ARE COMPUTED FROM FETCH LAW.
+     FETCH IS            FETCH =    30000.00     M
+     MAXIMUM PEAK FREQUENCY FM =   0.2000000     HZ
+     WAVE ENERGY IS ZERO IN CALM WIND AREAS.
+   
+
+ ----------------------------------------
+  FREQUENCY AND DIRECTION MODULE STATUS
+ ----------------------------------------
+  
+ NUMBER OF DIRECTIONS  IS  KL =  12
+ NUMBER OF FREQUENCIES IS  ML =  25
+ FIRST FREQUENCY IS     FR(1) = 0.04177248 [HZ]
+ MODEL FREQUENCIES IN HERTZ:
+    0.04177   0.04595   0.05054   0.05560   0.06116   0.06728   0.07400   0.08140   0.08954   0.09850   0.10835   0.11918   0.13110
+    0.14421   0.15863   0.17449   0.19194   0.21114   0.23225   0.25548   0.28102   0.30913   0.34004   0.37404   0.41145
+
+ MODEL DIRECTIONS IN DEGREE (CLOCKWISE FROM NORTH):
+   15.00000  45.00000  74.99999 105.00000 135.00000 164.99998 194.99998 225.00000 254.99998 284.99997 314.99997 345.00000
+
+ MODEL FREQUENCY INTERVALLS TIMES DIRECTION INTERVALL IN HERTZ*RADIENS
+    0.00109   0.00230   0.00253   0.00278   0.00306   0.00336   0.00370   0.00407   0.00448   0.00492   0.00542   0.00596   0.00655
+    0.00721   0.00793   0.00872   0.00959   0.01055   0.01161   0.01277   0.01405   0.01545   0.01700   0.01869   0.00979
+
+ MODEL DEEP WATER GROUPVELOCITY IN M/S:
+   18.68064  16.98240  15.43854  14.03504  12.75913  11.59921  10.54473   9.58612   8.71465   7.92241   7.20219   6.54745   5.95223
+    5.41111   4.91919   4.47199   4.06545   3.69586   3.35988   3.05443   2.77676   2.52432   2.29484   2.08622   1.89656
+
+ MODEL DEEP WATER PHASEVELOCITY IN M/S:
+   37.36128  33.96480  30.87708  28.07008  25.51826  23.19841  21.08947  19.17224  17.42931  15.84483  14.40439  13.09490  11.90445
+   10.82223   9.83839   8.94399   8.13090   7.39173   6.71975   6.10887   5.55351   5.04865   4.58968   4.17244   3.79312
+
+ ----------------------------------------
+            GRID MODULE STATUS
+ ----------------------------------------
+  
+  GRID HEADER: 
+ SWAMP WAVE MODEL RUN FINE GRID 1                                               
+  
+  
+
+ BASIC MODEL GRID: 
+ NUMBER OF LONGITUDES IS       NX =    31
+ MOST WESTERN LONGITUDE IS  AMOWEP = +005:18:00.00
+ MOST EASTERN LONGITUDE IS  AMOEAP = +015:17:24.00
+ LONGITUDE INCREMENT IS     XDELLO = +000:19:58.80
+ NUMBER OF LATITUDES IS        NY =    16
+ MOST SOUTHERN LATITUDE IS  AMOSOP = +000:03:00.00
+ MOST NORTHERN LATITUDE IS  AMONOP = +005:02:42.00
+ LATITUDE INCREMENT IS      XDELLA = +000:19:58.80
+ THE GRID IS NOT EAST-WEST PERIODIC
+  
+ A REGULAR GRID IS SET-UP
+  
+ NUMBER OF SEAPOINTS IS       NSEA =     496
+ THIS IS AN MPI RUN. SEE PREPROC OUTPUT FOR BASIC WATER DEPTH
+   
+  ------------------------------------------------- 
+               WIND MODULE STATUS:
+  ------------------------------------------------- 
+   
+  MODEL WIND INPUT TIME STEP .................:        86400  SECS
+  MODEL WIND OUTPUT TIME STEP.................:        43200  SECS
+  WIND FIELDS ARE INTERPOLATED IN TIME
+   
+  DATE OF LAST WIND FIELD GIVEN TO MODULE.....: 19780906060000
+  DATE OF LAST WIND FIELD GIVEN TO WAVE MODEL.: 19780906060000
+   
+ WIND INPUT GRID SPECIFICATION ARE: 
+  NUMBER OF LONGITUDE ..........:            4
+  WESTERN MOST LONGITUDE........: +000:00:00.00
+  EASTERN MOST LONGITUDE........: +270:00:00.00
+  LONGITUDE INCREMENT ..........: +090:00:00.00
+  NUMBER OF LATITUDE ...........:            2
+  SOUTHERN MOST LATITUDE .......: -080:00:00.00
+  NORTHERN MOST LATITUDE .......: +080:00:00.00
+  LATITUDE INCREMENT ...........: +160:00:00.00
+ THE GRID IS EAST-WEST PERIODIC
+ GRID IS NOT IDENTICAL TO MODEL GRID: SPACE INTERPOLATION
+  WIND CODE: 1 USTAR;  2 USTRESS; 3 U10.......:            3
+   
+  WIND FIELDS ARE NOT STORED IN MODULE
+   
+   
+  ------------------------------------------------- 
+               TOPO MODULE STATUS:
+  ------------------------------------------------- 
+   
+  WATER DEPTH IS STATIONARY. 
+  NO. OF DRY POINTS IS N_DRY =            0
+   
+  ------------------------------------------------- 
+               CURRENT MODULE STATUS:
+  ------------------------------------------------- 
+   
+  CURRENTS ARE STATIONARY. 
+   
+  ------------------------------------------------- 
+               ICE MODULE STATUS:
+  ------------------------------------------------- 
+   
+  ICE IS NOT INITIALIZED 
+   
+  
+  ------------------------------------------------- 
+               NEST MODULE STATUS:
+  ------------------------------------------------- 
+   
+  COARSE GRID (BOUNDARY VALUE OUTPUT): 
+  ------------------------------------ 
+   
+  MODEL RUNS WITHOUT BOUNDARY OUTPUT
+   
+  FINE GRID (BOUNDARY VALUE INPUT): 
+  --------------------------------- 
+   
+  FINE GRID RUN (INPUT OF BOUNDARY VALUES)
+  NUMBER OF SPECTRA FROM PREVIOUS COARSE GRID IS:           60
+  NUMBER OF BOUNDARY POINTS IS:           90
+  THE COARSE GRID NEST NAME IS: NEST 1              
+   
+          |------------FINE GRID INPUT POINT-
+ ---------|----RELATED COURSE GRID INDICES-----|
+      NO. |   LONGITUDE   |    LATITUDE   |
+  POINT NO. |    LEFT   |    RIGHT  |    WEIGHT  |
+ ---------|---------------|---------------|
+ -----------|-----------|-----------|------------|
+        1 | +005:18:00.00 | +000:03:00.00 |         1 |         1 |         1 |     1.0000 |
+        2 | +005:37:58.80 | +000:03:00.00 |         9 |         1 |         2 |     0.4757 |
+        3 | +005:57:57.60 | +000:03:00.00 |        17 |         1 |         2 |     0.9514 |
+        4 | +006:17:56.40 | +000:03:00.00 |        25 |         2 |         3 |     0.5980 |
+        5 | +006:37:55.20 | +000:03:00.00 |        33 |         3 |         4 |     0.2640 |
+        6 | +006:57:54.00 | +000:03:00.00 |        41 |         3 |         4 |     0.9300 |
+        7 | +007:17:52.80 | +000:03:00.00 |        49 |         4 |         5 |     0.5960 |
+        8 | +007:37:51.60 | +000:03:00.00 |        57 |         5 |         6 |     0.2620 |
+        9 | +007:57:50.40 | +000:03:00.00 |        65 |         5 |         6 |     0.9280 |
+       10 | +008:17:49.20 | +000:03:00.00 |        73 |         6 |         7 |     0.5940 |
+       11 | +008:37:48.00 | +000:03:00.00 |        81 |         7 |         8 |     0.2600 |
+       12 | +008:57:46.80 | +000:03:00.00 |        89 |         7 |         8 |     0.9260 |
+       13 | +009:17:45.60 | +000:03:00.00 |        97 |         8 |         9 |     0.5920 |
+       14 | +009:37:44.40 | +000:03:00.00 |       105 |         9 |        10 |     0.2580 |
+       15 | +009:57:43.20 | +000:03:00.00 |       113 |         9 |        10 |     0.9240 |
+       16 | +010:17:42.00 | +000:03:00.00 |       121 |        10 |        11 |     0.5900 |
+       17 | +010:37:40.80 | +000:03:00.00 |       129 |        11 |        12 |     0.2560 |
+       18 | +010:57:39.60 | +000:03:00.00 |       137 |        11 |        12 |     0.9220 |
+       19 | +011:17:38.40 | +000:03:00.00 |       145 |        12 |        13 |     0.5880 |
+       20 | +011:37:37.20 | +000:03:00.00 |       153 |        13 |        14 |     0.2540 |
+       21 | +011:57:36.00 | +000:03:00.00 |       161 |        13 |        14 |     0.9200 |
+       22 | +012:17:34.80 | +000:03:00.00 |       169 |        14 |        15 |     0.5860 |
+       23 | +012:37:33.60 | +000:03:00.00 |       177 |        15 |        16 |     0.2520 |
+       24 | +012:57:32.40 | +000:03:00.00 |       185 |        15 |        16 |     0.9180 |
+       25 | +013:17:31.20 | +000:03:00.00 |       193 |        16 |        17 |     0.5840 |
+       26 | +013:37:30.00 | +000:03:00.00 |       201 |        17 |        18 |     0.2500 |
+       27 | +013:57:28.80 | +000:03:00.00 |       209 |        17 |        18 |     0.9160 |
+       28 | +014:17:27.60 | +000:03:00.00 |       217 |        18 |        19 |     0.5820 |
+       29 | +014:37:26.40 | +000:03:00.00 |       225 |        19 |        20 |     0.2480 |
+       30 | +014:57:25.20 | +000:03:00.00 |       233 |        19 |        20 |     0.9140 |
+       31 | +015:17:24.00 | +000:03:00.00 |       241 |        21 |        21 |     1.0000 |
+       32 | +005:18:00.00 | +000:22:58.80 |         2 |         1 |        22 |     0.7400 |
+       33 | +015:17:24.00 | +000:22:58.80 |       242 |        21 |        23 |     0.7400 |
+       34 | +005:18:00.00 | +000:42:57.60 |         3 |        22 |        24 |     0.4320 |
+       35 | +015:17:24.00 | +000:42:57.60 |       243 |        23 |        25 |     0.4320 |
+       36 | +005:18:00.00 | +001:02:56.40 |         4 |        24 |        26 |     0.0980 |
+       37 | +015:17:24.00 | +001:02:56.40 |       244 |        25 |        27 |     0.0980 |
+       38 | +005:18:00.00 | +001:22:55.20 |         5 |        24 |        26 |     0.7640 |
+       39 | +015:17:24.00 | +001:22:55.20 |       245 |        25 |        27 |     0.7640 |
+       40 | +005:18:00.00 | +001:42:54.00 |         6 |        26 |        28 |     0.4300 |
+       41 | +015:17:24.00 | +001:42:54.00 |       246 |        27 |        29 |     0.4300 |
+       42 | +005:18:00.00 | +002:02:52.80 |         7 |        28 |        30 |     0.0960 |
+       43 | +015:17:24.00 | +002:02:52.80 |       247 |        29 |        31 |     0.0960 |
+       44 | +005:18:00.00 | +002:22:51.60 |         8 |        28 |        30 |     0.7620 |
+       45 | +015:17:24.00 | +002:22:51.60 |       248 |        29 |        31 |     0.7620 |
+       46 | +005:18:00.00 | +002:42:50.40 |       249 |        30 |        32 |     0.4280 |
+       47 | +015:17:24.00 | +002:42:50.40 |       489 |        31 |        33 |     0.4280 |
+       48 | +005:18:00.00 | +003:02:49.20 |       250 |        32 |        34 |     0.0940 |
+       49 | +015:17:24.00 | +003:02:49.20 |       490 |        33 |        35 |     0.0940 |
+       50 | +005:18:00.00 | +003:22:48.00 |       251 |        32 |        34 |     0.7600 |
+       51 | +015:17:24.00 | +003:22:48.00 |       491 |        33 |        35 |     0.7600 |
+       52 | +005:18:00.00 | +003:42:46.80 |       252 |        34 |        36 |     0.4260 |
+       53 | +015:17:24.00 | +003:42:46.80 |       492 |        35 |        37 |     0.4260 |
+       54 | +005:18:00.00 | +004:02:45.60 |       253 |        36 |        38 |     0.0920 |
+       55 | +015:17:24.00 | +004:02:45.60 |       493 |        37 |        39 |     0.0920 |
+       56 | +005:18:00.00 | +004:22:44.40 |       254 |        36 |        38 |     0.7580 |
+       57 | +015:17:24.00 | +004:22:44.40 |       494 |        37 |        39 |     0.7580 |
+       58 | +005:18:00.00 | +004:42:43.20 |       255 |        38 |        40 |     0.3890 |
+       59 | +015:17:24.00 | +004:42:43.20 |       495 |        39 |        60 |     0.3890 |
+       60 | +005:18:00.00 | +005:02:42.00 |       256 |        40 |        40 |     1.0000 |
+       61 | +005:37:58.80 | +005:02:42.00 |       264 |        40 |        41 |     0.4757 |
+       62 | +005:57:57.60 | +005:02:42.00 |       272 |        40 |        41 |     0.9514 |
+       63 | +006:17:56.40 | +005:02:42.00 |       280 |        41 |        42 |     0.5980 |
+       64 | +006:37:55.20 | +005:02:42.00 |       288 |        42 |        43 |     0.2640 |
+       65 | +006:57:54.00 | +005:02:42.00 |       296 |        42 |        43 |     0.9300 |
+       66 | +007:17:52.80 | +005:02:42.00 |       304 |        43 |        44 |     0.5960 |
+       67 | +007:37:51.60 | +005:02:42.00 |       312 |        44 |        45 |     0.2620 |
+       68 | +007:57:50.40 | +005:02:42.00 |       320 |        44 |        45 |     0.9280 |
+       69 | +008:17:49.20 | +005:02:42.00 |       328 |        45 |        46 |     0.5940 |
+       70 | +008:37:48.00 | +005:02:42.00 |       336 |        46 |        47 |     0.2600 |
+       71 | +008:57:46.80 | +005:02:42.00 |       344 |        46 |        47 |     0.9260 |
+       72 | +009:17:45.60 | +005:02:42.00 |       352 |        47 |        48 |     0.5920 |
+       73 | +009:37:44.40 | +005:02:42.00 |       360 |        48 |        49 |     0.2580 |
+       74 | +009:57:43.20 | +005:02:42.00 |       368 |        48 |        49 |     0.9240 |
+       75 | +010:17:42.00 | +005:02:42.00 |       376 |        49 |        50 |     0.5900 |
+       76 | +010:37:40.80 | +005:02:42.00 |       384 |        50 |        51 |     0.2560 |
+       77 | +010:57:39.60 | +005:02:42.00 |       392 |        50 |        51 |     0.9220 |
+       78 | +011:17:38.40 | +005:02:42.00 |       400 |        51 |        52 |     0.5880 |
+       79 | +011:37:37.20 | +005:02:42.00 |       408 |        52 |        53 |     0.2540 |
+       80 | +011:57:36.00 | +005:02:42.00 |       416 |        52 |        53 |     0.9200 |
+       81 | +012:17:34.80 | +005:02:42.00 |       424 |        53 |        54 |     0.5860 |
+       82 | +012:37:33.60 | +005:02:42.00 |       432 |        54 |        55 |     0.2520 |
+       83 | +012:57:32.40 | +005:02:42.00 |       440 |        54 |        55 |     0.9180 |
+       84 | +013:17:31.20 | +005:02:42.00 |       448 |        55 |        56 |     0.5840 |
+       85 | +013:37:30.00 | +005:02:42.00 |       456 |        56 |        57 |     0.2500 |
+       86 | +013:57:28.80 | +005:02:42.00 |       464 |        56 |        57 |     0.9160 |
+       87 | +014:17:27.60 | +005:02:42.00 |       472 |        57 |        58 |     0.5820 |
+       88 | +014:37:26.40 | +005:02:42.00 |       480 |        58 |        59 |     0.2480 |
+       89 | +014:57:25.20 | +005:02:42.00 |       488 |        58 |        59 |     0.9140 |
+       90 | +015:17:24.00 | +005:02:42.00 |       496 |        60 |        60 |     1.0000 |
+   
+ NUMBER OF SEAPOINTS IS       NSEA =     496
+  
+1      LAND-SEA MASK  (S = SEA, L = LAND, / = BOUNDARY INPUT)     PAGE  1
+
+  LONGITUDE IS FROM +005:18:00.00 TO +015:17:24.00
+  LATITUDE  IS FROM +005:02:42.00 TO +000:03:00.00
+  
+  1234567890123456789012345678901
+ 6///////////////////////////////
+ 5/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 4/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 3/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 2/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 1/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 0/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 9/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 8/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 7/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 6/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 5/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 4/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 3/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 2/SSSSSSSSSSSSSSSSSSSSSSSSSSSSS/
+ 1///////////////////////////////
+  1234567890123456789012345678901
+  
+  
+  ------------------------------------------------- 
+               BOUNDARY MODULE STATUS:
+  ------------------------------------------------- 
+  COARSE GRID BOUNDAY OUTPUT IS NOT PROCESSED.
+  
+  BOUNDAY INPUT IS READ EVERY........:         3600  SECONDS
+  LAST INPUT DATE IS.................: 19780906060000
+  NEXT DATE TO FETCH BOUNDARY FILE IS: 19780906060000
+  BOUNDARY FILE IS FETCHED EVERY.....:        86400  SECONDS
+   
+  ------------------------------------------------- 
+               MODEL OUTPUT SELECTION:
+  ------------------------------------------------- 
+   
+  TO PRINTER AND/OR FILE: MAP1YYYYMMDDHHMMSS
+  INTEGRATED PARAMETER OUTPUT EVERY :        10800  SECONDS
+  NEXT OUTPUT DATE IS...............: 19780906090000
+  OUTPUT FILES ARE SAVED EVERY......:       86400  SECONDS
+  NEXT DATE TO SAVE FILES IS........: 19780907060000
+                               F = FALSE   T = TRUE 
+                                                            PRINTER     UNIT
+  WIND SPEED U10 ( METRES/SECOND )                           .... F ...... T
+  WIND DIRECTION ( DEGREE FROM NORTH TO )                    .... F ...... T
+  FRICTION VELOCITY ( METRES/SECOND )                        .... F ...... T
+  DRAG COEFFICIENT ( PROMILLE )                              .... F ...... T
+  CHARNOCK PARAMETER                                         .... F ...... T
+  WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) .... F ...... F
+  CURRENT SPEED ( METRES/SECOND )                            .... F ...... F
+  CURRENT DIRECTION ( DEGREE FROM NORTH TO )                 .... F ...... F
+  SIGNIFICANT WAVE HEIGHT ( METRES )                         .... F ...... T
+  WAVE PEAK PERIOD ( SECONDS )                               .... F ...... T
+  WAVE MEAN PERIOD (SECONDS )                                .... F ...... T
+  WAVE TM1 PERIOD ( SECONDS )                                .... F ...... T
+  WAVE TM2 PERIOD ( SECONDS )                                .... F ...... T
+  WAVE DIRECTION ( DEGREE FROM NORTH TO )                    .... F ...... T
+  DIRECTIONAL SPREAD ( DEGREES )                             .... F ...... T
+  NORMALISED WAVE STRESS ( % )                               .... F ...... T
+  SEA SIGNIFICANT WAVE HEIGHT ( METRES )                     .... F ...... T
+  SEA PEAK PERIOD ( SECONDS )                                .... F ...... T
+  SEA MEAN PERIOD ( SECONDS )                                .... F ...... T
+  SEA TM1 PERIOD ( SECONDS )                                 .... F ...... T
+  SEA TM2 PERIOD (  SECONDS )                                .... F ...... T
+  SEA DIRECTION ( DEGREE FROM NORTH TO )                     .... F ...... T
+  SEA DIRECTIONAL SPREAD ( DEGREES )                         .... F ...... T
+  DUMMY                                                      .... F ...... F
+  SWELL SIGNIFICANT WAVE HEIGHT ( METRES )                   .... F ...... T
+  SWELL PEAK PERIOD ( SECONDS )                              .... F ...... T
+  SWELL MEAN PERIOD ( SECONDS )                              .... F ...... T
+  SWELL TM1 PERIOD ( SECONDS )                               .... F ...... T
+  SWELL TM2 PERIOD ( SECONDS )                               .... F ...... T
+  SWELL DIRECTION ( DEGREE FROM NORTH TO )                   .... F ...... T
+  SWELL DIRECTIONAL SPREAD ( DEGREES )                       .... F ...... T
+  ROUGHNESS LENGTH Z0 ( METRES )                             .... F ...... T
+  GODA PEAKEDNESS PARAMETER                                  .... F ...... T
+  KURTOSIS                                                   .... F ...... T
+  BENJAMIN-FEIR INDEX                                        .... F ...... T
+  NORMALIZED MAXIMUM WAVE HEIGHT                             .... F ...... T
+  MAXIMUM WAVE PERIOD ( SECONDS )                            .... F ...... T
+  PEAK FREQUENCY (INTERPOLATED) ( HZ )                       .... F ...... T
+  PEAK DIRECTION ( DEGREE FROM NORTH TO )                    .... F ...... T
+  MEAN SQUARE SLOPE                                          .... F ...... T
+  FIRST SWELL SIGNIFICANT WAVE HEIGHT ( METRES )             .... F ...... T
+  FIRST SWELL TM1 PERIOD ( SECONDS )                         .... F ...... T
+  FIRST SWELL DIRECTION ( DEGREE FROM NORTH TO )             .... F ...... T
+  SECOND SWELL SIGNIFICANT WAVE HEIGHT ( METRES )            .... F ...... T
+  SECOND SWELL TM1 PERIOD ( SECONDS )                        .... F ...... T
+  SECOND SWELL DIRECTION ( DEGREE FROM NORTH TO )            .... F ...... T
+  THIRD SWELL SIGNIFICANT WAVE HEIGHT ( METRES )             .... F ...... T
+  THIRD SWELL TM1 PERIOD ( SECONDS )                         .... F ...... T
+  THIRD SWELL DIRECTION ( DEGREE FROM NORTH TO )             .... F ...... T
+  DUMMY                                                      .... F ...... F
+  RADIATION STRESS TENSOR SXX ( KG/S/S )                     .... F ...... T
+  RADIATION STRESS TENSOR SYY ( KG/S/S )                     .... F ...... T
+  RADIATION STRESS TENSOR SXY ( KG/S/S )                     .... F ...... T
+  DUMMY                                                      .... F ...... F
+  X-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              .... F ...... T
+  Y-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              .... F ...... T
+  X-COMP. STOKES DRIFT ( M/S )                               .... F ...... T
+  Y-COMP. STOKES DRIFT ( M/S )                               .... F ...... T
+  ENERGY FLUX TO OCEAN ( KG/S/S/S )                          .... F ...... T
+  TOTAL ENERGY FLUX FROM WIND TO WAVES ( KG/S/S/S )          .... F ...... T
+  X-COMP.  MOMENTUM FLUX INTO OCEAN ( KG/M/S/S )             .... F ...... T
+  Y-COMP.  MOMENTUM FLUX INTO OCEAN ( KG/M/S/S )             .... F ...... T
+  ENERGY FLUX FROM WAVES TO BOTTOM ( KG/S/S/S )              .... F ...... T
+  X-COMP.  MOMENTUM FLUX FROM WAVES TO BOTTOM ( KG/M/S/S )   .... F ...... T
+  Y-COMP.  MOMENTUM FLUX FROM WAVES TO BOTTOM ( KG/M/S/S )   .... F ...... T
+  DUMMY                                                      .... F ...... F
+  CREST MAX (TIME, FORRISTALL)                               .... F ...... T
+  HMAX (TIME, NAESS)                                         .... F ...... T
+  MAXIMUM CREST H.- SPACE-TIME (STQD)                        .... F ...... T
+  MAXIMUM WAVE H.- SPACE-TIME (STQD)                         .... F ...... T
+   
+  ------------------------------------------------- 
+               WAM-MAX OPTIONS:
+  ------------------------------------------------- 
+  TIME INTERVAL...................:    1200.000      S
+  X INTERVAL......................:    100.0000      M
+  Y INTERVAL......................:    100.0000      M
+   
+  TO PRINTER AND/OR FILE : OUT1YYYYMMDDHHMMSS
+  SPECTRA OUTPUT EVERY .............:        10800  SECONDS
+  NEXT OUTPUT DATE IS...............: 19780906090000
+  OUTPUT FILES ARE SAVED EVERY......:       86400  SECONDS
+  NEXT DATE TO SAVE FILES IS........: 19780907060000
+                                                            PRINTER     UNIT
+  SPECTRUM                                                   .... F ...... T
+  SEA SPECTRUM                                               .... F ...... F
+  SWELL SPECTRUM                                             .... F ...... F
+  DUMMY                                                      .... F ...... F
+   
+  OUTPUT SITES FOR SPECTRA:
+  TOTAL NUMBER OF SITES IS..........:           7
+   
+ |   LONGITUDE   |    LATITUDE   |       SITE NAME      |    POINT   |
+ |---------------|---------------|----------------------|------------|
+ | +010:00:00.00 | +000:00:00.00 | Station 10           |        156 |
+ | +010:00:00.00 | +001:00:00.00 | Station 11           |        180 |
+ | +010:00:00.00 | +002:00:00.00 | Station 12           |        204 |
+ | +010:00:00.00 | +003:00:00.00 | Station 13           |        412 |
+ | +010:00:00.00 | +004:00:00.00 | Station 14           |        436 |
+ | +010:00:00.00 | +005:00:00.00 | Station 15           |        460 |
+ | +005:18:00.00 | +003:00:00.00 | xox                  |        257 |
+   
+   
+  ------------------------------------------------- 
+                FILE MODULE STATUS:
+  ------------------------------------------------- 
+   
+  STANDARD FILES: 
+   
+  STANDARD USER INPUT FILE ... UNIT: 55, NAME: WAM_User
+   FILE IS NOT ASSIGNED
+  PROTOCOLL FILE ............. UNIT: 66, NAME: WAM_Prot
+   FILE IS ASSIGNED
+   
+  INPUT FILES: 
+   
+  WIND DATA FILE ............. UNIT:  1, NAME: WIND_INPUT.DAT
+   FILE IS ASSIGNED
+  BOUNDARY INPUT SPECTRA FILE  UNIT:  2, ID .: /gpfs/work/behrens/WAM_Cycle_6/coarse/JAN/C01
+   FILE IS ASSIGNED
+  ICE DATA FILE .............. UNIT:  3, NAME: 
+   FILE IS NOT ASSIGNED
+  PREPROC FILE ............... UNIT:  7, NAME: Grid_info_fine_1_GRID
+   FILE IS NOT ASSIGNED
+  TOPO DATA FILE ............. UNIT:  8, NAME: 
+   FILE IS NOT ASSIGNED
+  CURRENT DATA FILE .......... UNIT:  9, NAME: 
+   FILE IS NOT ASSIGNED
+   
+  RESTART FILE: 
+   
+  RESTART FILE ............... UNIT: 17, ID .: BLS1
+   A FILE IS PRESENTLY NOT ASSIGNED.
+   
+  BOUNDARY OUTPUT SPECTRA FILE: 
+   
+  BOUNDARY OUTPUT SPECTRA FILE UNIT: 70, ID .: CBO
+   FILE IS NOT ASSIGNED.
+   
+  OUTPUT FILES: 
+   
+  INTEGRATED PARAMETER FILE .. UNIT: 20, ID .: MAP1
+   FILE IS ASSIGNED.
+  SPECTRA FILE ............... UNIT: 25, ID .: OUT1
+   FILE IS ASSIGNED.
+   
+  RADIATION OUTPUT FILE: 
+   
+  RADIATION OUTPUT FILE ...... UNIT: 27, ID .: RAD
+   FILE IS NOT ASSIGNED.
+   
+  TEST OUTPUT LEVEL IS ..............:            4
+   
+   
+  ------------------------------------------------- 
+                RESTART MODULE STATUS:
+  ------------------------------------------------- 
+   
+  RESTART FILE IS NOT SAVED.
+   
+  ------------------------------------------------- 
+               PROPAGATION MODULE STATUS:
+  ------------------------------------------------- 
+   
+   NUMBER OF PROPAGATION STEPS IN ONE CALL OF SUB WAVEMDL IS NADV =           72
+  
+   MAX. CFL NUMBER IS total_cfl =   0.8568134    
+   
+
+ -------------------------------------------------
+         NON LINEAR INTERACTION PARAMETERS
+ -------------------------------------------------
+
+  FREQUENCY ARRAYS
+     ACL1       ACL2       CL11       CL21       DAL1       DAL2
+  0.38261116 0.11857653 0.61738884 0.88142347 0.40959999 3.16049385
+  
+  M   IKP IKP1  IKM IKM1   FKLAP       FKLAP1    FKLAM       FKLAM1     AF11
+ -3   -1    0    1    1 0.33057734 0.66942263 0.00000000 0.00000000  0.306E-13
+ -2    0    1    1    1 0.33057839 0.66942161 0.00000000 0.00000000  0.873E-13
+ -1    1    2    1    1 0.33057854 0.66942143 0.00000000 0.00000000  0.249E-12
+  0    2    3    1    1 0.33057818 0.66942179 0.00000000 0.00000000  0.711E-12
+  1    3    4   -3   -2 0.33057806 0.66942191 0.98075026 0.01924974  0.203E-11
+  2    4    5   -2   -1 0.33057821 0.66942179 0.98075050 0.01924950  0.578E-11
+  3    5    6   -1    0 0.33057809 0.66942191 0.98075020 0.01924980  0.165E-10
+  4    6    7    0    1 0.33057866 0.66942132 0.98075008 0.01924992  0.471E-10
+  5    7    8    1    2 0.33057806 0.66942191 0.98075038 0.01924962  0.134E-09
+  6    8    9    2    3 0.33057743 0.66942257 0.98074991 0.01925009  0.383E-09
+  7    9   10    3    4 0.33057752 0.66942251 0.98075026 0.01924974  0.109E-08
+  8   10   11    4    5 0.33057719 0.66942281 0.98075086 0.01924914  0.312E-08
+  9   11   12    5    6 0.33057809 0.66942191 0.98075068 0.01924932  0.890E-08
+ 10   12   13    6    7 0.33057809 0.66942191 0.98075193 0.01924807  0.254E-07
+ 11   13   14    7    8 0.33057851 0.66942149 0.98075098 0.01924902  0.725E-07
+ 12   14   15    8    9 0.33057824 0.66942179 0.98075086 0.01924914  0.207E-06
+ 13   15   16    9   10 0.33057755 0.66942245 0.98075014 0.01924986  0.590E-06
+ 14   16   17   10   11 0.33057788 0.66942215 0.98074979 0.01925021  0.168E-05
+ 15   17   18   11   12 0.33057788 0.66942215 0.98075032 0.01924968  0.480E-05
+ 16   18   19   12   13 0.33057854 0.66942143 0.98075050 0.01924950  0.137E-04
+ 17   19   20   13   14 0.33057830 0.66942167 0.98075116 0.01924884  0.391E-04
+ 18   20   21   14   15 0.33057794 0.66942203 0.98075074 0.01924926  0.112E-03
+ 19   21   22   15   16 0.33057854 0.66942143 0.98074967 0.01925033  0.318E-03
+ 20   22   23   16   17 0.33057734 0.66942263 0.98074996 0.01925004  0.908E-03
+ 21   23   24   17   18 0.33057782 0.66942215 0.98075014 0.01924986  0.259E-02
+ 22   24   25   18   19 0.33057761 0.66942239 0.98075056 0.01924944  0.739E-02
+ 23   25   26   19   20 0.33057800 0.66942203 0.98075080 0.01924920  0.211E-01
+ 24   26   27   20   21 0.33057782 0.66942215 0.98075092 0.01924908  0.602E-01
+ 25   27   28   21   22 0.33057770 0.66942227 0.98075002 0.01924998  0.172E+00
+ 26   28   29   22   23 0.33057752 0.66942251 0.98075116 0.01924884  0.490E+00
+ 27   29   30   23   24 0.33057770 0.66942227 0.98075086 0.01924914  0.140E+01
+ 28   30   31   24   25 0.33057818 0.66942179 0.98075193 0.01924807  0.399E+01
+ 29   31   32   25   26 0.33057815 0.66942185 0.98075098 0.01924902  0.114E+02
+
+  ANGULAR ARRAYS
+   |--------KH = 1----------||--------KH = 2----------|
+  K   K1W   K2W  K11W  K21W   K1W   K2W  K11W  K21W
+  1     1     2    12     3     1    12     2    11
+  2     2     3     1     4     2     1     3    12
+  3     3     4     2     5     3     2     4     1
+  4     4     5     3     6     4     3     5     2
+  5     5     6     4     7     5     4     6     3
+  6     6     7     5     8     6     5     7     4
+  7     7     8     6     9     7     6     8     5
+  8     8     9     7    10     8     7     9     6
+  9     9    10     8    11     9     8    10     7
+ 10    10    11     9    12    10     9    11     8
+ 11    11    12    10     1    11    10    12     9
+ 12    12     1    11     2    12    11     1    10
+
+  TAIL ARRAY FRH
+  1.0000000 0.6209210 0.3855430 0.2393919 0.1486435 0.0922959 0.0573085 0.0355841
+
+ -------------------------------------------------
+        WAM TABLES MODULE DATA
+ -------------------------------------------------
+  
+  DEPTH TABLES ARE PREPARED
+  DEPTH TABLE LENGTH ................:           69
+  LOGARITHMIC DEPTH TABLE INCREMENT .:    1.100000    
+  MINIMUM DEPTH VALUE ...............:    1.000000    
+  MAXIMUM DEPTH VALUE ...............:    652.6844    
+  
+  MINIMUM ENERGY TABLE IS PREPARED
+   
+  WINDSPEED TABLE LENGTH ............:          300
+  WINDSPEED INCREMENT ...............:   0.2500000    
+  MAXIMUM WIND SPEED ................:    75.00000    
+  MAXIMUM FETCH FOR MINIMUM ENERGY ..:    25000.00    
+  ABSOLUTE MINIMUM ENERGY ...........:   1.0000000E-06
+  
+   
+  ------------------------------------------------- 
+               MODEL ASSIMILATION STATUS:
+  ------------------------------------------------- 
+   
+  MODEL RUNS WITHOUT ASSIMILATION
+   
+   
+          END OF WAM MODEL INITIALISATION
+          -------------------------------
+   
+  SUB. WAVEMDL: INITMDL DONE
+   
+    SUB. PREPARE_WIND: WIND REQUEST
+      START OF PERIOD IS ............ CD_START = 19780906180000
+      END   OF PERIOD IS .............. CD_END = 19780907060000
+      WIND INPUT TIME STEP ............ IDELWI =        86400
+      WIND OUTPUT TIME STEP ........... IDELWO =        43200
+      NUMBER FIELDS TO BE GENERATED IS M_STORE =            2
+      FIELDS ARE SAVED IN WAM_WIND_MODULE
+      TIME INTERPOLATION
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780906120000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780906180000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780907000000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780907060000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  
+       SUB. WAM_WIND: WINDFIELDS CONVERTED TO MODEL GRID
+  
+  US(NIJS:NIJS+10) =    18.45000       18.45000       18.45000    
+   18.45000       18.45000       18.45000       18.45000       18.45000    
+   18.45000       18.45000       18.45000    
+  DS(NIJS:NIJS+10) =   0.0000000E+00  0.0000000E+00  0.0000000E+00
+  0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00
+  0.0000000E+00  0.0000000E+00  0.0000000E+00
+        SUB. TIMIN: WIND FIELDS FOR CD_STORE = 1978090618000019780907060000
+  SUB. WAVEMDL: PREPARE_WIND DONE
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906060000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906060000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =           2  FILE NAME IS: 
+ /gpfs/work/behrens/WAM_Cycle_6/coarse/JAN/C0119780907060000
+  
+  BOUNDARY VALUE INPUT FILE HEADER IS:
+  NO. OF DIRECTIONS IS ........ KL1 =           12
+  NO. OF FREQUENCIES IS ....... ML1 =           25
+  FIRST DIRECTION IS .......... TH0 =   0.2617994    
+  FIRST FREQUENCY IS .......... FR1 =   4.1772481E-02
+  FREQUENCY RATIO IS .......... CO1 =    1.100000    
+  NO. OF BOUNDRAY POINTS     NBOINP =           60
+  TIME STEP OF DATA IS   IDEL_B_INP =         3600
+  TIME STEP OF FILE IS IDEL_BI_FILE =        86400
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906070000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906062000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906062000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906062000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906062000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906064000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906064000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906064000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906064000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906070000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906070000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906070000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906080000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906072000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906072000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906072000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906072000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906074000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906074000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906074000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906074000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906080000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906080000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906080000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906090000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906082000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906082000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906082000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906082000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906084000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906084000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906084000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906084000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906090000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906090000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906090000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906100000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906092000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906092000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906092000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906092000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906094000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906094000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906094000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906094000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906100000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906100000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906100000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906110000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906102000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906102000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906102000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906102000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906104000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906104000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906104000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906104000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906110000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906110000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906110000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906120000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906112000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906112000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906112000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906112000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906114000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906114000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906114000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906114000
+   
+    SUB. GET_WIND: NEW WIND FIELDS PASSED TO WAM MODEL
+      DATE OF WIND FIELD IS .......... CDA = 19780906180000
+      DATE FOR NEXT WIND CHANGE IS  CD_NEW = 19780907000000
+   
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906120000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906120000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906120000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906130000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906122000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906122000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906122000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906122000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906124000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906124000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906124000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906124000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906130000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906130000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906130000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906140000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906132000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906132000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906132000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906132000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906134000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906134000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906134000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906134000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906140000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906140000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906140000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906150000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906142000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906142000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906142000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906142000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906144000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906144000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906144000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906144000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906150000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906150000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906150000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906160000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906152000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906152000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906152000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906152000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906154000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906154000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906154000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906154000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906160000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906160000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906160000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906170000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906162000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906162000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906162000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906162000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906164000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906164000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906164000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906164000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906170000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906170000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906170000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906180000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906172000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906172000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906172000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906172000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906174000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906174000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906174000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906174000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906180000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906180000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906180000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906190000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906182000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906182000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906182000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906182000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906184000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906184000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906184000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906184000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906190000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906190000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906190000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906200000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906192000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906192000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906192000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906192000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906194000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906194000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906194000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906194000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906200000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906200000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906200000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906210000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906202000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906202000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906202000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906202000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906204000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906204000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906204000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906204000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906210000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906210000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906210000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906220000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906212000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906212000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906212000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906212000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906214000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906214000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906214000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906214000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906220000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906220000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906220000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780906230000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906222000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906222000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906222000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906222000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906224000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906224000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906224000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906224000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906230000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906230000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906230000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907000000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906232000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906232000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906232000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906232000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780906234000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780906234000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780906234000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780906234000
+   
+    SUB. GET_WIND: NEW WIND FIELDS PASSED TO WAM MODEL
+      DATE OF WIND FIELD IS .......... CDA = 19780907060000
+      DATE FOR NEXT WIND CHANGE IS  CD_NEW = 19780907120000
+   
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907000000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907000000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907000000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907010000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907002000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907002000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907002000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907002000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907004000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907004000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907004000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907004000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907010000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907010000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907010000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907020000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907012000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907012000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907012000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907012000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907014000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907014000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907014000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907014000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907020000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907020000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907020000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907030000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907022000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907022000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907022000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907022000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907024000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907024000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907024000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907024000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907030000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907030000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907030000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907040000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907032000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907032000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907032000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907032000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907034000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907034000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907034000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907034000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907040000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907040000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907040000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907050000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907042000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907042000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907042000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907042000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907044000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907044000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907044000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907044000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907050000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907050000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907050000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907060000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907052000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907052000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907052000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907052000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907054000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907054000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907054000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907054000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =          20  FILE NAME IS: 
+ MAP119780908060000
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =          25  FILE NAME IS: 
+ OUT119780908060000
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907060000  !!!!!!!!!!!!!! 
+  SUB. WAVEMDL: WAMODEL DONE
+   
+    SUB. PREPARE_WIND: WIND REQUEST
+      START OF PERIOD IS ............ CD_START = 19780907180000
+      END   OF PERIOD IS .............. CD_END = 19780908060000
+      WIND INPUT TIME STEP ............ IDELWI =        86400
+      WIND OUTPUT TIME STEP ........... IDELWO =        43200
+      NUMBER FIELDS TO BE GENERATED IS M_STORE =            2
+      FIELDS ARE SAVED IN WAM_WIND_MODULE
+      TIME INTERPOLATION
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780907120000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780907180000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780908000000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  READ_WIND_INPUT -  WIND FIELD FOR THE CDTWIR = 19780908060000
+    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
+  
+   18.5  18.5  18.5  18.5  18.5  18.5  18.5  18.5
+  
+       SUB. WAM_WIND: WINDFIELDS CONVERTED TO MODEL GRID
+  
+  US(NIJS:NIJS+10) =    18.45000       18.45000       18.45000    
+   18.45000       18.45000       18.45000       18.45000       18.45000    
+   18.45000       18.45000       18.45000    
+  DS(NIJS:NIJS+10) =   0.0000000E+00  0.0000000E+00  0.0000000E+00
+  0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00
+  0.0000000E+00  0.0000000E+00  0.0000000E+00
+        SUB. TIMIN: WIND FIELDS FOR CD_STORE = 1978090718000019780908060000
+  SUB. WAVEMDL: PREPARE_WIND DONE
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907060000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907060000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =           2  FILE NAME IS: 
+ /gpfs/work/behrens/WAM_Cycle_6/coarse/JAN/C0119780908060000
+  
+  BOUNDARY VALUE INPUT FILE HEADER IS:
+  NO. OF DIRECTIONS IS ........ KL1 =           12
+  NO. OF FREQUENCIES IS ....... ML1 =           25
+  FIRST DIRECTION IS .......... TH0 =   0.2617994    
+  FIRST FREQUENCY IS .......... FR1 =   4.1772481E-02
+  FREQUENCY RATIO IS .......... CO1 =    1.100000    
+  NO. OF BOUNDRAY POINTS     NBOINP =           60
+  TIME STEP OF DATA IS   IDEL_B_INP =         3600
+  TIME STEP OF FILE IS IDEL_BI_FILE =        86400
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907070000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907062000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907062000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907062000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907062000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907064000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907064000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907064000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907064000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907070000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907070000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907070000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907080000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907072000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907072000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907072000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907072000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907074000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907074000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907074000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907074000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907080000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907080000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907080000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907090000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907082000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907082000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907082000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907082000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907084000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907084000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907084000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907084000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907090000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907090000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907090000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907100000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907092000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907092000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907092000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907092000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907094000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907094000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907094000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907094000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907100000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907100000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907100000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907110000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907102000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907102000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907102000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907102000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907104000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907104000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907104000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907104000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907110000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907110000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907110000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907120000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907112000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907112000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907112000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907112000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907114000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907114000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907114000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907114000
+   
+    SUB. GET_WIND: NEW WIND FIELDS PASSED TO WAM MODEL
+      DATE OF WIND FIELD IS .......... CDA = 19780907180000
+      DATE FOR NEXT WIND CHANGE IS  CD_NEW = 19780908000000
+   
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907120000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907120000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907120000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907130000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907122000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907122000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907122000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907122000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907124000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907124000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907124000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907124000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907130000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907130000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907130000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907140000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907132000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907132000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907132000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907132000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907134000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907134000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907134000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907134000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907140000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907140000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907140000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907150000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907142000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907142000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907142000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907142000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907144000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907144000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907144000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907144000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907150000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907150000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907150000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907160000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907152000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907152000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907152000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907152000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907154000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907154000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907154000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907154000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907160000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907160000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907160000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907170000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907162000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907162000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907162000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907162000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907164000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907164000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907164000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907164000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907170000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907170000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907170000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907180000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907172000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907172000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907172000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907172000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907174000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907174000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907174000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907174000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907180000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907180000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907180000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907190000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907182000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907182000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907182000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907182000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907184000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907184000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907184000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907184000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907190000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907190000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907190000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907200000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907192000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907192000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907192000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907192000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907194000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907194000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907194000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907194000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907200000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907200000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907200000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907210000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907202000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907202000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907202000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907202000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907204000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907204000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907204000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907204000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907210000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907210000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907210000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907220000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907212000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907212000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907212000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907212000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907214000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907214000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907214000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907214000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907220000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907220000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907220000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780907230000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907222000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907222000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907222000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907222000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907224000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907224000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907224000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907224000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907230000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907230000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907230000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780908000000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907232000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907232000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907232000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907232000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780907234000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780907234000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780907234000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780907234000
+   
+    SUB. GET_WIND: NEW WIND FIELDS PASSED TO WAM MODEL
+      DATE OF WIND FIELD IS .......... CDA = 19780908060000
+      DATE FOR NEXT WIND CHANGE IS  CD_NEW = 19780908120000
+   
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908000000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908000000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908000000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780908010000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908002000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908002000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908002000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908002000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908004000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908004000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908004000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908004000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908010000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908010000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908010000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780908020000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908012000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908012000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908012000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908012000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908014000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908014000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908014000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908014000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908020000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908020000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908020000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780908030000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908022000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908022000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908022000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908022000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908024000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908024000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908024000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908024000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908030000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908030000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908030000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780908040000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908032000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908032000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908032000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908032000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908034000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908034000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908034000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908034000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908040000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908040000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908040000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780908050000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908042000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908042000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908042000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908042000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908044000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908044000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908044000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908044000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908050000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908050000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908050000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: SECOND BOUNDARY VALUES READ CDATE2 = 19780908060000
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908052000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908052000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908052000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908052000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+        SUB. BOUNDARY_INPUT: TIME INTERPOLATION DONE     CDATEI = 19780908054000
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908054000  !!!!!!!!!!!!!! 
+    SUB. WAMODEL: START OF PROPAGATION AT        CDTPRO = 19780908054000
+    SUB. WAMODEL: START OF SOURCE INTEGRATION AT CDTSOU = 19780908054000
+    SUB. WAMODEL: SOURCE INTEGRATION FINISHED
+    SUB. WAMODEL: BOUNDARY VALUES (FINE GRID) INSERTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: INTEGRATED PARAMETERS COMPUTED
+       SUB. COMPUTE_OUTPUT_PARAMETER: SWELL /SEA SEPARATION DONE
+        SUB. RADIATION_STRESS DONE.
+       SUB. COMPUTE_OUTPUT_PARAMETER: STOKES_DRIFT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_SPECTRA_OUTPUT DONE
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT START
+       SUB. MODEL_OUTPUT: SUB WRITE_INT_PAR_OUTPUT DONE
+    SUB. WAMODEL: MODEL_OUTPUT_CONTROL DONE
+
+   !!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: 19780908060000  !!!!!!!!!!!!!! 
+  SUB. WAVEMDL: WAMODEL DONE
+ 
+  +++ MPI successfully finalized ! 
+  +++++++++++++++++++++++++++++++++
+  + TOTAL USER TIME IN SECONDS    +
+  +   0.615691587328911     
+  +                               +
+  + COMMUNICATION TIME IN SECONDS +
+  +            0
+  +                               +
+  +++++++++++++++++++++++++++++++++

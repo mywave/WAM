@@ -1,0 +1,101 @@
+  +++ read namelist successfully !
+  +++ grid is a regular one !
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =           1  FILE NAME IS: 
+ ../coarse/ARD/MAP19780906060000
+  
+  +++
+  +++ NetCDF file has been opened - name is: WAVE1978090606.nc
+  +++
+  +++ idelint, nx, ny, amosop, amowep, xdella, xdello :        10800          41
+          41  -9.500000      0.0000000E+00  0.5000000      0.5000000    
+ T    T    WIND SPEED U10 ( METRES/SECOND )                           
+ T    T    WIND DIRECTION ( DEGREE FROM NORTH TO )                    
+ T    F    FRICTION VELOCITY ( METRES/SECOND )                        
+ T    F    DRAG COEFFICIENT ( PROMILLE )                              
+ T    F    CHARNOCK PARAMETER                                         
+ F    F    WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) 
+ F    F    CURRENT SPEED ( METRES/SECOND )                            
+ F    F    CURRENT DIRECTION ( DEGREE FROM NORTH TO )                 
+ T    T    SIGNIFICANT WAVE HEIGHT ( METRES )                         
+ T    T    WAVE PEAK PERIOD ( SECONDS )                               
+ T    T    WAVE MEAN PERIOD (SECONDS )                                
+ T    T    WAVE TM1 PERIOD ( SECONDS )                                
+ T    T    WAVE TM2 PERIOD ( SECONDS )                                
+ T    T    WAVE DIRECTION ( DEGREE FROM NORTH TO )                    
+ T    F    DIRECTIONAL SPREAD ( DEGREES )                             
+ T    F    NORMALISED WAVE STRESS ( % )                               
+ T    T    SEA SIGNIFICANT WAVE HEIGHT ( METRES )                     
+ T    F    SEA PEAK PERIOD ( SECONDS )                                
+ T    F    SEA MEAN PERIOD ( SECONDS )                                
+ T    F    SEA TM1 PERIOD ( SECONDS )                                 
+ T    F    SEA TM2 PERIOD (  SECONDS )                                
+ T    T    SEA DIRECTION ( DEGREE FROM NORTH TO )                     
+ T    F    SEA DIRECTIONAL SPREAD ( DEGREES )                         
+ F    F    DUMMY                                                      
+ T    T    SWELL SIGNIFICANT WAVE HEIGHT ( METRES )                   
+ T    F    SWELL PEAK PERIOD ( SECONDS )                              
+ T    F    SWELL MEAN PERIOD ( SECONDS )                              
+ T    F    SWELL TM1 PERIOD ( SECONDS )                               
+ T    F    SWELL TM2 PERIOD ( SECONDS )                               
+ T    T    SWELL DIRECTION ( DEGREE FROM NORTH TO )                   
+ T    F    SWELL DIRECTIONAL SPREAD ( DEGREES )                       
+ T    T    ROUGHNESS LENGTH Z0 ( METRES )                             
+ T    F    GODA PEAKEDNESS PARAMETER                                  
+ T    F    KURTOSIS                                                   
+ T    F    BENJAMIN-FEIR INDEX                                        
+ T    F    NORMALIZED MAXIMUM WAVE HEIGHT                             
+ T    F    MAXIMUM WAVE PERIOD ( SECONDS )                            
+ T    F    PEAK FREQUENCY (INTERPOLATED) ( HZ )                       
+ T    F    PEAK DIRECTION ( DEGREE FROM NORTH TO )                    
+ T    F    MEAN SQUARE SLOPE                                          
+ T    F    FIRST SWELL SIGNIFICANT WAVE HEIGHT ( METRES )             
+ T    F    FIRST SWELL TM1 PERIOD ( SECONDS )                         
+ T    F    FIRST SWELL DIRECTION ( DEGREE FROM NORTH TO )             
+ T    F    SECOND SWELL SIGNIFICANT WAVE HEIGHT ( METRES )            
+ T    F    SECOND SWELL TM1 PERIOD ( SECONDS )                        
+ T    F    SECOND SWELL DIRECTION ( DEGREE FROM NORTH TO )            
+ T    F    THIRD SWELL SIGNIFICANT WAVE HEIGHT ( METRES )             
+ T    F    THIRD SWELL TM1 PERIOD ( SECONDS )                         
+ T    F    THIRD SWELL DIRECTION ( DEGREE FROM NORTH TO )             
+ F    F    DUMMY                                                      
+ T    F    RADIATION STRESS TENSOR SXX ( KG/S/S )                     
+ T    F    RADIATION STRESS TENSOR SYY ( KG/S/S )                     
+ T    F    RADIATION STRESS TENSOR SXY ( KG/S/S )                     
+ F    F    DUMMY                                                      
+ T    F    X-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              
+ T    F    Y-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              
+ T    T    X-COMP. STOKES DRIFT ( M/S )                               
+ T    T    Y-COMP. STOKES DRIFT ( M/S )                               
+ T    T    ENERGY FLUX TO OCEAN ( KG/S/S/S )                          
+ T    T    TOTAL ENERGY FLUX FROM WIND TO WAVES ( KG/S/S/S )          
+ T    T    X-COMP.  MOMENTUM FLUX INTO OCEAN ( KG/M/S/S )             
+ T    T    Y-COMP.  MOMENTUM FLUX INTO OCEAN ( KG/M/S/S )             
+ T    T    ENERGY FLUX FROM WAVES TO BOTTOM ( KG/S/S/S )              
+ T    T    X-COMP.  MOMENTUM FLUX FROM WAVES TO BOTTOM ( KG/M/S/S )   
+ T    T    Y-COMP.  MOMENTUM FLUX FROM WAVES TO BOTTOM ( KG/M/S/S )   
+ F    F    DUMMY                                                      
+ T    T    CREST MAX (TIME, FORRISTALL)                               
+ T    T    HMAX (TIME, NAESS)                                         
+ T    T    MAXIMUM CREST H.- SPACE-TIME (STQD)                        
+ T    T    MAXIMUM WAVE H.- SPACE-TIME (STQD)                         
+  
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =           1  FILE NAME IS: 
+ ../coarse/ARD/MAP19780907060000
+  
+  
+  
+  
+  
+  
+  
+  
+  SUB. OPEN_FILE: A FILE WAS CONNECTED TO UNIT =           1  FILE NAME IS: 
+ ../coarse/ARD/MAP19780908060000
+  
+  
+  
+  
+  
+  
+  
+  

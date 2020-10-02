@@ -197,11 +197,29 @@ SPHERICAL_RUN     = .NOT.(SCAN(LINE( 2: 8),'F').GT.0 .OR. SCAN(LINE( 2: 8),'f').
 SHALLOW_RUN       = .NOT.(SCAN(LINE(11:17),'F').GT.0 .OR. SCAN(LINE(11:17),'f').GT.0)
 REFRACTION_D_RUN  = (SCAN(LINE(20:26),'T').GT.0 .OR. SCAN(LINE(20:26),'t').GT.0)
 REFRACTION_C_RUN  = (SCAN(LINE(29:35),'T').GT.0 .OR. SCAN(LINE(29:35),'t').GT.0)
-WAVE_BREAKING_RUN = (SCAN(LINE(38:44),'T').GT.0 .OR. SCAN(LINE(38:44),'t').GT.0)
-PHILLIPS_RUN      = (SCAN(LINE(47:53),'T').GT.0 .OR. SCAN(LINE(47:53),'t').GT.0)
-IF (LINE(56:62).NE.' ') THEN
-   READ(LINE(56:62),'(I7)',IOSTAT=IOS) ITEST
+L_OBSTRUCTION     = (SCAN(LINE(38:44),'T').GT.0 .OR. SCAN(LINE(38:44),'t').GT.0)
+L_DECOMP          = .NOT.(SCAN(LINE(47:53),'F').GT.0 .OR. SCAN(LINE(47:53),'f').GT.0)
+
+CALL F_NEW_DATA
+IF (LINE( 2: 8).NE.' ') THEN
+   READ(LINE( 2: 8),'(I7)',IOSTAT=IOS) IPHYS
+   IF (IOS.NE.0) CALL ERROR_MESSAGE('IPHYS')
+END IF
+WAVE_BREAKING_RUN = (SCAN(LINE(11:17),'T').GT.0 .OR. SCAN(LINE(11:17),'t').GT.0)
+PHILLIPS_RUN      = (SCAN(LINE(20:26),'T').GT.0 .OR. SCAN(LINE(20:26),'t').GT.0)
+IF (LINE(29:35).NE.' ') THEN
+   READ(LINE(29:35),'(I7)',IOSTAT=IOS) ISNONLIN
    IF (IOS.NE.0) CALL ERROR_MESSAGE('ITEST')
+END IF
+IF (LINE(38:44).NE.' ') THEN
+   READ(LINE(38:44),'(I7)',IOSTAT=IOS) ITEST
+   IF (IOS.NE.0) CALL ERROR_MESSAGE('ITEST')
+END IF
+
+CALL F_NEW_DATA
+IF (LINE(2:11).NE.' ') THEN
+   READ(LINE(2:11),'(F10.4)',IOSTAT=IOS) BETAMAX
+   IF (IOS.NE.0) CALL ERROR_MESSAGE('BETAMAX')
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -398,6 +416,9 @@ DO I=1,NOUT_S,2                              !! SPECTRA.
    PFLAG_S(I+1) = LINE(40:40).EQ.'T' .OR. LINE(40:40).EQ.'t'
    FFLAG_S(I+1) = .NOT. (LINE(42:42).EQ.'F' .OR. LINE(42:42).EQ.'f')
 END DO
+call f_new_data
+orientation_of_directions = .not.(scan(line(2:27),'F')>0 .or.                &
+&                                 scan(line(2:27),'f')>0)
    
 I = 0
 DO
@@ -430,36 +451,7 @@ END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!    13. RADIATION STRESS.                                                     !
-!        -----------------                                                     !
-
-CALL F_NEW_DATA
-
-IF (LINE( 2: 8).NE.' ') THEN
-   READ(LINE( 2: 8),'(I7)',IOSTAT=IOS) RADIATION_OUTPUT_TIMESTEP
-   IF (IOS.NE.0) CALL ERROR_MESSAGE('RADIATION_OUTPUT_TIMESTEP')
-   IF (LINE(10:10) .EQ.'H'.OR.LINE(10:10) .EQ.'h') RADIATION_OUTPUT_TIMESTEP_UNIT = 'H'
-   IF (LINE(10:10) .EQ.'M'.OR.LINE(10:10) .EQ.'m') RADIATION_OUTPUT_TIMESTEP_UNIT = 'M'
-END IF
-
-IF (LINE(13:19).NE.' ') THEN
-   READ(LINE(13:19),'(I7)',IOSTAT=IOS) RADIATION_FILE_TIMESTEP
-   IF (IOS.NE.0) CALL ERROR_MESSAGE('RADIATION_FILE_TIMESTEP')
-   IF (LINE(21:21) .EQ.'H'.OR.LINE(21:21) .EQ.'h') RADIATION_FILE_TIMESTEP_UNIT = 'H'
-   IF (LINE(21:21) .EQ.'M'.OR.LINE(21:21) .EQ.'m') RADIATION_FILE_TIMESTEP_UNIT = 'M'
-END IF
-
-DO I = 1,NOUT_R,2
-   CALL F_NEW_DATA
-   PFLAG_R(  I) = LINE( 2: 2).EQ.'T' .OR. LINE( 2: 2).EQ.'t'
-   FFLAG_R(  I) = .NOT. (LINE( 4: 4).EQ.'F' .OR. LINE( 4: 4).EQ.'f')
-   PFLAG_R(I+1) = LINE(40:40).EQ.'T' .OR. LINE(40:40).EQ.'t'
-   FFLAG_R(I+1) = .NOT. (LINE(42:42).EQ.'F' .OR. LINE(42:42).EQ.'f')
-END DO
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!    14. MODEL FILES.                                                          !
+!    13. MODEL FILES.                                                          !
 !        ------------                                                          !
 
 CALL F_NEW_DATA
@@ -491,9 +483,6 @@ IF ( LINE(2:80).NE.' ') PARAMETER_OUTPUT_FILE_NAME = LINE(2:80)
 
 CALL F_NEW_DATA
 IF ( LINE(2:80).NE.' ') SPECTRA_OUTPUT_FILE_NAME = LINE(2:80)
-
-CALL F_NEW_DATA
-IF ( LINE(2:80).NE.' ') RADIATION_OUTPUT_FILE_NAME = LINE(2:80)
  
 call f_new_data
 if ( line(2: 4)/=' ') model_area = line(2:4)
@@ -509,12 +498,24 @@ ready_outfile_flag = line(2:2)=='T'.or.line(2:2)=='t'
 
 call f_new_data
 if ( line(2:128)/=' ') ready_outfile_directory = line(2:128)
-
 call f_new_data
 read (line( 2: 8),'(i7)',IOSTAT=IOS) hours_2d_spectra
 IF (IOS.NE.0) CALL ERROR_MESSAGE('hours_2d_spectra')
 read (line(11:17),'(i7)',IOSTAT=IOS) spectral_code
 IF (IOS.NE.0) CALL ERROR_MESSAGE('spectral_code')
+
+! ---------------------------------------------------------------------------- ! !! WAM-MAX
+!                                                                              ! !! WAM-MAX
+!    15a. WAM-MAX OPTIONS.                                                     ! !! WAM-MAX
+!        -------------------------------------                                 ! !! WAM-MAX
+
+CALL F_NEW_DATA                                                                  !! WAM-MAX
+READ(LINE( 2: 8),'(F7.3)', IOSTAT=IOS) wammax_dur                                !! WAM-MAX
+IF (IOS.NE.0) CALL ERROR_MESSAGE('wammax duration')                              !! WAM-MAX
+READ(LINE(11:17),'(F7.3)', IOSTAT=IOS) wammax_dx                                 !! WAM-MAX
+IF (IOS.NE.0) CALL ERROR_MESSAGE('wammax DX')                                    !! WAM-MAX
+READ(LINE(20:26),'(F7.3)', IOSTAT=IOS) wammax_dy                                 !! WAM-MAX
+IF (IOS.NE.0) CALL ERROR_MESSAGE('wammax DY')                                    !! WAM-MAX
 
 ! ---------------------------------------------------------------------------- !
 !

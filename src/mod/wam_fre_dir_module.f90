@@ -21,7 +21,7 @@ USE WAM_GENERAL_MODULE,   ONLY:  &
 ! ---------------------------------------------------------------------------- !
 
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST
-USE WAM_GENERAL_MODULE, ONLY: G, PI, ZPI, DEG, R
+USE WAM_GENERAL_MODULE, ONLY: G, PI, ZPI, DEG, R, ROWATER
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -59,11 +59,12 @@ REAL,ALLOCATABLE :: DF_FR2(:)    !! DF*FR*FR [HZ**3].
 REAL,ALLOCATABLE :: DFIM_FR(:)   !! DFIM*FR [HZ*HZ*RAD].
 REAL,ALLOCATABLE :: DFIM_FR2(:)  !! DFIM*FR**2  [HZ**3*RAD].
 REAL,ALLOCATABLE :: FR5(:)       !! FR(M)**5
-REAL,ALLOCATABLE :: FRM5(:)      !! 1./FR(M))**5
+REAL,ALLOCATABLE :: FRM5(:)      !! 1./FR(M)**5
 REAL,ALLOCATABLE :: DFIM(:)      !! FREQUENCY INTERVAL*DIRECTION INTER.
 REAL,ALLOCATABLE :: DFIMOFR(:)   !! DFIM/FR
 REAL,ALLOCATABLE :: DFFR(:)      !! DFIM*FR
 REAL,ALLOCATABLE :: DFFR2(:)     !! DFIM*FR**2 
+REAL,ALLOCATABLE :: RHOWG_DFIM(:)!! ROWATER*G*DELTH*LOG(CO)
 
 REAL,ALLOCATABLE, DIMENSION(:) :: GOM   !! DEEP WATER GROUP VELOCITIES [M/S].
 REAL,ALLOCATABLE, DIMENSION(:) :: C     !! DEEP WATER PHASE VELOCITIES [M/S].
@@ -73,17 +74,13 @@ REAL,ALLOCATABLE, DIMENSION(:) :: SINTH !! SIN OF DIRECTION.
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!    2. SHALLOW WATER TABLES.                                                  !
+!     2. INDEX OF NEIGHTBOUR TERMS IN PROPAGATION.                             !
+!        -----------------------------------------                             !
 
-INTEGER, PARAMETER :: NDEPTH = 69   !! LENGTH OF SHALLOW WATER TABLES.
-REAL,    PARAMETER :: DEPTHA = 1.0  !! MINIMUM DEPTH FOR TABLES [M].
-REAL,    PARAMETER :: DEPTHD = 1.1  !! DEPTH RATIO.
-
-REAL,   ALLOCATABLE, DIMENSION(:,:) :: TCGOND  !! SHALLOW WATER GROUP VELOCITY.
-REAL,   ALLOCATABLE, DIMENSION(:,:) :: TFAK    !! SHALLOW WATER WAVE NUMBER.
-REAL,   ALLOCATABLE, DIMENSION(:,:) :: TSIHKD  !! TABLE FOR OMEGA/SINH(2KD).
-REAL,   ALLOCATABLE, DIMENSION(:,:) :: TFAC_ST !! TABLE FOR 2*G*K**2/
-!                                                           (OMEGA*TANH(2KD)).
+INTEGER, PUBLIC, ALLOCATABLE :: MPM(:,:)    !! INDEX FOR DIRECTION TERMS.
+INTEGER, PUBLIC, ALLOCATABLE :: KPM(:,:)    !! INDEX FOR FREQUENCY TERMS.
+INTEGER, PUBLIC, ALLOCATABLE :: JXO(:,:)    !! INDEX FOR EAST-WEST TERMS.
+INTEGER, PUBLIC, ALLOCATABLE :: JYO(:,:)    !! INDEX FOR NORTH-SOUTH TERMS.
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -112,11 +109,6 @@ INTERFACE MAKE_FRE_DIR               !! COMPUTE FREQUENCY-DIRECTION ARRAYS.
 END INTERFACE
 PRIVATE MAKE_FRE_DIR
 
-INTERFACE MAKE_SHALLOW_TABLES        !! COMPUTE TABLES FOR SHALLOW WATER.
-   MODULE PROCEDURE MAKE_SHALLOW_TABLES
-END INTERFACE
-PRIVATE MAKE_SHALLOW_TABLES
-
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 CONTAINS
@@ -127,7 +119,7 @@ CONTAINS
 !                                                                              !
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE SET_FRE_DIR (N_DIR, N_FRE, FR1)
+SUBROUTINE SET_FRE_DIR (N_DIR, N_FRE, FR1, IREF)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -157,7 +149,8 @@ SUBROUTINE SET_FRE_DIR (N_DIR, N_FRE, FR1)
 
 INTEGER , INTENT(IN) :: N_DIR   !! NUMBER OF DIRECTIONS.
 INTEGER , INTENT(IN) :: N_FRE   !! NUMBER OF FREQUENCIES.
-REAL    , INTENT(IN) :: FR1     !! FIRST FREQUENCY [HZ]
+REAL    , INTENT(IN) :: FR1     !! REFERENCE FREQUENCY [HZ].
+INTEGER , INTENT(IN) :: IREF    !! FREQUENCY BIN NUMBER OF REFERENCE FREQU.
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -184,11 +177,7 @@ IF (ALLOCATED (DFIM_FR2)) DEALLOCATE (DFIM_FR2)
 
 IF (ALLOCATED (FR5)     ) DEALLOCATE (FR5)
 IF (ALLOCATED (FRM5)    ) DEALLOCATE (FRM5)
-
-IF (ALLOCATED (TCGOND)  ) DEALLOCATE (TCGOND)
-IF (ALLOCATED (TFAK)    ) DEALLOCATE (TFAK)
-IF (ALLOCATED (TSIHKD)  ) DEALLOCATE (TSIHKD)
-IF (ALLOCATED (TFAC_ST) ) DEALLOCATE (TFAC_ST)
+IF (ALLOCATED (RHOWG_DFIM)) DEALLOCATE (RHOWG_DFIM)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -220,7 +209,7 @@ END IF
 ML = N_FRE
 KL = N_DIR
 ALLOCATE (FR(ML))
-FR(1) = FR1
+FR(1) = CO**(-IREF+1)*FR1
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -229,14 +218,6 @@ FR(1) = FR1
 
 CALL MAKE_FRE_DIR
 IF (ITEST.GT.1) WRITE (IU06,*) ' SUB. MAKE_FRE_DIR DONE'
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     5. SHALLOW WATER TABLES.                                                 !
-!        ---------------------                                                 !
-
-CALL MAKE_SHALLOW_TABLES
-IF (ITEST.GT.1) WRITE (IU06,*) ' SUB. MAKE_SHALLOW_TABLES DONE'
 
 END SUBROUTINE SET_FRE_DIR
 
@@ -270,9 +251,6 @@ SUBROUTINE PRINT_FRE_DIR_STATUS
 !     LOCAL VARIABLES.                                                         !
 !     ----------------                                                         !
 
-INTEGER, PARAMETER :: NAN  = 10 !! STEPS FOR SHALLOW WATER TABLE PRINT.
-INTEGER :: K, I
-
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. FREQUENCY AND DIRECTION GRID.                                         !
@@ -303,37 +281,6 @@ IF (ALLOCATED(DFIM)) THEN
       WRITE (IU06,'(1X,13F10.5)') GOM(1:ML)
       WRITE (IU06,'(/,'' MODEL DEEP WATER PHASEVELOCITY IN M/S:'')')
       WRITE (IU06,'(1X,13F10.5)') C(1:ML)
-   END IF
-ELSE
-   WRITE (IU06,*) '  MODULE DATA ARE NOT PREPARED'
-END IF
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     2. SHALLOW WATER TABLES.                                                 !
-!        ---------------------                                                 !
-
-WRITE (IU06,'(/,'' ----------------------------------------'')')
-WRITE (IU06,'(  ''            SHALLOW WATER TABLES'')')
-WRITE (IU06,'(  '' ----------------------------------------'',/)')
-K = MAX(NDEPTH/NAN,1)
-WRITE (IU06,'(''  LOGARITHMIC DEPTH FROM: DEPTHA = '',F5.1,'' TO DEPTHE  = '', &
-&             F5.1, ''IN STEPS OF DEPTHD = '',F5.1)')                          &
-&             DEPTHA, DEPTHA*DEPTHD**(NDEPTH-1), DEPTHD
-IF (ALLOCATED(TSIHKD)) THEN
-   IF (ITEST.GT.0) THEN
-      WRITE (IU06,'(''  PRINTED IN STEPS OF '',I3,'' ENTRIES'',/)') K
-      DO I = 1,NDEPTH,K
-         WRITE (IU06,'('' DEPTH = '',F7.1,'' METRES '')') DEPTHA*DEPTHD**(I-1)
-         WRITE (IU06,'('' GROUP VELOCITY IN METRES/SECOND'')')
-         WRITE (IU06,'(1X,13F10.5)') TCGOND(I,1:ML)
-         WRITE (IU06,'('' WAVE NUMBER IN 1./METRES'')')
-         WRITE (IU06,'(1X,13F10.5)') TFAK(I,1:ML)
-         WRITE (IU06,'('' OMEGA/SINH(2KD) IN 1./SECOND'')')
-         WRITE (IU06,'(1X,13F10.5)') TSIHKD(I,1:ML)
-         WRITE (IU06,'('' 2*G*K**2/(OMEGA*TANH(2KD)) IN 1./(METRE*SECOND)'')')
-         WRITE (IU06,'(1X,13F10.5)') TFAC_ST(I,1:ML)
-      END DO
    END IF
 ELSE
    WRITE (IU06,*) '  MODULE DATA ARE NOT PREPARED'
@@ -439,15 +386,21 @@ IF (.NOT.ALLOCATED (DFIM)    )  ALLOCATE (DFIM(1:ML))     !! DF*DELTH.
 IF (.NOT.ALLOCATED (DFIMOFR) )  ALLOCATE (DFIMOFR(1:ML))  !! DFIM/FR.
 IF (.NOT.ALLOCATED (DFIM_FR) )  ALLOCATE (DFIM_FR(1:ML))  !! DFIM*FR.
 IF (.NOT.ALLOCATED (DFIM_FR2))  ALLOCATE (DFIM_FR2(1:ML)) !! DFIM*FR**2.
+IF (.NOT.ALLOCATED (RHOWG_DFIM)) ALLOCATE (RHOWG_DFIM(1:ML))
 
 DFIM(:)     = DF(:)*DELTH                !! MO  INTEGRATION WEIGHTS.
 DFIMOFR(:)  = DFIM(:)/FR(:)              !! M-1 INTEGRATION WEIGHTS.
 DFIM_FR(:)  = DF_FR(:)*DELTH             !! M+1 INTEGRATION WEIGHTS.
 DFIM_FR2(:) = DF_FR2(:)*DELTH            !! M+2 INTEGRATION WEIGHTS.
+RHOWG_DFIM(:)=ROWATER*G*DELTH*LOG(CO)*FR(:) !! MOMENTUM AND ENERGY FLUX WEIGHTS.
+RHOWG_DFIM(1)=0.5*RHOWG_DFIM(1)             !! TRAPEZOIDAL INTEGRATION
+RHOWG_DFIM(ML)=0.5*RHOWG_DFIM(ML)           !! WITH CHANGE OF VARIABLE x=LOG(f)
+                                            !! HENCE df = f dx,
+                                            !! dx=LOG(FR(n+1))-LOG(FR(n)) = LOG(CO)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     9. COMPUTATION AIL FACTOR.                                               !
+!     9. COMPUTATION TAIL FACTOR.                                              !
 !        ------------------------                                              !
 
 MO_TAIL  = -DELTH/ REAL(EX_TAIL+1)*FR(ML)      !! MO  TAIL FACTOR.
@@ -462,155 +415,48 @@ MP2_TAIL = -DELTH/ REAL(EX_TAIL+3)*FR(ML)**3   !! M+2 TAIL FACTOR.
 
 FMIN = 0.07**2 /(16.*(FR(ML)-FR(1))*ZPI)
 
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     11. INDEX OF NEIGHTBOUR TERMS.                                           !
+!        ---------------------------                                           !
+
+IF (.NOT. ALLOCATED(MPM)) ALLOCATE(MPM(ML,-1:1))  !! FREQUENCY NEIGHTBOURS.
+DO M=1,ML
+   MPM(M,-1)= MAX(1,M-1)
+   MPM(M,0) = M
+   MPM(M,1) = MIN(ML,M+1)
+ENDDO
+
+IF(.NOT. ALLOCATED(KPM)) ALLOCATE(KPM(KL,-1:1))  !! DIRECTION NEIGHTBOURS.
+IF(.NOT. ALLOCATED(JXO)) ALLOCATE(JXO(KL,2))
+IF(.NOT. ALLOCATED(JYO)) ALLOCATE(JYO(KL,2))
+
+DO K=1,KL
+
+   KPM(K,-1) = K-1
+   IF (KPM(K,-1).LT.1) KPM(K,-1) = KL
+   KPM(K,0) = K
+   KPM(K,1) = K+1
+   IF (KPM(K,1).GT.KL) KPM(K,1) = 1
+
+   IF (COSTH(K).GE.0.) THEN
+      JYO(K,1)=1
+      JYO(K,2)=2
+   ELSE
+      JYO(K,1)=2
+      JYO(K,2)=1
+   ENDIF
+
+   IF (SINTH(K).GE.0.) THEN
+      JXO(K,1)=1
+      JXO(K,2)=2
+   ELSE
+      JXO(K,1)=2
+      JXO(K,2)=1
+   ENDIF
+ENDDO
+
 END SUBROUTINE MAKE_FRE_DIR
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
-SUBROUTINE MAKE_SHALLOW_TABLES
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!   MAKE_SHALLOW_TABLES - ROUTINE TO COMPUTE TABLES USED FOR SHALLOW WATER.    !
-!                                                                              !
-!     H.GUNTHER            ECMWF       04/04/1990                              !
-!                                                                              !
-!     PURPOSE.                                                                 !
-!     --------                                                                 !
-!                                                                              !
-!       TO COMPUTE TABLES USED FOR SHALLOW WATER.                              !
-!                                                                              !
-!     METHOD.                                                                  !
-!     -------                                                                  !
-!                                                                              !
-!      TABLES FOR GROUP VELOCITY, WAVE NUMBER AND OMEGA/SINH(2KD) ARE COMPUTED !
-!      AT ALL FREQUENCIES AND FOR A DEPTH TABLE OF LENGTH NDEPTH, STARTING AT  !
-!      DEPTHA METERS AND INCREMENTED BY DEPTHD METRES.                         !
-!                                                                              !
-!     REFERENCE.                                                               !
-!     ----------                                                               !
-!                                                                              !
-!       NONE.                                                                  !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     LOCAL VARIABLES.                                                         !
-!     ----------------                                                         !
-
-INTEGER        :: M, JD
-REAL           :: GH, OM, AD, AK, AKD
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     0. ALLOCATE TABLE ARRAYS.                                                !
-!        ----------------------                                                !
-
-IF (.NOT.ALLOCATED (TFAK))    ALLOCATE (TFAK  (NDEPTH,ML))
-IF (.NOT.ALLOCATED (TCGOND))  ALLOCATE (TCGOND(NDEPTH,ML))
-IF (.NOT.ALLOCATED (TSIHKD))  ALLOCATE (TSIHKD(NDEPTH,ML))
-IF (.NOT.ALLOCATED (TFAC_ST)) ALLOCATE (TFAC_ST(NDEPTH,ML))
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     1. GROUP VELOCITY AND WAVE NUMBER.                                       !
-!        -------------------------------                                       !
-
-GH = G/(4.*PI)
-DO M = 1,ML                             !! LOOP OVER FREQUENCIES.
-   OM=ZPI*FR(M)
-   DO JD = 1,NDEPTH                     !! LOOP OVER DEPTH.
-      AD = DEPTHA*DEPTHD**(JD-1)
-      AK = AKI(OM,AD)
-      TFAK(JD,M) = AK
-      AKD = AK*AD
-      IF (AKD.LE.10.0) THEN
-         TCGOND(JD,M) = 0.5*SQRT(G*TANH(AKD)/AK) * (1.0+2.0*AKD/SINH(2.*AKD))
-         TSIHKD(JD,M) = OM/SINH(2.*AKD)
-         TFAC_ST(JD,M) = 2.*G*AK**2/(OM*TANH(2.*AKD))
-      ELSE
-         TCGOND(JD,M) = GH/FR(M)
-         TSIHKD(JD,M) = 0.
-         TFAC_ST(JD,M) = 2./G*OM**3
-      END IF
-   END DO
-END DO
-
-! ---------------------------------------------------------------------------- !
-
-RETURN
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     2. INTERNAL FUNCTION.                                                    !
-!        ------------------                                                    !
-
-CONTAINS
-
-REAL FUNCTION AKI (OM, BETA)
-
-   ! ------------------------------------------------------------------------- !
-   !                                                                           !
-   !   AKI - FUNCTION TO COMPUTE WAVE NUMBER.                                  !
-   !                                                                           !
-   !     G. KOMEN, P. JANSSEN   KNMI        01/06/1986                         !
-   !                                                                           !
-   !     PURPOSE.                                                              !
-   !     -------                                                               !
-   !                                                                           !
-   !       WAVE NUMBER AS FUNCTION OF CIRCULAR FREQUENCY AND WATER DEPTH.      !
-   !                                                                           !
-   !     METHOD.                                                               !
-   !     -------                                                               !
-   !                                                                           !
-   !       NEWTONS METHOD TO SOLVE THE DISPERSION RELATION IN SHALLOW WATER.   !
-   !                                                                           !
-   !     REFERENCE.                                                            !
-   !     ----------                                                            !
-   !                                                                           !
-   !       NONE.                                                               !
-   !                                                                           !
-   ! ------------------------------------------------------------------------- !
-
-   REAL, INTENT(IN) :: OM    !! CIRCULAR FREQUENCY.
-   REAL, INTENT(IN) :: BETA  !! WATER DEPTH.
-
-   ! ------------------------------------------------------------------------- !
-   !                                                                           !
-   !     LOCAL VARIABLES.                                                      !
-   !     ----------------                                                      !
-
-   REAL, PARAMETER :: EBS = 0.0001  !! RELATIVE ERROR LIMIT OF NEWTON'S METHOD.
-
-   REAL :: AKP, BO, TH, STH
-
-   ! ------------------------------------------------------------------------- !
-   !                                                                           !
-   !     1. START WITH MAXIMUM FROM DEEP AND EXTREM SHALLOW WATER WAVE NUMBER. !
-   !        ------------------------------------------------------------------ !
-
-   AKI   = MAX ( OM**2/(4.*G), OM/(2.*SQRT(G*BETA)) )
-
-   ! ------------------------------------------------------------------------- !
-   !                                                                           !
-   !     2. ITERATION LOOP.                                                    !
-   !        ---------------                                                    !
-
-   AKP = 10000.
-   DO WHILE (ABS(AKP-AKI).GT.EBS*AKI)
-      BO = BETA*AKI
-      IF (BO.GT.40.) THEN
-         AKI = OM**2/G
-         EXIT
-      ELSE
-         AKP = AKI
-         TH = G*AKI*TANH(BO)
-         STH = SQRT(TH)
-         AKI = AKI+(OM-STH)*STH*2./(TH/AKI+G*BO/COSH(BO)**2)
-      END IF
-   END DO
-
-   END FUNCTION AKI
-
-END SUBROUTINE MAKE_SHALLOW_TABLES
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 

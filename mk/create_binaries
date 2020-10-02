@@ -1,0 +1,22 @@
+#!/bin/bash
+#++
+#
+# compile
+#
+./make_modules1
+./make_modules2
+./make_preproc
+./make_chief
+./make_print
+./make_netcdf
+#
+# create binaries
+#
+./build_preproc
+./build_wam
+./build_pgrid
+./build_pspec
+./build_ptime
+./build_ptime_S
+./build_pnetcdf
+#

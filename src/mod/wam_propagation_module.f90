@@ -30,15 +30,16 @@ use wam_mpi_comp_module, only: &
 
 USE WAM_GENERAL_MODULE, ONLY: PI, CIRC, ZPI, R, DEG
 USE WAM_FRE_DIR_MODULE, ONLY: ML, KL, FR, TH, GOM, DELTH, DELTR, COSTH, SINTH, &
-&                             TCGOND, TFAK, TSIHKD, NDEPTH, DEPTHA, DEPTHD
-USE WAM_GRID_MODULE,    ONLY: NSEA, IXLG, KXLT, KLAT, KLON,                    &
-&                             DELPHI, DELLAM, SINPH, COSPH, ONE_POINT 
+&                             MPM, KPM, JXO,JYO
+USE WAM_GRID_MODULE,    ONLY: NSEA, KFROMIJ, KLAT, KLON, WLAT,                 &
+&                             DELPHI, DELLAM, SINPH, COSPH, ONE_POINT,         &
+&                             REDUCED_GRID, OBSLAT, OBSLON
 USE WAM_TIMOPT_MODULE,  ONLY: IDELPRO, IDELT,                                  &
 &                             SPHERICAL_RUN, SHALLOW_RUN,                      &
-&                             REFRACTION_D_RUN, REFRACTION_C_RUN
+&                             REFRACTION_D_RUN, REFRACTION_C_RUN, L_OBSTRUCTION
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST
 USE WAM_MODEL_MODULE,   ONLY: DEPTH, INDEP, U, V
-
+USE WAM_TABLES_MODULE,  ONLY: TCGOND, TFAK, TSIHKD, NDEPTH, DEPTHA, DEPTHD
 use wam_mpi_module,     only: petotal, irank, nijs, nijl, ninf, nsup
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
@@ -65,7 +66,7 @@ INTEGER, SAVE :: COUNTER    =-1  !! NO. OF PROPAGATION SUB-TIMESTEP IN SECONDS.
 !     2. LATITUDE LONGITUDE PROPAGATION.                                       !
 !        -------------------------------                                       !
 
-REAL, ALLOCATABLE :: CGOND(:,:)  !! SHALLOW WATER GROUP VELOCITIES.
+REAL,         ALLOCATABLE :: CGOND(:,:)  !! SHALLOW WATER GROUP VELOCITIES.
 REAL, PUBLIC, ALLOCATABLE :: DCO(:)    !! 1./ COS(LATITUDE).
 REAL, PUBLIC, ALLOCATABLE :: DPSN(:,:) !! COS(LATITUDE SOUTH)/COS(LATITUDE) 
                                        !! second index = 1.
@@ -82,13 +83,40 @@ REAL, ALLOCATABLE :: SIDC(:,:,:)  !! SIGMA DOT.
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     4. FREQUENCY, DIRECTION NEIGHTBOURS.                                     !
-!        ------------------------------------                                  !
+!     4. WEIGHTS IN ADVECTION SCHEME.                                          !
+!        ----------------------------                                          !
 
-INTEGER, PUBLIC, ALLOCATABLE :: MP(:)    !! FREQUENCY INDEX +1.
-INTEGER, PUBLIC, ALLOCATABLE :: MM(:)    !! FREQUENCY INDEX -1.
-INTEGER, PUBLIC, ALLOCATABLE :: KP(:)    !! DIRECTION INDEX +1.
-INTEGER, PUBLIC, ALLOCATABLE :: KM(:)    !! DIRECTION INDEX -1.
+REAL, ALLOCATABLE, DIMENSION(:,:,:,:,:) :: COEF_LAT !! N-S DIRECTIONS.
+!                            COEF_LAT(IJ,K,M,IC,ICL)
+!                            IJ: GRID POINT
+!                            K : DIRECTION
+!                            M : FREQUENCY
+!                            IC : NORTH SOUTH INDEX
+!                            ICL : 1 FOR THE CLOSEST GRID POINT
+!                                  2 FOR THE SECOND CLOSEST GRID POINT
+REAL, ALLOCATABLE, DIMENSION(:,:,:,:)   :: COEF_LON !! E-W DIRECTIONS.
+!                            COEF_LON(IJ,K,M,IC)
+!                            IJ: GRID POINT
+!                            K : DIRECTION
+!                            M : FREQUENCY
+!                            IC : EAST WEST INDEX
+REAL, ALLOCATABLE, DIMENSION(:,:,:,:)   :: COEF_THETA !! REFRACTION TERM
+!                            COEF_THETA(IJ,K,M,IC)
+!                            IJ: GRID POINT
+!                            K : DIRECTION
+!                            M : FREQUENCY
+!                            IC:  K+-1 INDEX
+REAL, ALLOCATABLE, DIMENSION(:,:,:,:)   :: COEF_SIGD  !! FREQUENCY SHIFTING TERM
+!                            COEF_SIGD(IJ,K,M,IC)
+!                            IJ: GRID POINT
+!                            K : DIRECTION
+!                            M : FREQUENCY
+!                            IC:  M+-1 INDEX
+REAL, ALLOCATABLE, DIMENSION(:,:,:)     :: COEF_SUM  !! SUM OF WEIGHTS AT CENTRE
+!                            COEF_SUM(IJ,K,M)
+!                            IJ: GRID POINT
+!                            K : DIRECTION
+!                            M : FREQUENCY
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -97,9 +125,7 @@ INTEGER, PUBLIC, ALLOCATABLE :: KM(:)    !! DIRECTION INDEX -1.
 
 REAL, PARAMETER   :: XLIMIT = 0.999  !! MAXIMUM ALLOWED CFL NUMBER
 REAL, ALLOCATABLE :: CFLMAX(:)       !! MAXIMUM CFL NUMBER on each process.
-INTEGER :: MAXPOINT(3)               !! POINT, DIRECTION AND FREQUENCY INDEX
-                                     !! OF MAXIMUM CFL NUMBER on each process.
-REAL    :: total_cfl = 0.            !! MAXIMUM CFL NUMBER frm all processes.
+REAL    :: total_cfl = 0.            !! MAXIMUM CFL NUMBER for all processes.
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
@@ -132,6 +158,11 @@ PUBLIC PROPAGS
 !     E.  PRIVATE INTERFACES.                                                  !
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
+
+INTERFACE PREPARE_PROPAGATION_COEF    !! PROPAGATION SCHEME WEIGHTS.
+   MODULE PROCEDURE PREPARE_PROPAGATION_COEF
+END INTERFACE
+PRIVATE PREPARE_PROPAGATION_COEF
 
 INTERFACE CHECK_CFL                   !! CFL CHECK.
    MODULE PROCEDURE CHECK_CFL
@@ -177,19 +208,50 @@ SUBROUTINE GRADIENT (FIELD, D_LAT, D_LON)
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
 
-REAL,    INTENT(IN)  :: FIELD(1:NSEA)  !! INPUT FIELD.
+REAL,    INTENT(IN)  :: FIELD(NINF:NSUP)  !! INPUT FIELD.
 REAL,    INTENT(OUT) :: D_LAT(nijs:nijl)  !! LATITUDE  DERIVATIVE.
 REAL,    INTENT(OUT) :: D_LON(nijs:nijl)  !! LONGITUDE DERIVATIVE.
+
+INTEGER :: NLAND, IJ, IP, IM, IP2, IM2, KX
+
+NLAND = NINF-1
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. NORTH SOUTH GRADIENTS.                                                !
 !        ----------------------                                                !
 
-D_LAT(nijs:nijl) = 0.0
-WHERE (KLAT(nijs:nijl,1).GT.NINF-1 .AND. KLAT(nijs:nijl,2).GT.NINF-1)          &
-&    D_LAT(nijs:nijl) = (FIELD(KLAT(nijs:nijl,2))-FIELD(KLAT(nijs:nijl,1)))    &
-&                     / (2.*DELPHI)
+IF (REDUCED_GRID) THEN
+   DO IJ = NIJS,NIJL
+      IP  = KLAT(IJ,2,1)
+      IM  = KLAT(IJ,1,1)
+      IP2 = KLAT(IJ,2,2)
+      IM2 = KLAT(IJ,1,2)
+      IF (IP.NE.NLAND .AND. IM.NE.NLAND .AND.                                  &
+&         IP2.NE.NLAND .AND. IM2.NE.NLAND) THEN
+         D_LAT(IJ) = (WLAT(IJ,2)*FIELD(IP)+(1.-WLAT(IJ,2))*FIELD(IP2)          &
+&                - WLAT(IJ,1)*FIELD(IM)-(1.-WLAT(IJ,1))*FIELD(IM2))/(2.*DELPHI)
+      ELSEIF (IP.NE.NLAND .AND. IM.NE.NLAND ) THEN
+         D_LAT(IJ) = (FIELD(IP)-FIELD(IM))/(2.*DELPHI)
+      ELSEIF (IP2.NE.NLAND .AND. IM2.NE.NLAND ) THEN
+         D_LAT(IJ) = (FIELD(IP2)-FIELD(IM2))/(2.*DELPHI)
+      ELSE
+         D_LAT(IJ) = 0.0
+      ENDIF
+   ENDDO
+
+ELSE
+
+   DO IJ = NIJS,NIJL
+      IP  = KLAT(IJ,2,1)
+      IM  = KLAT(IJ,1,1)
+      IF (IP.NE.NLAND .AND. IM.NE.NLAND) THEN
+         D_LAT(IJ) = (FIELD(IP) - FIELD(IM))/(2.*DELPHI)
+      ELSE
+         D_LAT(IJ) = 0.0
+      ENDIF
+   ENDDO
+ENDIF
 CALL PUT_DRY (D_LAT, nijs, nijl, 0.)
 
 ! ---------------------------------------------------------------------------- !
@@ -197,10 +259,17 @@ CALL PUT_DRY (D_LAT, nijs, nijl, 0.)
 !     1. EAST WEST GRADIENTS.                                                  !
 !        --------------------                                                  !
 
-D_LON(nijs:nijl) = 0.0
-WHERE (KLON(nijs:nijl,2).GT.NINF-1 .AND. KLON(nijs:nijl,1).GT.NINF-1)          &
-&     D_LON(nijs:nijl) = (FIELD(KLON(nijs:nijl,2))-FIELD( KLON(nijs:nijl,1)))  &
-&                      / (2.*DELLAM(KXLT(nijs:nijl)))
+DO IJ = NIJS,NIJL
+   IP = KLON(IJ,2)
+   IM = KLON(IJ,1)
+   KX  = KFROMIJ(IJ)
+   IF (IP.NE.NLAND .AND. IM.NE.NLAND) THEN
+      D_LON(IJ) = (FIELD(IP)-FIELD(IM))/(2.*DELLAM(KX))
+   ELSE
+      D_LON(IJ) = 0.0
+   ENDIF
+ENDDO
+
 CALL PUT_DRY ( D_LON, nijs, nijl, 0.)
 
 END SUBROUTINE GRADIENT
@@ -228,9 +297,6 @@ SUBROUTINE PREPARE_PROPAGATION
 !       THE DEPTH AND CURRENT GRADIENTS ARE COMPUTED.                          !
 !       DEPENDING OF THE MODEL OPTIONS THE DEPTH AND CURRENT REFRACTION PART   !
 !       FOR THETA DOT AND THE COMPLETE SIGMA DOT TERM ARE COMPUTED.            !
-!       FOR A MULTIBLOCK VERSION ALL TERMS ARE WRITTEN TO MASS STORAGE (IU15). !
-!       FOR A ONE BLOCK MODEL THE SIGMA DOT TERM IS WRITTEN ONLY THE OTHER     !
-!       TERMS ARE STORED IN WAM_MODEL_MODULE.                                  !
 !                                                                              !
 !     REFERENCE.                                                               !
 !     ----------                                                               !
@@ -249,6 +315,9 @@ INTEGER, ALLOCATABLE, DIMENSION(:) :: INDEP_G
 REAL,    ALLOCATABLE, DIMENSION(:) :: TEMP, THDC
 REAL,    ALLOCATABLE, DIMENSION(:) :: DDPHI, DDLAM
 REAL,    ALLOCATABLE, DIMENSION(:) :: DUPHI, DULAM, DVPHI, DVLAM
+
+INTEGER :: NLAND, IJ, IP, IM, IP2, IM2, IZ
+REAL    :: D_MEAN
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -306,7 +375,12 @@ IF (REFRACTION_C_RUN .AND. (.NOT.ALLOCATED(U) .OR. .NOT.ALLOCATED(V))) THEN
 END IF
 
 IF (.NOT.REFRACTION_D_RUN .AND. .NOT.REFRACTION_C_RUN) THEN
+   CALL PREPARE_PROPAGATION_COEF
+   IF (ITEST.GE.3) THEN
+      WRITE(IU06,*) '    SUB. PREPARE_PROPAGATION: PREPARE_PROPAGATION_COEF DONE'
+   END IF
    CALL CHECK_CFL
+   IF (ITEST.GE.3) WRITE(IU06,*) '    SUB. PREPARE_PROPAGATION: CHECK_CFL DONE'
    RETURN
 END IF
 
@@ -324,38 +398,80 @@ IF (REFRACTION_C_RUN) THEN
    ALLOCATE (DUPHI(nijs:nijl), DULAM(nijs:nijl))
    ALLOCATE (DVPHI(nijs:nijl), DVLAM(nijs:nijl))
    CALL GRADIENT (U, DUPHI, DULAM)
-   IF (SPHERICAL_RUN) DULAM = DULAM*DCO(nijs:nijl)
    CALL GRADIENT (V, DVPHI, DVLAM)
-   IF (SPHERICAL_RUN) DVLAM = DVLAM*DCO(nijs:nijl)
+   IF (SPHERICAL_RUN) THEN
+      DULAM = DULAM*DCO(nijs:nijl)
+      DVLAM = DVLAM*DCO(nijs:nijl)
+   END IF
 END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     5. COMPUTE DEPTH INDEX TO SMOOTH GRADIENTS.                              !
-!        ----------------------------------------                              !
+!     5. COMPUTE MEAN DEPTH INDEX TO SMOOTH GADIENTS.                          !
+!        --------------------------------------------                          !
 
 IF (SHALLOW_RUN) THEN
-   ALLOCATE (TEMP(nijs:nijl))
    ALLOCATE (INDEP_G(NIJS:NIJL))
+   NLAND = NINF-1
 
-   TEMP(NIJS:NIJL) = 4.*DEPTH(NIJS:NIJL)
-   INDEP_G(NIJS:NIJL) = 4
-   WHERE (KLAT(NIJS:NIJL,1).GT.NINF-1 .AND. KLAT(NIJS:NIJL,2).GT.NINF-1)
-      TEMP(NIJS:NIJL) = TEMP(NIJS:NIJL)+DEPTH(KLAT(NIJS:NIJL,2))               &
-&                                      +DEPTH(KLAT(NIJS:NIJL,1))
-      INDEP_G(NIJS:NIJL) = INDEP_G(NIJS:NIJL) + 2
-   END WHERE
+IF (REDUCED_GRID) THEN
 
-   WHERE (KLON(NIJS:NIJL,1).GT.NINF-1 .AND. KLON(NIJS:NIJL,2).GT.NINF-1)
-      TEMP(NIJS:NIJL) = TEMP(NIJS:NIJL)+DEPTH(KLON(NIJS:NIJL,2))               &
-&                                      +DEPTH(KLON(NIJS:NIJL,1))
-      INDEP_G(NIJS:NIJL) = INDEP_G(NIJS:NIJL) + 2
-   END WHERE
+   DO IJ = NIJS,NIJL
+      D_MEAN = 4.*DEPTH(IJ)
+      IZ = 4
+      IP  = KLAT(IJ,2,1)
+      IM  = KLAT(IJ,1,1)
+      IP2 = KLAT(IJ,2,2)
+      IM2 = KLAT(IJ,1,2)
+      IF (IP.NE.NLAND .AND. IM.NE.NLAND .AND.                                 &
+&         IP2.NE.NLAND .AND. IM2.NE.NLAND) THEN
+         D_MEAN = D_MEAN + WLAT(IJ,2)*DEPTH(IP)+(1.-WLAT(IJ,2))*DEPTH(IP2)    &
+&               + WLAT(IJ,1)*DEPTH(IM)+(1.-WLAT(IJ,1))*DEPTH(IM2)
+         IZ = IZ + 2
+      ELSEIF (IP.NE.NLAND .AND. IM.NE.NLAND ) THEN
+         D_MEAN = D_MEAN + DEPTH(IP)+DEPTH(IM)
+         IZ = IZ + 2
+      ELSEIF (IP2.NE.NLAND .AND. IM2.NE.NLAND ) THEN
+         D_MEAN = D_MEAN + DEPTH(IP2)+DEPTH(IM2)
+         IZ = IZ + 2
+      ENDIF
 
-   TEMP(NIJS:NIJL) = TEMP(NIJS:NIJL)/REAL(INDEP_G(NIJS:NIJL))
-   INDEP_G(NIJS:NIJL) = NINT(LOG(TEMP(NIJS:NIJL)/DEPTHA)/LOG(DEPTHD)+1.)
-   INDEP_G(NIJS:NIJL) = MAX(INDEP_G(NIJS:NIJL),1)
-   INDEP_G(NIJS:NIJL) = MIN(INDEP_G(NIJS:NIJL),NDEPTH)
+      IP = KLON(IJ,2)
+      IM = KLON(IJ,1)
+      IF (IP.NE.NLAND .AND. IM.NE.NLAND) THEN
+         D_MEAN = D_MEAN + DEPTH(IP)+DEPTH(IM)
+         IZ = IZ + 2
+      ENDIF
+
+      D_MEAN = D_MEAN/REAL(IZ)
+      IZ = NINT(LOG(D_MEAN/DEPTHA)/LOG(DEPTHD)+1.)
+      IZ = MAX(IZ, 1)
+      INDEP_G(IJ) = MIN(IZ, NDEPTH)
+   ENDDO
+ELSE
+   DO IJ = NIJS,NIJL
+      D_MEAN = 4.*DEPTH(IJ)
+      IZ = 4
+      IP  = KLAT(IJ,2,1)
+      IM  = KLAT(IJ,1,1)
+      IF (IP.NE.NLAND .AND. IM.NE.NLAND) THEN
+         D_MEAN = D_MEAN + DEPTH(IP)+DEPTH(IM)
+         IZ = IZ + 2
+      ENDIF
+
+      IP = KLON(IJ,2)
+      IM = KLON(IJ,1)
+      IF (IP.NE.NLAND .AND. IM.NE.NLAND) THEN
+         D_MEAN = D_MEAN + DEPTH(IP)+DEPTH(IM)
+         IZ = IZ + 2
+      ENDIF
+
+      D_MEAN = D_MEAN/REAL(IZ)
+      IZ = NINT(LOG(D_MEAN/DEPTHA)/LOG(DEPTHD)+1.)
+      IZ = MAX(IZ, 1)
+      INDEP_G(IJ) = MIN(IZ, NDEPTH)
+   ENDDO
+END IF
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -364,13 +480,13 @@ END IF
 !        -------------------                                                   !
 
 IF (SHALLOW_RUN) THEN
+   ALLOCATE (TEMP(nijs:nijl))
    IF (.NOT.ALLOCATED(THDD) ) ALLOCATE (THDD(nijs:nijl,1:KL,1:ML))
-   DO  K = 1,KL
-      TEMP(nijs:nijl) = (SINTH(K)+SINTH(KP(K)))*DDPHI(nijs:nijl)               &
-&                     - (COSTH(K)+COSTH(KP(K)))*DDLAM(nijs:nijl)
-       DO M = 1,ML
-           THDD(nijs:nijl,K,M) = TEMP(nijs:nijl) * TSIHKD(INDEP_G(nijs:nijl),M)
-       END DO
+   DO K = 1,KL
+      TEMP(nijs:nijl) = SINTH(K)*DDPHI(nijs:nijl) - COSTH(K)*DDLAM(nijs:nijl)
+      DO M = 1,ML
+         THDD(nijs:nijl,K,M) = TEMP(nijs:nijl) * TSIHKD(INDEP_G(nijs:nijl),M)
+      END DO
    END DO
 
 END IF
@@ -389,7 +505,6 @@ END IF
 !     8. CURRENT PART OF SIGMA DOT AND THETA DOT.                              !
 !        -----------------------------------------                             !
 
-
 IF (REFRACTION_C_RUN) THEN
 
 !     8.1 CURRENT PART OF THETA DOT.                                           !
@@ -404,9 +519,9 @@ IF (REFRACTION_C_RUN) THEN
    END IF
 
    DO  K = 1,KL
-      SS  = SINTH(K)**2 + SINTH(KP(K))**2
-      SC  = SINTH(K)*COSTH(K) + SINTH(KP(K))*COSTH(KP(K))
-      CC  = COSTH(K)**2 +COSTH(KP(K))**2
+      SS  = SINTH(K)**2
+      SC  = SINTH(K)*COSTH(K)
+      CC  = COSTH(K)**2
 
       IF (SHALLOW_RUN) THEN
          THDC(nijs:nijl) = SS*DUPHI(nijs:nijl) + SC*DVPHI(nijs:nijl)          &
@@ -440,7 +555,7 @@ IF (REFRACTION_C_RUN) THEN
       DO M = 1,ML
          DO  K = 1,KL
             SIDC(nijs:nijl,K,M) = (SIDC(nijs:nijl,K,ML)                        &
-&                   * TCGOND(INDEP(nijs:nijl),M)                               &
+&                   * CGOND(nijs:nijl,M)                                       &
 &                   + TEMP(nijs:nijl) * TSIHKD(INDEP_G(nijs:nijl),M))          &
 &                   * TFAK(INDEP_G(nijs:nijl),M)
          END DO
@@ -461,10 +576,24 @@ IF (ALLOCATED(DVLAM)) DEALLOCATE(DVLAM)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     9. CHECK CFL.                                                            !
+!     9. PREPARE PROPAGATION COEF.                                             !
+!        -------------------------                                             !
+
+CALL PREPARE_PROPAGATION_COEF
+IF (ITEST.GE.3) THEN
+   WRITE(IU06,*) '    SUB. PREPARE_PROPAGATION: PREPARE_PROPAGATION_COEF DONE'
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!    10. CHECK CFL.                                                            !
 !        ----------                                                            !
 
 CALL CHECK_CFL
+IF (ITEST.GE.3) WRITE(IU06,*) '    SUB. PREPARE_PROPAGATION: CHECK_CFL DONE'
+
+IF (ALLOCATED(THDD) ) DEALLOCATE (THDD)
+IF (ALLOCATED(SIDC) ) DEALLOCATE (SIDC)
 
 END SUBROUTINE PREPARE_PROPAGATION
 
@@ -540,19 +669,8 @@ SUBROUTINE PROPAGS (F3)
 !     INTERNAL SUBROUTINES FOR PROPAGATION.                                    !
 !     -------------------------------------                                    !
 !                                                                              !
-!         SPHERICAL GRID.                                                      !
-!                                                                              !
-!       *P_SPHER_DEEP*         DEEP WATER WITHOUT CURRENT REFRACTION.          !
-!       *P_SPHER_SHALLOW*      SHALLOW WATER WITHOUT CURRENT REFRACTION.       !
-!       *P_SPHER_DEEP_CURR*    DEEP WATER WITH CURRENT REFRACTION.             !
-!       *P_SPHER_SHALLOW_CURR* SHALLOW WATER WITH DEPTH AND CURRENT REFRACTION.!
-!                                                                              !
-!         CARTESIAN GRID.                                                      !
-!                                                                              !
-!       *P_CART_DEEP*          DEEP WATER WITHOUT CURRENT REFRACTION.          !
-!       *P_CART_SHALLOW*       SHALLOW WATER WITHOUT CURRENT REFRACTION.       !
-!       *P_CART_DEEP_CUR*      DEEP WATER WITH CURRENT REFRACTION.             !
-!       *P_CART_SHALLOW_CUR*   SHALLOW WATER WITH DEPTH AND CURRENT REFRACTION.!
+!       *PROP_CURR*         WITH CURRENT REFRACTION.                           !
+!       *PROP_NO_CURR*      WITHOUT CURRENT.                                   !
 !                                                                              !
 !     REFERENCE.                                                               !
 !     ----------                                                               !
@@ -573,29 +691,7 @@ REAL,    INTENT(INOUT)   :: F3(NIJS:NIJL,KL,ML)     !! SPECTRUM AT TIME T+DELT.
 !     LOCAL VARIABLES.                                                         !
 !     ----------------                                                         !
 
-INTEGER :: I, IJ, IS, IT, IC, ID, K, M, ierr
-
-INTEGER :: KMK,KPK,MMM,MPM !! KM(K), ... NEEDED FOR COMPILER TO VECTORIZE LOOPS
-
-REAL   :: DELPH0, DELTH0, DELTHR, DELFR0
-REAL   :: SD, CD, SDA, CDA
-REAL   :: DFP, DFM, CGS, CGC, SM, SP
-
-REAL   :: DTC     !! WEIGHT OF CENTER.
-REAL   :: DPN     !! WEIGHT OF NORTH POINT.
-REAL   :: DPS     !! WEIGHT OF SOUTH POINT.
-REAL   :: DLE     !! WEIGHT OF EAST  POINT.
-REAL   :: DLW     !! WEIGHT OF WEST POINT.
-REAL   :: DTP     !! WEIGHT OF DIRECTION +1.
-REAL   :: DTM     !! WEIGHT OF DIRECTION -1.
-REAL   :: DOP     !! WEIGHT OF FREQUENCY +1.
-REAL   :: DOM     !! WEIGHT OF FREQUENCY -1.
-
-REAL   :: DELLA0(NIJS:NIJL)  !! DELTA TIME / LONGITUTE INCREMENTS. (S/M).
-
-REAL, ALLOCATABLE, DIMENSION(:) :: DRGM !! DIR. PART OF THETA DOT FROM GRID.
-REAL, ALLOCATABLE, DIMENSION(:) :: WOK1 !! WORK ARRAY.
-REAL, ALLOCATABLE, DIMENSION(:) :: WOK2 !! WORK ARRAY.
+INTEGER :: I,ierr
 
 REAL, ALLOCATABLE, DIMENSION(:,:,:) :: f1
 
@@ -605,68 +701,30 @@ REAL, ALLOCATABLE, DIMENSION(:,:,:) :: f1
 !        --------                                                              !
 
 allocate (f1(ninf-1:nsup,1:kl,1:ml))
-   
-IF (SPHERICAL_RUN)  ALLOCATE (DRGM(NIJS:NIJL))
-IF (REFRACTION_C_RUN) THEN
-   ALLOCATE (WOK1(ninf-1:nsup))
-   ALLOCATE (WOK2(ninf-1:nsup))
-END IF
 
 DO I = 1, COUNTER
 
    F1(nijs:nijl,:,:) = F3(:,:,:)           !! COPY INPUT SPECTRA
+     
    call mpi_exchng (f1(ninf:nsup,:,:))
    call mpi_barrier (mpi_comm_world, ierr)
-   F1(ninf-1,:,:) = 0.                     !! SPECTRUM AT LAND TO ZERO.
 
+   F1(ninf-1,:,:) = 0.                     !! SPECTRUM AT LAND TO ZERO.
+    
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1.0 SELECT CASES.                                                        !
 !         -------------                                                        !
 
-   IF (SPHERICAL_RUN) THEN
-
-!     1.1 PROPAGATION ON SPHERICAL GRID.                                       !
-!         ------------------------------                                       !
-
-      IF (.NOT.REFRACTION_C_RUN) THEN
-         IF (SHALLOW_RUN) THEN
-            CALL P_SPHER_SHALLOW  !! SHALLOW WATER WITHOUT CURRENT REFRACTION.
-         ELSE
-            CALL P_SPHER_DEEP     !! DEEP WATER WITHOUT CURRENT REFRACTION.
-         END IF
-      ELSE
-         IF (SHALLOW_RUN) THEN
-            CALL P_SPHER_SHALLOW_CURR !! SHALLOW WATER WITH DEPTH AND CURRENT REF.
-         ELSE
-            CALL P_SPHER_DEEP_CURR    !! DEEP WATER WITH CURRENT REFRACTION.
-         END IF
-      END IF
-
+   IF (REFRACTION_C_RUN) THEN
+      CALL PROP_CURR            !! WITH CURRENT REFRACTION.
    ELSE
-
-!     1.2 PROPAGATION ON CARTESIAN GRID.                                       !
-!         ------------------------------                                       !
-
-      IF (.NOT.REFRACTION_C_RUN) THEN
-         IF (SHALLOW_RUN) THEN
-            CALL P_CART_SHALLOW      !! SHALLOW WATER WITHOUT CURRENT REFRACTION.
-         ELSE
-            CALL P_CART_DEEP         !! DEEP WATER WITHOUT CURRENT REFRACTION.
-         END IF
-      ELSE
-         IF (SHALLOW_RUN) THEN
-            CALL P_CART_SHALLOW_CUR  !! SHALLOW WATER WITH DEPTH AND CURRENT REF.
-         ELSE
-            CALL P_CART_DEEP_CUR     !! DEEP WATER WITH CURRENT REFRACTION.
-         END IF
-      END IF
+      CALL PROP_NO_CURR         !! WITHOUT CURRENT REFRACTION.
    END IF
+
 END DO
 
 DEALLOCATE (f1)
-IF (SPHERICAL_RUN)    DEALLOCATE (DRGM)
-IF (REFRACTION_C_RUN) DEALLOCATE (WOK1, WOK2)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -684,586 +742,87 @@ CONTAINS
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     3.1 PROPAGATION FOR CARTESIAN GRID WITHOUT CURRENT REFRACTION (DEEP).    !
-!         -----------------------------------------------------------------    !
+!     3.1 PROPAGATION WITHOUT CURRENT REFRACTION.                              !
+!         ---------------------------------------                              !
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
-SUBROUTINE P_CART_DEEP
+SUBROUTINE PROP_NO_CURR
 
-   DELLA0(nijs:nijl) = NEWIDELPRO/DELLAM(KXLT(nijs:nijl))
-   DELPH0            = NEWIDELPRO/DELPHI
+INTEGER :: IJ, K, M, KP, KM, IS, IC
 
-   FRE: DO M = 1,ML                   !! LOOP OVER FREQUENCIES.
-      DIR: DO K = 1,KL
-         SD = SINTH(K)
-         CD = COSTH(K)
-
-         IF (SD.LT.0) THEN                  !! INDEX FOR ADJOINING LONGITUDE.
-            IS = 2
-         ELSE
-            IS = 1
-         END IF
-         IF (CD.LT.0) THEN                  !! INDEX FOR ADJOINING LATITUDE.
-            IC = 2
-         ELSE
-            IC = 1
-         END IF
-
-         DPN = ABS(CD*DELPH0*GOM(M))
-         SD  = ABS(SD*GOM(M))
-         DO IJ = nijs,nijl
-            DLE = SD*DELLA0(IJ)
-            DTC = 1. - DLE - DPN
-
-            F3(IJ,K,M) = DTC*F1(IJ,K,M)                                      &
-&                      + DPN*F1(KLAT(IJ,IC),K,M)                             &
-&                      + DLE*F1(KLON(IJ,IS),K,M)
-         END DO
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE P_CART_DEEP
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.2 PROPAGATION FOR CARTESIAN GRID WITHOUT CURRENT REFRACTION (SHALLOW). !
-!         -------------------------------------------------------------------- !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE P_CART_SHALLOW
-
-   DELLA0(nijs:nijl) = 0.5*NEWIDELPRO/DELLAM(KXLT(nijs:nijl))
-   DELPH0 = 0.5*NEWIDELPRO/DELPHI
-   DELTHR = 0.5*NEWIDELPRO/DELTH
+DIR: DO K = 1,KL
+   KP = KPM(K, 1)
+   KM = KPM(K,-1)
+   IS = JXO(K,1)         !! INDEX FOR ADJOINING LONGITUDE.
+   IC = JYO(K,1)         !! INDEX FOR ADJOINING LATITUDE.
 
    FRE: DO M = 1,ML
+      DO IJ = NIJS,NIJL
+         F3(IJ,K,M) = COEF_SUM(IJ,K,M)     * F1(IJ,K,M)                        &
+&                   + COEF_LAT(IJ,K,M,1,1) * F1(KLAT(IJ,IC,1),K,M)             &
+&                   + COEF_LON(IJ,K,M,1)   * F1(KLON(IJ,IS)  ,K,M)
+
+      END DO
+
+      IF (REFRACTION_D_RUN .OR. SPHERICAL_RUN) THEN
+         DO IJ = nijs,nijl
+            F3(IJ,K,M) = F3(IJ,K,M)                                            &
+&                      + COEF_THETA(IJ,K,M,1) *F1(IJ          ,KP ,M)          &
+&                      + COEF_THETA(IJ,K,M,2) *F1(IJ          ,KM ,M)
+         END DO
+      END IF
+
+      IF (REDUCED_GRID) THEN
+         DO IJ = NIJS,NIJL
+            F3(IJ,K,M) = F3(IJ,K,M)                                            &
+&                      + COEF_LAT(IJ,K,M,1,2) * F1(KLAT(IJ,IC,2),K,M)
+         END DO
+      END IF
+   END DO FRE
+END DO DIR
+
+END SUBROUTINE PROP_NO_CURR
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.2 PROPAGATION WITH CURRENT REFRACTION.                                 !
+!         ------------------------------------                                 !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PROP_CURR
+
+INTEGER :: IJ, K, M, KP, KM, MM, MP
+
+FRE: DO M = 1,ML
+   MM = MPM(M,-1)
+   MP = MPM(M, 1)
    DIR: DO K = 1,KL
-      SD = SINTH(K)
-      CD = COSTH(K)
-
-      IF (SD.LT.0) THEN                  !! INDEX FOR ADJOINING LONGITUDE.
-         IS = 2
-         IT = 1
-      ELSE
-         IS = 1
-         IT = 2
-      END IF
-      IF (CD.LT.0) THEN                  !! INDEX FOR ADJOINING LATITUDE.
-         IC = 2
-         ID = 1
-      ELSE
-         IC = 1
-         ID = 2
-      END IF
-
-      SD = ABS(SD)
-      CD = ABS(CD*DELPH0)
-
-      IF (REFRACTION_D_RUN) THEN
-         DO IJ = nijs,nijl
-            DLE = SD*(CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))  * DELLA0(IJ)
-            DPN = CD*(CGOND(KLAT(IJ,IC),M) + CGOND(IJ,M))
-
-            DTC = 1. - SD*(CGOND(KLON(IJ,IT),M) + CGOND(IJ,M)) * DELLA0(IJ)    &
-&                    - CD*(CGOND(KLAT(IJ,ID),M) + CGOND(IJ,M))
-            KPK = KP(K)
-            KMK = KM(K)
-            DTP = THDD(IJ,K  ,M)*DELTHR
-            DTM = THDD(IJ,KMK,M)*DELTHR
-
-            DTC = DTC - MAX(0.,DTP) + MIN (0.,DTM)
-            DTP = - MIN (0.,DTP)
-            DTM =   MAX (0.,DTM)
-
-            F3(IJ,K,M) = DTC*F1(IJ,K,M)                                        &
-&                      + DPN*F1(KLAT(IJ,IC),K  ,M) + DLE*F1(KLON(IJ,IS),K  ,M) &
-&                      + DTP*F1(IJ         ,KPK,M) + DTM*F1(IJ         ,KMK,M)
-
-         END DO
-      ELSE
-         DO IJ = nijs,nijl
-            DLE = SD*(CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))  * DELLA0(IJ)
-            DPN = CD*(CGOND(KLAT(IJ,IC),M) + CGOND(IJ,M))
-
-            DTC = 1. - SD*(CGOND(KLON(IJ,IT),M) + CGOND(IJ,M)) * DELLA0(IJ)    &
-&                    - CD*(CGOND(KLAT(IJ,ID),M) + CGOND(IJ,M))
-
-            F3(IJ,K,M) = DTC*F1(IJ,K,M)                                        &
-&                      + DPN*F1(KLAT(IJ,IC),K  ,M) + DLE*F1(KLON(IJ,IS),K  ,M)
+      KP = KPM(K, 1)
+      KM = KPM(K,-1)
+      DO IJ = NIJS,NIJL
+         F3(IJ,K,M) = COEF_SUM(IJ,K,M)     * F1(IJ,K,M )                      &
+&                   + COEF_LAT(IJ,K,M,2,1) * F1(KLAT(IJ,2,1),K,M)             &
+&                   + COEF_LAT(IJ,K,M,1,1) * F1(KLAT(IJ,1,1),K,M)             &
+&                   + COEF_LON(IJ,K,M,2)   * F1(KLON(IJ,2),K,M)               &
+&                   + COEF_LON(IJ,K,M,1)   * F1(KLON(IJ,1),K,M)               &
+&                   + COEF_THETA(IJ,K,M,1) * F1(IJ,KP,M  )                    &
+&                   + COEF_THETA(IJ,K,M,2) * F1(IJ,KM,M  )                    &
+&                   + COEF_SIGD(IJ,K,M,1)  * F1(IJ,K  ,MP)                    &
+&                   + COEF_SIGD(IJ,K,M,2)  * F1(IJ,K  ,MM)
+      END DO
+      IF (REDUCED_GRID) THEN
+         DO IJ = NIJS,NIJL
+            F3(IJ,K,M) = F3(IJ,K,M )                                          &
+&                      + COEF_LAT(IJ,K,M,2,2) * F1(KLAT(IJ,2,2),K,M)          &
+&                      + COEF_LAT(IJ,K,M,1,2) * F1(KLAT(IJ,1,2),K,M)
          END DO
       END IF
-
    END DO DIR
-   END DO FRE
+END DO FRE
 
-END SUBROUTINE P_CART_SHALLOW
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.3 PROPAGATION FOR CARTESIAN GRID WITH CURRENT REFRACTION (DEEP).       !
-!         --------------------------------------------------------------       !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE P_CART_DEEP_CUR
-
-   DELLA0(nijs:nijl) = 0.5*NEWIDELPRO/DELLAM(KXLT(nijs:nijl))
-   DELPH0 = 0.5*NEWIDELPRO/DELPHI
-   DELTHR = 0.5*NEWIDELPRO/DELTH
-   DELFR0 = 0.5*NEWIDELPRO*2.1/0.2
-
-   FRE: DO M = 1,ML
-      MMM = MM(M)
-      MPM = MP(M)
-      DIR: DO K = 1,KL
-         KMK = KM(K)
-         KPK = KP(K)
-
-         SD = SINTH(K)
-         CD = COSTH(K)
-
-         CGS = GOM(M)*SD                !! GROUP VELOCITIES.
-         CGC = GOM(M)*CD
-
-         WOK1(ninf-1)    = CGS
-         WOK1(ninf:nsup) = U(ninf:nsup) + CGS 
-         WOK2(ninf-1)    = CGC*DELPH0
-         WOK2(ninf:nsup) = (V(ninf:nsup) + CGC)*DELPH0
-
-         DO IJ=NIJS,NIJL
-            DLW = (WOK1(IJ) + WOK1(KLON(IJ,1))) * DELLA0(IJ)
-            DLE = (WOK1(IJ) + WOK1(KLON(IJ,2))) * DELLA0(IJ)
-            DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
-            DLE = -MIN(0.,DLE)
-            DLW =  MAX(0.,DLW)
-
-            DPS = WOK2(IJ) + WOK2(KLAT(IJ,1))
-            DPN = WOK2(IJ) + WOK2(KLAT(IJ,2))
-            DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
-            DPN = -MIN(0.,DPN)
-            DPS =  MAX(0.,DPS)
-
-            DTP = THDD(IJ,K  ,ML)*DELTHR
-            DTM = THDD(IJ,KMK,ML)*DELTHR
-            DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
-            DTP = -MIN(0.,DTP)
-            DTM =  MAX(0.,DTM)
-
-            DOM = SIDC(IJ,K,ML) * DELFR0
-            DTC = DTC - ABS(DOM)
-            DOP = -MIN(0.,DOM) / 1.1
-            DOM =  MAX(0.,DOM) * 1.1
-
-            F3(IJ,K,M) = DTC * F1(IJ,K,M)                &
-&                      + DPN * F1(KLAT(IJ,2),K,M)        &
-&                      + DPS * F1(KLAT(IJ,1),K,M)        &
-&                      + DLE * F1(KLON(IJ,2),K,M)        &
-&                      + DLW * F1(KLON(IJ,1),K,M)        &
-&                      + DTP * F1(IJ,KPK,M  )            &
-&                      + DTM * F1(IJ,KMK,M  )            &
-&                      + DOP * F1(IJ,K  ,MPM)            &
-&                      + DOM * F1(IJ,K  ,MMM)
-         END DO
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE P_CART_DEEP_CUR
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.4 PROPAGATION FOR CARTESIAN GRID WITH CURRENT REFRACTION (SHALLOW).    !
-!         -----------------------------------------------------------------    !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE P_CART_SHALLOW_CUR
-
-   DELLA0(nijs:nijl) = 0.5*NEWIDELPRO/DELLAM(KXLT(nijs:nijl))
-   DELPH0 = 0.5*NEWIDELPRO/DELPHI
-   DELTHR = 0.5*NEWIDELPRO/DELTH
-   DELFR0 = 0.5*NEWIDELPRO/(0.1*ZPI)
-
-   FRE: DO M = 1,ML
-      MMM = MM(M)
-      MPM = MP(M)
-      DFP = DELFR0/FR(M)
-      DFM = DELFR0/FR(MMM)
-      DIR: DO K = 1,KL
-         SD = SINTH(K)
-         CD = COSTH(K)
-
-         KMK = KM(K)
-         KPK = KP(K)
-
-         WOK1(ninf-1)    = SD*CGOND(ninf-1,M)
-         WOK2(ninf-1)    = CD*CGOND(ninf-1,M)*DELPH0
-         DO IJ = ninf,nsup
-            WOK1(IJ) =  U(IJ) + SD*CGOND(IJ,M)
-            WOK2(IJ) = (V(IJ) + CD*CGOND(IJ,M)) * DELPH0
-         END DO
-
-         DO IJ = nijs,nijl
-            DLW = (WOK1(IJ) + WOK1(KLON(IJ,1))) * DELLA0(IJ)
-            DLE = (WOK1(IJ) + WOK1(KLON(IJ,2))) * DELLA0(IJ)
-            DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
-            DLE = -MIN(0.,DLE)
-            DLW =  MAX(0.,DLW)
-
-            DPS = WOK2(IJ) + WOK2(KLAT(IJ,1))
-            DPN = WOK2(IJ) + WOK2(KLAT(IJ,2))
-            DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
-            DPN = -MIN(0.,DPN)
-            DPS =  MAX(0.,DPS)
-
-            DTP = THDD(IJ,K  ,M)*DELTHR
-            DTM = THDD(IJ,KMK,M)*DELTHR
-            DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
-            DTP = -MIN(0.,DTP)
-            DTM =  MAX(0.,DTM)
-
-            DOP = (SIDC(IJ,K,M) + SIDC(IJ,K,MPM))*DFP
-            DOM = (SIDC(IJ,K,M) + SIDC(IJ,K,MMM))*DFM
-            DTC = DTC - MAX(0.,DOP) + MIN(0.,DOM)
-            DOP = -MIN(0.,DOP)/1.1
-            DOM =  MAX(0.,DOM)*1.1
-
-            F3(IJ,K,M) = DTC * F1(IJ,K,M )               &
-&                      + DPN * F1(KLAT(IJ,2),K,M)        &
-&                      + DPS * F1(KLAT(IJ,1),K,M)        &
-&                      + DLE * F1(KLON(IJ,2),K,M)        &
-&                      + DLW * F1(KLON(IJ,1),K,M)        &
-&                      + DTP * F1(IJ,KPK,M  )            &
-&                      + DTM * F1(IJ,KMK,M  )            &
-&                      + DOP * F1(IJ,K  ,MPM)            &
-&                      + DOM * F1(IJ,K  ,MMM)
-         END DO
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE P_CART_SHALLOW_CUR
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.5 PROPAGATION FOR SPHERICAL GRID WITHOUT CURRENT REFRACTION (DEEP).    !
-!         -----------------------------------------------------------------    !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE P_SPHER_DEEP
-
-   DELTH0 = 0.5*NEWIDELPRO/DELTR
-   DELPH0 = 0.5*NEWIDELPRO/DELPHI
-
-   DO IJ = nijs,nijl
-      DELLA0(IJ) = NEWIDELPRO*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ)   = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   FRE: DO M = 1,ML
-      DIR: DO K = 1,KL
-         SD = SINTH(K)
-         CD = COSTH(K)
-         SDA = ABS(SD)
-         CDA = ABS(CD*DELPH0)
-
-         KMK = KM(K)
-         KPK = KP(K)
-
-         IF (SD.LT.0) THEN
-            IS = 2
-         ELSE
-            IS = 1
-         END IF
-         IF (CD.LT.0) THEN
-            IC = 2
-            ID = 1
-         ELSE
-            IC = 1
-            ID = 2
-         END IF
-
-         SP  = DELTH0*(SINTH(K)+SINTH(KPK))         !! GRID REFRACTION WEIGHTS.
-         SM  = DELTH0*(SINTH(K)+SINTH(KMK))
-
-         DO IJ = nijs,nijl
-            DTC = CDA*(DPSN(IJ,ID) + 1.)
-            DPN = CDA*(DPSN(IJ,IC) + 1.)  !! LATITUDE WEIGHTS.
-
-            DLE = SDA*DELLA0(IJ)  !! LONGITUDE WEIGHTS.
-
-            DTP = DRGM(IJ)*SP
-            DTM = DRGM(IJ)*SM
-            DTC = DTC + DLE + MAX(0. , DTP) - MIN(0. , DTM)
-            DTP = -MIN(0. , DTP)
-            DTM =  MAX(0. , DTM)
-
-            F3(IJ,K,M) = (1. - GOM(M)*DTC) * F1(IJ,K,M)      &
-&                      + GOM(M)*(  DPN * F1(KLAT(IJ,IC),K,M) &
-&                                + DLE * F1(KLON(IJ,IS),K,M) &
-&                                + DTP * F1(IJ,KPK,M)        &
-&                                + DTM * F1(IJ,KMK,M) )
-         END DO
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE P_SPHER_DEEP
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.6 PROPAGATION FOR SPHERICAL GRID WITHOUT CURRENT REFRACTION (SHALLOW). !
-!         -------------------------------------------------------------------- !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE P_SPHER_SHALLOW
-
-   DELTH0 = 0.5*NEWIDELPRO/DELTR
-   DELPH0 = 0.5*NEWIDELPRO/DELPHI
-   DELTHR = 0.5*NEWIDELPRO/DELTH
-
-   DO IJ = nijs,nijl
-      DELLA0(IJ) = 0.5*NEWIDELPRO*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ)   = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   FRE: DO M = 1,ML
-      DIR: DO K = 1,KL
-         SD = SINTH(K)
-         CD = COSTH(K)
-         SDA = ABS(SD)
-         CDA = ABS(CD*DELPH0)
-
-         KMK=KM(K)
-         KPK=KP(K)
-         SP  = DELTH0*(SINTH(K)+SINTH(KPK))   !! PRE_COMPUTE GRID REFRACTION.
-         SM  = DELTH0*(SINTH(K)+SINTH(KMK))
-
-         IF (SD.LT.0) THEN                    !! INDEX FOR ADJOINING POINTS.
-            IS = 2
-            IT = 1
-         ELSE
-            IS = 1
-            IT = 2
-         END IF
-         IF (CD.LT.0) THEN
-            IC = 2
-            ID = 1
-         ELSE
-            IC = 1
-            ID = 2
-         END IF
-
-         IF (REFRACTION_D_RUN) THEN                 !! DEPTH REFRACTION
-            DO IJ = nijs,nijl
-               DTC = 1. - CDA*(CGOND(KLAT(IJ,ID),M)*DPSN(IJ,ID) + CGOND(IJ,M))
-               DPN =      CDA*(CGOND(KLAT(IJ,IC),M)*DPSN(IJ,IC) + CGOND(IJ,M))
-
-               DTC = DTC - SDA*(CGOND(KLON(IJ,IT),M) + CGOND(IJ,M))*DELLA0(IJ)
-               DLE =       SDA*(CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))*DELLA0(IJ)
-
-               DTP = DRGM(IJ)*CGOND(IJ,M)           !! REFRACTION WEIGHTS
-               DTM = DTP*SM + THDD(IJ,KMK,M)*DELTHR 
-               DTP = DTP*SP + THDD(IJ,K  ,M)*DELTHR 
-               DTC = DTC - MAX(0. , DTP) + MIN(0. , DTM)
-               DTP = -MIN(0. , DTP)
-               DTM =  MAX(0. , DTM)
-
-               F3(IJ,K,M) = DTC * F1(IJ,K,M)                &
-&                         + DPN * F1(KLAT(IJ,IC),K,M)       &
-&                         + DLE * F1(KLON(IJ,IS),K,M)       &
-&                         + DTP * F1(IJ,KPK,M)              &
-&                         + DTM * F1(IJ,KMK,M)
-
-            END DO
-
-         ELSE
-
-            DO IJ = nijs,nijl
-               DTC = 1. - CDA*(CGOND(KLAT(IJ,ID),M)*DPSN(IJ,ID) + CGOND(IJ,M))
-               DPN =      CDA*(CGOND(KLAT(IJ,IC),M)*DPSN(IJ,IC) + CGOND(IJ,M))
-
-               DTC = DTC - SDA*(CGOND(KLON(IJ,IT),M) + CGOND(IJ,M))*DELLA0(IJ)
-               DLE =       SDA*(CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))*DELLA0(IJ)
-
-               DTP = DRGM(IJ)*CGOND(IJ,M) !! REFRACTION WEIGHTS
-               DTM = DTP*SM
-               DTP = DTP*SP
-
-               DTC = DTC - MAX(0. , DTP) + MIN(0. , DTM)
-               DTP = -MIN(0. , DTP)
-               DTM =  MAX(0. , DTM)
-
-               F3(IJ,K,M) = DTC * F1(IJ,K,M)                &
-&                         + DPN * F1(KLAT(IJ,IC),K,M)       &
-&                         + DLE * F1(KLON(IJ,IS),K,M)       &
-&                         + DTP * F1(IJ,KPK,M)              &
-&                         + DTM * F1(IJ,KMK,M)
-
-            END DO
-
-         END IF
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE P_SPHER_SHALLOW
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.7 PROPAGATION FOR SPHERICAL GRID WITH CURRENT REFRACTION (DEEP).       !
-!         --------------------------------------------------------------       !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE P_SPHER_DEEP_CURR
-
-   DELPH0 = 0.5*NEWIDELPRO/DELPHI
-   DELTH0 = 0.5*NEWIDELPRO/DELTR
-   DELTHR = 0.5*NEWIDELPRO/DELTH
-   DELFR0 = 0.5*NEWIDELPRO*2.1/0.2
-
-   DO IJ = nijs,nijl
-      DELLA0(IJ) = 0.5*NEWIDELPRO*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ)   = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   FRE: DO M = 1,ML
-      MPM = MP(M)
-      MMM = MM(M)
-      DIR: DO K = 1,KL
-         SD = SINTH(K)
-         CD = COSTH(K)
-         KPK = KP(K)
-         KMK = KM(K)
-         SP = DELTH0*(SINTH(K)+SINTH(KPK))*GOM(M)     !! PRE-COMPUTE GRID REFRACTION.
-         SM = DELTH0*(SINTH(K)+SINTH(KMK))*GOM(M)
-
-         CGS = GOM(M)*SD                       !! GROUP VELOCITIES.
-         CGC = GOM(M)*CD
-
-         WOK1(ninf-1)    = CGS
-         WOK1(ninf:nsup) = U(ninf:nsup) + CGS
-         WOK2(ninf-1)    = CGC*DELPH0
-         WOK2(ninf:nsup) = (V(ninf:nsup) + CGC) * DELPH0
-
-         DO IJ = nijs,nijl
-            DLW = (WOK1(IJ) + WOK1(KLON(IJ,1))) * DELLA0(IJ)
-            DLE = (WOK1(IJ) + WOK1(KLON(IJ,2))) * DELLA0(IJ)
-            DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
-            DLE = -MIN(0.,DLE)
-            DLW =  MAX(0.,DLW)
-
-            DPS = WOK2(IJ)+WOK2(KLAT(IJ,1))*DPSN(IJ,1)
-            DPN = WOK2(IJ)+WOK2(KLAT(IJ,2))*DPSN(IJ,2)
-            DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
-            DPN = -MIN(0.,DPN)
-            DPS =  MAX(0.,DPS)
-
-            DTP = SP*DRGM(IJ) + THDD(IJ,K  ,ML)*DELTHR
-            DTM = SM*DRGM(IJ) + THDD(IJ,KMK,ML)*DELTHR
-            DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
-            DTP = -MIN(0.,DTP)
-            DTM =  MAX(0.,DTM)
-
-            DOM =  SIDC(IJ,K,ML) * DELFR0
-            DTC =  DTC - ABS(DOM)
-            DOP = -MIN(0.,DOM)/1.1
-            DOM =  MAX(0.,DOM)*1.1
-
-            F3(IJ,K,M) = DTC * F1(IJ,K,M)                &
-&                      + DPN * F1(KLAT(IJ,2),K,M)        &
-&                      + DPS * F1(KLAT(IJ,1),K,M)        &
-&                      + DLE * F1(KLON(IJ,2),K,M)        &
-&                      + DLW * F1(KLON(IJ,1),K,M)        &
-&                      + DTP * F1(IJ,KPK,M  )            &
-&                      + DTM * F1(IJ,KMK,M  )            &
-&                      + DOP * F1(IJ,K  ,MPM)            &
-&                      + DOM * F1(IJ,K  ,MMM)
-
-         END DO
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE P_SPHER_DEEP_CURR
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.8 PROPAGATION FOR SPHERICAL GRID WITH CURRENT REFRACTION (SHALLOW).    !
-!         -----------------------------------------------------------------    !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE P_SPHER_SHALLOW_CURR
-
-   DELPH0 = 0.5*NEWIDELPRO/DELPHI
-   DELTH0 = 0.5*NEWIDELPRO/DELTR
-   DELTHR = 0.5*NEWIDELPRO/DELTH
-   DELFR0 = 0.5*NEWIDELPRO/(0.1*ZPI)
-
-   DO IJ = nijs,nijl
-      DELLA0(IJ) = 0.5*NEWIDELPRO*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ)   = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   FRE: DO M = 1,ML
-      MPM = MP(M)
-      MMM = MM(M)
-      DFP = DELFR0/FR(M)
-      DFM = DELFR0/FR(MMM)
-      DIR: DO K = 1,KL
-         SD = SINTH(K)
-         CD = COSTH(K)
-         KPK = KP(K)
-         KMK = KM(K)
-         SP = DELTH0*(SINTH(K)+SINTH(KPK))      !! GRID REFRACTION.
-         SM = DELTH0*(SINTH(K)+SINTH(KMK))
-
-         WOK1(ninf-1)    = SD*CGOND(ninf-1,M)
-         WOK1(ninf:nsup) = U(ninf:nsup)+SD*CGOND(ninf:nsup,M)
-         WOK2(ninf-1)    = CD*CGOND(ninf-1,M)*DELPH0
-         WOK2(ninf:nsup) = (V(ninf:nsup)+CD*CGOND(ninf:nsup,M))*DELPH0
-
-         DO IJ = nijs,nijl
-
-            DLW = ( WOK1(IJ) + WOK1(KLON(IJ,1)) ) * DELLA0(IJ)
-            DLE = ( WOK1(IJ) + WOK1(KLON(IJ,2)) ) * DELLA0(IJ)
-            DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
-            DLE = -MIN(0.,DLE)
-            DLW =  MAX(0.,DLW)
-
-            DPS = WOK2(IJ)+WOK2(KLAT(IJ,1))*DPSN(IJ,1)
-            DPN = WOK2(IJ)+WOK2(KLAT(IJ,2))*DPSN(IJ,2)
-            DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
-            DPN = -MIN(0.,DPN)
-            DPS =  MAX(0.,DPS)
-
-            DTP = SP*DRGM(IJ)*CGOND(IJ,M) + THDD(IJ,K  ,M)*DELTHR
-            DTM = SM*DRGM(IJ)*CGOND(IJ,M) + THDD(IJ,KMK,M)*DELTHR
-            DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
-            DTP = -MIN(0.,DTP)
-            DTM =  MAX(0.,DTM)
-
-            DOP = (SIDC(IJ,K,M) + SIDC(IJ,K,MPM))*DFP
-            DOM = (SIDC(IJ,K,M) + SIDC(IJ,K,MMM))*DFM
-            DTC = DTC - MAX(0.,DOP) + MIN(0.,DOM)
-            DOP = -MIN(0.,DOP)/1.1
-            DOM =  MAX(0.,DOM)*1.1
-
-            F3(IJ,K,M) = DTC * F1(IJ,K,M )               &
-&                      + DPN * F1(KLAT(IJ,2),K,M)        &
-&                      + DPS * F1(KLAT(IJ,1),K,M)        &
-&                      + DLE * F1(KLON(IJ,2),K,M)        &
-&                      + DLW * F1(KLON(IJ,1),K,M)        &
-&                      + DTP * F1(IJ,KPK,M  )            &
-&                      + DTM * F1(IJ,KMK,M  )            &
-&                      + DOP * F1(IJ,K  ,MPM)            &
-&                      + DOM * F1(IJ,K  ,MMM)
-         END DO
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE P_SPHER_SHALLOW_CURR
+END SUBROUTINE PROP_CURR
 
 ! ---------------------------------------------------------------------------- !
 
@@ -1275,6 +834,1086 @@ END SUBROUTINE PROPAGS
 !                                                                              !
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
+SUBROUTINE PREPARE_PROPAGATION_COEF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     PREPARE_PROPAGATION_COEF - COMPUTATION OF THE PROPAGATION SCHEME WEIGHTS.!
+!                                                                              !
+!*    PURPOSE.
+!     --------
+!                                                                              !
+!       PRE-COMPUTATION OF THE UPSTREAM WEIGHT
+!       USED IN THE PROPAGATION FOR A GIVEN TIME STEP.
+!                                                                              !
+!**   INTERFACE.
+!     ----------
+!                                                                              !
+!     METHOD.
+!     -------
+!                                                                              !
+!     REFERENCE.
+!     ----------
+!                                                                              !
+!       NONE.
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     1.0 SELECT CASES.                                                        !
+!         -------------                                                        !
+
+   IF (SPHERICAL_RUN) THEN
+
+!     1.1 PROPAGATION ON SPHERICAL GRID.                                       !
+!         ------------------------------                                       !
+
+      IF (.NOT.REFRACTION_C_RUN) THEN
+         IF (SHALLOW_RUN) THEN
+            CALL PREP_SPHER_SHALLOW  !! SHALLOW WATER WITHOUT CURRENT REFRACTION.
+         ELSE
+            CALL PREP_SPHER_DEEP     !! DEEP WATER WITHOUT CURRENT REFRACTION.
+         END IF
+      ELSE
+         IF (SHALLOW_RUN) THEN
+            IF (REDUCED_GRID) THEN
+               CALL PREP_SPHER_SHALLOW_CURR !! SHALLOW WATER WITH DEPTH AND CURRENT REF.
+            ELSE
+               CALL PREP_SPHER_SHALLOW_CURR_REG !! SHALLOW WATER WITH DEPTH AND CURRENT REF.
+            END IF
+         ELSE
+            IF (REDUCED_GRID) THEN
+               CALL PREP_SPHER_DEEP_CURR    !! DEEP WATER WITH CURRENT REFRACTION.
+            ELSE
+               CALL PREP_SPHER_DEEP_CURR_REG    !! DEEP WATER WITH CURRENT REFRACTION.
+            END IF
+         END IF
+      END IF
+
+   ELSE
+
+!     1.2 PROPAGATION ON CARTESIAN GRID.                                       !
+!         ------------------------------                                       !
+
+      IF (.NOT.REFRACTION_C_RUN) THEN
+         IF (SHALLOW_RUN) THEN
+            CALL PREP_CART_SHALLOW      !! SHALLOW WATER WITHOUT CURRENT REFRACTION.
+         ELSE
+            CALL PREP_CART_DEEP         !! DEEP WATER WITHOUT CURRENT REFRACTION.
+         END IF
+      ELSE
+         IF (SHALLOW_RUN) THEN
+            CALL PREP_CART_SHALLOW_CUR  !! SHALLOW WATER WITH DEPTH AND CURRENT REF.
+         ELSE
+            CALL PREP_CART_DEEP_CUR     !! DEEP WATER WITH CURRENT REFRACTION.
+         END IF
+      END IF
+   END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2.0 RETURN.                                                              !
+!         -------                                                              !
+
+RETURN
+
+CONTAINS
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.1 PROPAGATION FOR CARTESIAN GRID WITHOUT CURRENT REFRACTION (DEEP).    !
+!         -----------------------------------------------------------------    !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_CART_DEEP
+
+INTEGER :: IJ, K, M
+REAL    :: DELPRO, DELPH0, SD, CD
+REAL    :: DPN, DLE
+REAL, ALLOCATABLE, DIMENSION(:) :: DELLA0
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = DELPRO/DELPHI
+
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = DELPRO/DELLAM(KFROMIJ(IJ))
+END DO
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:1,1:1))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,1:ML,1:1))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+FRE: DO M = 1,ML                   !! LOOP OVER FREQUENCIES.
+   DIR: DO K = 1,KL
+      SD = SINTH(K)
+      CD = COSTH(K)
+
+      DPN = ABS(CD*DELPH0*GOM(M))
+      SD  = ABS(SD*GOM(M))
+      DO IJ = nijs,nijl
+         DLE = SD*DELLA0(IJ)
+         COEF_SUM(IJ,K,M)     = 1. - DLE - DPN
+         COEF_LON(IJ,K,M,1)   = DLE
+         COEF_LAT(IJ,K,M,1,1) = DPN
+      END DO
+   END DO DIR
+END DO FRE
+DEALLOCATE(DELLA0)
+
+END SUBROUTINE PREP_CART_DEEP
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.2 PROPAGATION FOR CARTESIAN GRID WITHOUT CURRENT REFRACTION (SHALLOW). !
+!         -------------------------------------------------------------------- !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_CART_SHALLOW
+
+INTEGER :: IJ, K, M, KP, KM, IS, IC, IT, ID
+REAL    :: DELPRO, DELPH0, DELTHR, SD, CD
+REAL    :: DTP, DTM
+REAL, ALLOCATABLE, DIMENSION(:) :: DELLA0
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTHR = 0.5*DELPRO/DELTH
+
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO/DELLAM(KFROMIJ(IJ))
+END DO
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:1,1:1))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:1))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+IF (REFRACTION_D_RUN) THEN
+   IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+END IF
+
+FRE: DO M = 1,ML
+   DIR: DO K = 1,KL
+      SD = SINTH(K)
+      CD = COSTH(K)
+
+      IS = JXO(K,1)         !! INDEX FOR ADJOINING LONGITUDE.
+      IT = JXO(K,2)
+      IC = JYO(K,1)         !! INDEX FOR ADJOINING LATITUDE.
+      ID = JYO(K,2)
+
+      SD = ABS(SD)
+      CD = ABS(CD*DELPH0)
+
+      DO IJ = nijs,nijl
+         COEF_LON(IJ,K,M,1)   = SD*(CGOND(KLON(IJ,IS),M) + CGOND(IJ,M)) * DELLA0(IJ)
+         COEF_LAT(IJ,K,M,1,1) = CD*(CGOND(KLAT(IJ,IC,1),M) + CGOND(IJ,M))
+         COEF_SUM(IJ,K,M)     = 1.                                                      &
+&                             - SD*(CGOND(KLON(IJ,IT),M) + CGOND(IJ,M)) * DELLA0(IJ)    &
+&                             - CD*(CGOND(KLAT(IJ,ID,1),M) + CGOND(IJ,M))
+      END DO
+
+      IF (REFRACTION_D_RUN) THEN
+         KP = KPM(K, 1)
+         KM = KPM(K,-1)
+         DO IJ = nijs,nijl
+            DTP = (THDD(IJ,K ,M)+THDD(IJ,KP ,M))*DELTHR
+            DTM = (THDD(IJ,K ,M)+THDD(IJ,KM ,M))*DELTHR
+
+            COEF_SUM(IJ,K,M) = COEF_SUM(IJ,K,M) - MAX(0.,DTP) + MIN (0.,DTM)
+            COEF_THETA(IJ,K,M,1) =  - MIN (0.,DTP)
+            COEF_THETA(IJ,K,M,2) =    MAX (0.,DTM)
+         END DO
+      END IF
+
+   END DO DIR
+END DO FRE
+
+IF (L_OBSTRUCTION) THEN
+   DO M = 1,ML
+      DO K = 1,KL
+         IS = JXO(K,1)         !! INDEX FOR ADJOINING LONGITUDE.
+         IC = JYO(K,1)         !! INDEX FOR ADJOINING LATITUDE.
+         DO IJ = NIJS,NIJL
+            COEF_LAT(IJ,K,M,1,1) = COEF_LAT(IJ,K,M,1,1)*OBSLAT(IJ,IC,M)
+            COEF_LON(IJ,K,M,1)   = COEF_LON(IJ,K,M,1) * OBSLON(IJ,IS,M)
+         END DO
+      END DO
+   END DO
+END IF
+
+DEALLOCATE(DELLA0)
+
+END SUBROUTINE PREP_CART_SHALLOW
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.3 PROPAGATION FOR CARTESIAN GRID WITH CURRENT REFRACTION (DEEP).       !
+!         --------------------------------------------------------------       !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_CART_DEEP_CUR
+
+INTEGER :: IJ, K, M, KP, KM, MP, MM
+REAL    :: DELPRO, DELPH0, DELTHR, DELFR0, SD, CD, CGS, CGC
+REAL    :: DTC, DPN, DPS, DLE, DLW, DTP, DTM, DOM
+REAL, ALLOCATABLE, DIMENSION(:) :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:) :: WOK1
+REAL, ALLOCATABLE, DIMENSION(:) :: WOK2
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTHR = 0.5*DELPRO/DELTH
+DELFR0 = 0.5*DELPRO*2.1/0.2
+
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO/DELLAM(KFROMIJ(IJ))
+END DO
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:2,1:1))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:2))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SIGD))  ALLOCATE(COEF_SIGD(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+ALLOCATE(WOK1(ninf-1:nsup))
+ALLOCATE(WOK2(ninf-1:nsup))
+
+   FRE: DO M = 1,ML
+      MM = MPM(M,-1)
+      MP = MPM(M, 1)
+      DIR: DO K = 1,KL
+         KP = KPM(K, 1)
+         KM = KPM(K,-1)
+
+         SD = SINTH(K)
+         CD = COSTH(K)
+
+         CGS = GOM(M)*SD                !! GROUP VELOCITIES.
+         CGC = GOM(M)*CD
+
+         WOK1(ninf-1:nsup) = U(ninf-1:nsup) + CGS
+         WOK2(ninf-1:nsup) = (V(ninf-1:nsup) + CGC)*DELPH0
+
+         DO IJ=NIJS,NIJL
+            DLW = (WOK1(IJ) + WOK1(KLON(IJ,1))) * DELLA0(IJ)
+            DLE = (WOK1(IJ) + WOK1(KLON(IJ,2))) * DELLA0(IJ)
+            DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
+            COEF_LON(IJ,K,M,2) = -MIN(0.,DLE)
+            COEF_LON(IJ,K,M,1) =  MAX(0.,DLW)
+
+            DPS = WOK2(IJ) + WOK2(KLAT(IJ,1,1))
+            DPN = WOK2(IJ) + WOK2(KLAT(IJ,2,1))
+            DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
+            COEF_LAT(IJ,K,M,2,1) = -MIN(0.,DPN)
+            COEF_LAT(IJ,K,M,1,1) =  MAX(0.,DPS)
+
+            DTP = (THDD(IJ,K  ,ML)+THDD(IJ,KP ,ML))*DELTHR
+            DTM = (THDD(IJ,K  ,ML)+THDD(IJ,KM ,ML))*DELTHR
+            DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
+            COEF_THETA(IJ,K,M,1) = -MIN(0.,DTP)
+            COEF_THETA(IJ,K,M,2) =  MAX(0.,DTM)
+
+            DOM = SIDC(IJ,K,ML) * DELFR0
+            COEF_SUM(IJ,K,M)    = DTC - ABS(DOM)
+            COEF_SIGD(IJ,K,M,1) = -MIN(0.,DOM) / 1.1
+            COEF_SIGD(IJ,K,M,2) =  MAX(0.,DOM) * 1.1
+
+         END DO
+      END DO DIR
+   END DO FRE
+
+DEALLOCATE(DELLA0)
+DEALLOCATE(WOK1)
+DEALLOCATE(WOK2)
+
+END SUBROUTINE PREP_CART_DEEP_CUR
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.4 PROPAGATION FOR CARTESIAN GRID WITH CURRENT REFRACTION (SHALLOW).    !
+!         -----------------------------------------------------------------    !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_CART_SHALLOW_CUR
+
+INTEGER :: IJ, K, M, KP, KM, MP, MM
+REAL    :: DELPRO, DELPH0, DELTHR, DELFR0, SD, CD
+REAL    :: DTC, DPN, DPS, DLE, DLW, DTP, DTM, DOP, DOM, DFP, DFM
+REAL, ALLOCATABLE, DIMENSION(:) :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:) :: WOK1
+REAL, ALLOCATABLE, DIMENSION(:) :: WOK2
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTHR = 0.5*DELPRO/DELTH
+DELFR0 = 0.5*DELPRO/(0.1*ZPI)
+
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO/DELLAM(KFROMIJ(IJ))
+END DO
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:2,1:1))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:2))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SIGD))  ALLOCATE(COEF_SIGD(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+ALLOCATE(WOK1(ninf-1:nsup))
+ALLOCATE(WOK2(ninf-1:nsup))
+
+   FRE: DO M = 1,ML
+      MM = MPM(M,-1)
+      MP = MPM(M, 1)
+      DFP = DELFR0/FR(M)
+      DFM = DELFR0/FR(MM)
+      DIR: DO K = 1,KL
+         SD = SINTH(K)
+         CD = COSTH(K)
+
+         KP = KPM(K, 1)
+         KM = KPM(K,-1)
+
+         DO IJ = ninf-1,nsup
+            WOK1(IJ) =  U(IJ) + SD*CGOND(IJ,M)
+            WOK2(IJ) = (V(IJ) + CD*CGOND(IJ,M)) * DELPH0
+         END DO
+
+         DO IJ = nijs,nijl
+            DLW = (WOK1(IJ) + WOK1(KLON(IJ,1))) * DELLA0(IJ)
+            DLE = (WOK1(IJ) + WOK1(KLON(IJ,2))) * DELLA0(IJ)
+            DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
+            COEF_LON(IJ,K,M,1) =  MAX(0.,DLW)
+            COEF_LON(IJ,K,M,2) = -MIN(0.,DLE)
+
+            DPS = WOK2(IJ) + WOK2(KLAT(IJ,1,1))
+            DPN = WOK2(IJ) + WOK2(KLAT(IJ,2,1))
+            DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
+            COEF_LAT(IJ,K,M,1,1) =  MAX(0.,DPS)
+            COEF_LAT(IJ,K,M,2,1) = -MIN(0.,DPN)
+
+            DTP = (THDD(IJ,K  ,M)+THDD(IJ,KP ,M))*DELTHR
+            DTM = (THDD(IJ,K  ,M)+THDD(IJ,KM ,M))*DELTHR
+            DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
+            COEF_THETA(IJ,K,M,1) = -MIN(0.,DTP)
+            COEF_THETA(IJ,K,M,2) =  MAX(0.,DTM)
+
+            DOP = (SIDC(IJ,K,M) + SIDC(IJ,K,MP))*DFP
+            DOM = (SIDC(IJ,K,M) + SIDC(IJ,K,MM))*DFM
+            COEF_SIGD(IJ,K,M,1) = -MIN(0.,DOP) / 1.1
+            COEF_SIGD(IJ,K,M,2) =  MAX(0.,DOM) * 1.1
+
+            COEF_SUM(IJ,K,M)    = DTC - MAX(0.,DOP) + MIN(0.,DOM)
+
+         END DO
+      END DO DIR
+   END DO FRE
+
+IF (L_OBSTRUCTION) THEN
+   DO M = 1,ML
+      DO K = 1,KL
+         DO IJ = NIJS,NIJL
+            COEF_LAT(IJ,K,M,1,1) = COEF_LAT(IJ,K,M,1,1)*OBSLAT(IJ,1,M)
+            COEF_LAT(IJ,K,M,2,1) = COEF_LAT(IJ,K,M,2,1)*OBSLAT(IJ,2,M)
+            COEF_LON(IJ,K,M,1)   = COEF_LON(IJ,K,M,1)  *OBSLON(IJ,1,M)
+            COEF_LON(IJ,K,M,2)   = COEF_LON(IJ,K,M,2)  *OBSLON(IJ,2,M)
+         END DO
+      END DO
+   END DO
+END IF
+
+DEALLOCATE(DELLA0)
+DEALLOCATE(WOK1)
+DEALLOCATE(WOK2)
+
+END SUBROUTINE PREP_CART_SHALLOW_CUR
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.5 PROPAGATION FOR SPHERICAL GRID WITHOUT CURRENT REFRACTION (DEEP).    !
+!         -----------------------------------------------------------------    !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_SPHER_DEEP
+
+INTEGER :: IJ, K, M, KP, KM, IC, ID
+REAL    :: DELPRO, DELTH0, DELPH0, SD, CD, SDA, CDA, SP, SM
+REAL    :: DTC, DPN, DLE, DTP, DTM
+
+REAL, ALLOCATABLE, DIMENSION(:) :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:) :: DRGM
+REAL, ALLOCATABLE, DIMENSION(:,:) :: WLATM1
+
+DELPRO = REAL(IDELPRO)
+DELTH0 = 0.5*DELPRO/DELTR
+DELPH0 = 0.5*DELPRO/DELPHI
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+ALLOCATE(DRGM(NIJS:NIJL))
+
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = DELPRO*DCO(IJ)/DELLAM(KFROMIJ(IJ))
+   DRGM(IJ)   = SINPH(KFROMIJ(IJ))*DCO(IJ)
+END DO
+
+IF (REDUCED_GRID) THEN
+   IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:1,1:2))
+   ALLOCATE(WLATM1(NIJS:NIJL,2))
+   WLATM1(NIJS:NIJL,:) = 1.- WLAT(NIJS:NIJL,:)
+ELSE
+   IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:1,1:1))
+ENDIF
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:1))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+DIR: DO K = 1,KL
+   SD = SINTH(K)
+   CD = COSTH(K)
+   SDA = ABS(SD)
+   CDA = ABS(CD*DELPH0)
+
+   KP = KPM(K, 1)
+   KM = KPM(K,-1)
+
+   IC = JYO(K,1)         !! INDEX FOR ADJOINING LATITUDE.
+   ID = JYO(K,2)
+
+   SP  = DELTH0*(SINTH(K)+SINTH(KP))         !! GRID REFRACTION WEIGHTS.
+   SM  = DELTH0*(SINTH(K)+SINTH(KM))
+
+   FRE: DO M = 1,ML
+
+      DO IJ = NIJS,NIJL
+         DPN = CDA*(DPSN(IJ,IC) + 1.)  !! LATITUDE WEIGHTS.
+         DLE = SDA*DELLA0(IJ)          !! LONGITUDE WEIGHTS.
+         DTC = CDA*(DPSN(IJ,ID) + 1.) + DLE
+
+         DTP = DRGM(IJ)*SP
+         DTM = DRGM(IJ)*SM
+         DTC = DTC + MAX(0. , DTP) - MIN(0. , DTM)
+         COEF_LAT(IJ,K,M,1,1)  =  GOM(M)*DPN
+         COEF_LON(IJ,K,M,1)    =  GOM(M)*DLE
+         COEF_THETA(IJ,K,M,1)  = -GOM(M)*MIN(0. , DTP)
+         COEF_THETA(IJ,K,M,2)  =  GOM(M)*MAX(0. , DTM)
+
+         COEF_SUM(IJ,K,M)      = 1. - GOM(M)*DTC
+
+      END DO
+      IF (REDUCED_GRID) THEN
+         DO IJ = NIJS,NIJL
+            COEF_LAT(IJ,K,M,1,2) = COEF_LAT(IJ,K,M,1,1)*WLATM1(IJ,IC)
+            COEF_LAT(IJ,K,M,1,1) = COEF_LAT(IJ,K,M,1,1)*WLAT(IJ,IC)
+         END DO
+      END IF
+   END DO FRE
+END DO DIR
+
+DEALLOCATE(DELLA0)
+DEALLOCATE(DRGM)
+IF (ALLOCATED(WLATM1)) DEALLOCATE(WLATM1)
+
+END SUBROUTINE PREP_SPHER_DEEP
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.6 PROPAGATION FOR SPHERICAL GRID WITHOUT CURRENT REFRACTION (SHALLOW). !
+!         -------------------------------------------------------------------- !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_SPHER_SHALLOW
+
+INTEGER :: IJ, K, M, KP, KM, IS, IT, IC, ID
+REAL    :: DELPRO, DELTH0, DELPH0, DELTHR, SD, CD, SDA, CDA, SP, SM
+REAL    :: DTC, DTP, DTM
+
+REAL, ALLOCATABLE, DIMENSION(:)     :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:)     :: DRGM
+REAL, ALLOCATABLE, DIMENSION(:,:,:) :: CGKLAT
+REAL, ALLOCATABLE, DIMENSION(:,:)   :: WLATM1
+
+DELPRO = REAL(IDELPRO)
+DELTH0 = 0.5*DELPRO/DELTR
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTHR = 0.5*DELPRO/DELTH
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+ALLOCATE(DRGM(NIJS:NIJL))
+
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO*DCO(IJ)/DELLAM(KFROMIJ(IJ))
+   DRGM(IJ)   = SINPH(KFROMIJ(IJ))*DCO(IJ)
+END DO
+
+ALLOCATE(CGKLAT(NIJS:NIJL,ML,2))
+IF (REDUCED_GRID) THEN
+   IF (.NOT.ALLOCATED(COEF_LAT)) ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:1,1:2))
+   ALLOCATE(WLATM1(NIJS:NIJL,2))
+   WLATM1(NIJS:NIJL,:) = 1.- WLAT(NIJS:NIJL,:)
+
+   DO IC = 1,2
+      DO M = 1,ML
+         DO IJ = NIJS,NIJL
+            CGKLAT(IJ,M,IC) = CGOND(IJ,M) + DPSN(IJ,IC)*                       &
+&                            (WLAT(IJ,IC)  *CGOND(KLAT(IJ,IC,1),M) +           &
+&                             WLATM1(IJ,IC)*CGOND(KLAT(IJ,IC,2),M))
+         ENDDO
+      ENDDO
+   ENDDO
+ELSE
+   IF (.NOT.ALLOCATED(COEF_LAT)) ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:1,1:1))
+   DO IC = 1,2
+      DO M = 1,ML
+         DO IJ = NIJS,NIJL
+            CGKLAT(IJ,M,IC) = CGOND(IJ,M) + DPSN(IJ,IC)*CGOND(KLAT(IJ,IC,1),M)
+         END DO
+      END DO
+   END DO
+END IF
+
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:1))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+
+DIR: DO K = 1,KL
+   SD = SINTH(K)
+   CD = COSTH(K)
+   SDA = ABS(SD)
+   CDA = ABS(CD*DELPH0)
+
+   KP = KPM(K, 1)
+   KM = KPM(K,-1)
+   SP  = DELTH0*(SINTH(K)+SINTH(KP))   !! PRE_COMPUTE GRID REFRACTION.
+   SM  = DELTH0*(SINTH(K)+SINTH(KM))
+
+   IS = JXO(K,1)         !! INDEX FOR ADJOINING LONGITUDE.
+   IT = JXO(K,2)
+   IC = JYO(K,1)         !! INDEX FOR ADJOINING LATITUDE.
+   ID = JYO(K,2)
+
+   IF (REFRACTION_D_RUN) THEN                 !! DEPTH REFRACTION
+      FRE1: DO M = 1,ML
+         DO IJ = NIJS,NIJL
+            DTC = 1. - CDA * CGKLAT(IJ,M,ID)
+            COEF_LAT(IJ,K,M,1,1) = CDA * CGKLAT(IJ,M,IC)
+
+            DTC = DTC - SDA*(CGOND(KLON(IJ,IT),M) + CGOND(IJ,M)) * DELLA0(IJ)
+            COEF_LON(IJ,K,M,1) = SDA*(CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))       &
+&                             *DELLA0(IJ)
+
+            DTP = DRGM(IJ)*CGOND(IJ,M)           !! REFRACTION WEIGHTS
+            DTM = DTP*SM + (THDD(IJ,K ,M)+THDD(IJ,KM ,M))*DELTHR
+            DTP = DTP*SP + (THDD(IJ,K ,M)+THDD(IJ,KP ,M))*DELTHR
+            DTC = DTC - MAX(0. , DTP) + MIN(0. , DTM)
+            COEF_THETA(IJ,K,M,1) = -MIN(0. , DTP)
+            COEF_THETA(IJ,K,M,2) =  MAX(0. , DTM)
+
+            COEF_SUM(IJ,K,M)     = DTC
+
+         END DO
+      END DO FRE1
+
+   ELSE
+
+      FRE2: DO M = 1,ML
+         DO IJ = NIJS,NIJL
+            DTC = 1. - CDA * CGKLAT(IJ,M,ID)
+            COEF_LAT(IJ,K,M,1,1) = CDA * CGKLAT(IJ,M,IC)
+
+            DTC = DTC - SDA*(CGOND(KLON(IJ,IT),M) + CGOND(IJ,M)) *DELLA0(IJ)
+            COEF_LON(IJ,K,M,1) = SDA*(CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))     &
+&                             *DELLA0(IJ)
+
+            DTP = DRGM(IJ)*CGOND(IJ,M) !! REFRACTION WEIGHTS
+            DTM = DTP*SM
+            DTP = DTP*SP
+
+            DTC = DTC - MAX(0. , DTP) + MIN(0. , DTM)
+            COEF_THETA(IJ,K,M,1) = -MIN(0. , DTP)
+            COEF_THETA(IJ,K,M,2) =  MAX(0. , DTM)
+
+            COEF_SUM(IJ,K,M)      = DTC
+
+         END DO
+      END DO FRE2
+   END IF
+END DO DIR
+
+IF (L_OBSTRUCTION) THEN
+   DO M = 1,ML
+      DO K = 1,KL
+         IS = JXO(K,1)         !! INDEX FOR ADJOINING LONGITUDE.
+         IC = JYO(K,1)         !! INDEX FOR ADJOINING LATITUDE.
+         DO IJ = NIJS,NIJL
+            COEF_LAT(IJ,K,M,1,1) = COEF_LAT(IJ,K,M,1,1)*OBSLAT(IJ,IC,M)
+            COEF_LON(IJ,K,M,1)   = COEF_LON(IJ,K,M,1) * OBSLON(IJ,IS,M)
+         END DO
+      END DO
+   END DO
+END IF
+
+IF (REDUCED_GRID) THEN
+   DO M = 1,ML
+      DO K = 1,KL
+         IC = JYO(K,1)         !! INDEX FOR ADJOINING LATITUDE.
+         DO IJ = NIJS,NIJL
+            COEF_LAT(IJ,K,M,1,2)  = COEF_LAT(IJ,K,M,1,1) * WLATM1(IJ,IC)
+            COEF_LAT(IJ,K,M,1,1)  = COEF_LAT(IJ,K,M,1,1) * WLAT(IJ,IC)
+         END DO
+      END DO
+   END DO
+END IF
+
+DEALLOCATE(CGKLAT)
+DEALLOCATE(DELLA0)
+DEALLOCATE(DRGM)
+IF (ALLOCATED(WLATM1))DEALLOCATE(WLATM1)
+
+END SUBROUTINE PREP_SPHER_SHALLOW
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.7 PROPAGATION FOR SPHERICAL GRID WITH CURRENT REFRACTION (DEEP).       !
+!         --------------------------------------------------------------       !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_SPHER_DEEP_CURR
+
+INTEGER :: IJ, K, M, KP, KM, MM, MP
+REAL    :: DELPRO, DELTH0, DELPH0, DELTHR, DELFR0, CGS, CGC, SD, CD, SP, SM
+REAL    :: DTC, DPN, DPN2, DPS, DPS2, DLE, DLW, DTP, DTM, DOM
+
+REAL, ALLOCATABLE, DIMENSION(:)     :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:)     :: DRGM
+REAL, ALLOCATABLE, DIMENSION(:)     :: WOK1
+REAL, ALLOCATABLE, DIMENSION(:)     :: WOK2
+REAL, ALLOCATABLE, DIMENSION(:,:)   :: WLATM1
+
+ALLOCATE(WLATM1(NIJS:NIJL,2))
+WLATM1(NIJS:NIJL,:) = 1.- WLAT(NIJS:NIJL,:)
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTH0 = 0.5*DELPRO/DELTR
+DELTHR = 0.5*DELPRO/DELTH
+DELFR0 = 0.5*DELPRO*2.1/0.2
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+ALLOCATE(DRGM(NIJS:NIJL))
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO*DCO(IJ)/DELLAM(KFROMIJ(IJ))
+   DRGM(IJ)   = SINPH(KFROMIJ(IJ))*DCO(IJ)
+END DO
+
+ALLOCATE(WOK1(NINF-1:NSUP))
+ALLOCATE(WOK2(NINF-1:NSUP))
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:2,1:2))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:2))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SIGD))  ALLOCATE(COEF_SIGD(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+FRE: DO M = 1,ML
+   MM = MPM(M,-1)
+   MP = MPM(M, 1)
+   DIR: DO K = 1,KL
+      SD = SINTH(K)
+      CD = COSTH(K)
+      KP = KPM(K, 1)
+      KM = KPM(K,-1)
+      SP = DELTH0*(SINTH(K)+SINTH(KP))*GOM(M)     !! PRE-COMPUTE GRID REFRACTION.
+      SM = DELTH0*(SINTH(K)+SINTH(KM))*GOM(M)
+
+      CGS = GOM(M)*SD                       !! GROUP VELOCITIES.
+      CGC = GOM(M)*CD
+
+      WOK1(ninf-1:nsup) = U(ninf-1:nsup) + CGS
+      WOK2(ninf-1:nsup) = (V(ninf-1:nsup) + CGC) * DELPH0
+
+      DO IJ = NIJS,NIJL
+         DLW = (WOK1(IJ) + WOK1(KLON(IJ,1))) * DELLA0(IJ)
+         DLE = (WOK1(IJ) + WOK1(KLON(IJ,2))) * DELLA0(IJ)
+         DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
+         COEF_LON(IJ,K,M,2) = -MIN(0.,DLE)
+         COEF_LON(IJ,K,M,1) =  MAX(0.,DLW)
+
+         DPS  = (WOK2(IJ)+WOK2(KLAT(IJ,1,1))*DPSN(IJ,1))*WLAT(IJ,1)
+         DPS2 = (WOK2(IJ)+WOK2(KLAT(IJ,1,2))*DPSN(IJ,1))*WLATM1(IJ,1)
+         DPN  = (WOK2(IJ)+WOK2(KLAT(IJ,2,1))*DPSN(IJ,2))*WLAT(IJ,2)
+         DPN2 = (WOK2(IJ)+WOK2(KLAT(IJ,2,2))*DPSN(IJ,2))*WLATM1(IJ,2)
+         DTC = DTC - MAX(0.,DPN) - MAX(0.,DPN2) + MIN(0.,DPS) + MIN(0.,DPS2)
+         COEF_LAT(IJ,K,M,2,1) = -MIN(0.,DPN)
+         COEF_LAT(IJ,K,M,2,2) = -MIN(0.,DPN2)
+         COEF_LAT(IJ,K,M,1,1) =  MAX(0.,DPS)
+         COEF_LAT(IJ,K,M,1,2) =  MAX(0.,DPS2)
+
+         DTP = SP*DRGM(IJ) + (THDD(IJ,K ,ML)+THDD(IJ,KP,ML))*DELTHR
+         DTM = SM*DRGM(IJ) + (THDD(IJ,K ,ML)+THDD(IJ,KM,ML))*DELTHR
+         DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
+         COEF_THETA(IJ,K,M,1) = -MIN(0.,DTP)
+         COEF_THETA(IJ,K,M,2) =  MAX(0.,DTM)
+
+         DOM =  SIDC(IJ,K,ML) * DELFR0
+         DTC =  DTC - ABS(DOM)
+         COEF_SIGD(IJ,K,M,1) = -MIN(0.,DOM)/1.1
+         COEF_SIGD(IJ,K,M,2) =  MAX(0.,DOM)*1.1
+
+         COEF_SUM(IJ,K,M)      = DTC
+      END DO
+   END DO DIR
+END DO FRE
+
+DEALLOCATE(WLATM1)
+DEALLOCATE(WOK1)
+DEALLOCATE(WOK2)
+DEALLOCATE(DELLA0)
+DEALLOCATE(DRGM)
+
+END SUBROUTINE PREP_SPHER_DEEP_CURR
+
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_SPHER_DEEP_CURR_REG
+
+INTEGER :: IJ, K, M, KP, KM, MM, MP
+REAL    :: DELPRO, DELTH0, DELPH0, DELTHR, DELFR0, CGS, CGC, SD, CD, SP, SM
+REAL    :: DTC, DPN, DPS, DLE, DLW, DTP, DTM, DOM
+
+REAL, ALLOCATABLE, DIMENSION(:)     :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:)     :: DRGM
+REAL, ALLOCATABLE, DIMENSION(:)     :: WOK1
+REAL, ALLOCATABLE, DIMENSION(:)     :: WOK2
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTH0 = 0.5*DELPRO/DELTR
+DELTHR = 0.5*DELPRO/DELTH
+DELFR0 = 0.5*DELPRO*2.1/0.2
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+ALLOCATE(DRGM(NIJS:NIJL))
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO*DCO(IJ)/DELLAM(KFROMIJ(IJ))
+   DRGM(IJ)   = SINPH(KFROMIJ(IJ))*DCO(IJ)
+END DO
+
+ALLOCATE(WOK1(NINF-1:NSUP))
+ALLOCATE(WOK2(NINF-1:NSUP))
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:2,1:1))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:2))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SIGD))  ALLOCATE(COEF_SIGD(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+FRE: DO M = 1,ML
+   MM = MPM(M,-1)
+   MP = MPM(M, 1)
+   DIR: DO K = 1,KL
+      SD = SINTH(K)
+      CD = COSTH(K)
+      KP = KPM(K, 1)
+      KM = KPM(K,-1)
+      SP = DELTH0*(SINTH(K)+SINTH(KP))*GOM(M)     !! PRE-COMPUTE GRID REFRACTION.
+      SM = DELTH0*(SINTH(K)+SINTH(KM))*GOM(M)
+
+      CGS = GOM(M)*SD                       !! GROUP VELOCITIES.
+      CGC = GOM(M)*CD
+
+      WOK1(ninf-1:nsup) = U(ninf-1:nsup) + CGS
+      WOK2(ninf-1:nsup) = (V(ninf-1:nsup) + CGC) * DELPH0
+
+      DO IJ = NIJS,NIJL
+         DLW = (WOK1(IJ) + WOK1(KLON(IJ,1))) * DELLA0(IJ)
+         DLE = (WOK1(IJ) + WOK1(KLON(IJ,2))) * DELLA0(IJ)
+         DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
+         COEF_LON(IJ,K,M,1) =  MAX(0.,DLW)
+         COEF_LON(IJ,K,M,2) = -MIN(0.,DLE)
+
+         DPS  = (WOK2(IJ)+WOK2(KLAT(IJ,1,1))*DPSN(IJ,1))
+         DPN  = (WOK2(IJ)+WOK2(KLAT(IJ,2,1))*DPSN(IJ,2))
+         DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
+         COEF_LAT(IJ,K,M,1,1) =  MAX(0.,DPS)
+         COEF_LAT(IJ,K,M,2,1) = -MIN(0.,DPN)
+
+         DTP = SP*DRGM(IJ) + (THDD(IJ,K  ,ML)+THDD(IJ,KP,ML))*DELTHR
+         DTM = SM*DRGM(IJ) + (THDD(IJ,K  ,ML)+THDD(IJ,KM,ML))*DELTHR
+         DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
+         COEF_THETA(IJ,K,M,1) = -MIN(0.,DTP)
+         COEF_THETA(IJ,K,M,2) =  MAX(0.,DTM)
+
+         DOM =  SIDC(IJ,K,ML) * DELFR0
+         DTC =  DTC - ABS(DOM)
+         COEF_SIGD(IJ,K,M,1) = -MIN(0.,DOM)/1.1
+         COEF_SIGD(IJ,K,M,2) =  MAX(0.,DOM)*1.1
+
+         COEF_SUM(IJ,K,M) = DTC
+
+      END DO
+   END DO DIR
+END DO FRE
+
+DEALLOCATE(WOK1)
+DEALLOCATE(WOK2)
+DEALLOCATE(DELLA0)
+DEALLOCATE(DRGM)
+
+END SUBROUTINE PREP_SPHER_DEEP_CURR_REG
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     3.8 PROPAGATION FOR SPHERICAL GRID WITH CURRENT REFRACTION (SHALLOW).    !
+!         -----------------------------------------------------------------    !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_SPHER_SHALLOW_CURR
+
+INTEGER :: IJ, K, M, KP, KM, MM, MP, IC
+REAL    :: DELPRO, DELTH0, DELPH0, DELTHR, DELFR0, SD, CD, SP, SM
+REAL    :: DTC, DPN, DPN2, DPS, DPS2, DLE, DLW, DTP, DTM, DOP, DOM, DFP, DFM
+
+REAL, ALLOCATABLE, DIMENSION(:)   :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:)   :: DRGM
+REAL, ALLOCATABLE, DIMENSION(:)   :: WOK1
+REAL, ALLOCATABLE, DIMENSION(:)   :: WOK2
+REAL, ALLOCATABLE, DIMENSION(:,:) :: WLATM1
+
+ALLOCATE(WLATM1(NIJS:NIJL,2))
+WLATM1(NIJS:NIJL,:) = 1.- WLAT(NIJS:NIJL,:)
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTH0 = 0.5*DELPRO/DELTR
+DELTHR = 0.5*DELPRO/DELTH
+DELFR0 = 0.5*DELPRO/(0.1*ZPI)
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+ALLOCATE(DRGM(NIJS:NIJL))
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO*DCO(IJ)/DELLAM(KFROMIJ(IJ))
+   DRGM(IJ)   = SINPH(KFROMIJ(IJ))*DCO(IJ)
+END DO
+
+ALLOCATE(WOK1(ninf-1:nsup))
+ALLOCATE(WOK2(ninf-1:nsup))
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:2,1:2))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:2))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SIGD))  ALLOCATE(COEF_SIGD(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+FRE: DO M = 1,ML
+   MM = MPM(M,-1)
+   MP = MPM(M, 1)
+   DFP = DELFR0/FR(M)
+   DFM = DELFR0/FR(MM)
+   DIR: DO K = 1,KL
+      SD = SINTH(K)
+      CD = COSTH(K)
+      KP = KPM(K, 1)
+      KM = KPM(K,-1)
+      SP = DELTH0*(SINTH(K)+SINTH(KP))      !! GRID REFRACTION.
+      SM = DELTH0*(SINTH(K)+SINTH(KM))
+
+      WOK1(ninf-1:nsup) = U(ninf-1:nsup)+SD*CGOND(ninf-1:nsup,M)
+      WOK2(ninf-1:nsup) = (V(ninf-1:nsup)+CD*CGOND(ninf-1:nsup,M))*DELPH0
+
+      DO IJ = NIJS,NIJL
+
+         DLW = ( WOK1(IJ) + WOK1(KLON(IJ,1)) ) * DELLA0(IJ)
+         DLE = ( WOK1(IJ) + WOK1(KLON(IJ,2)) ) * DELLA0(IJ)
+         DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
+         COEF_LON(IJ,K,M,1) =  MAX(0.,DLW)
+         COEF_LON(IJ,K,M,2) = -MIN(0.,DLE)
+
+         ic = 1
+         DPS  = wok2(IJ) + DPSN(IJ,IC)*                                    &
+&                           (WLAT(IJ,IC)  *wok2(KLAT(IJ,IC,1)) +           &
+&                            WLATM1(IJ,IC)*wok2(KLAT(IJ,IC,2)))
+         DPS2 = DPS*WLATM1(IJ,1)
+         DPS  = DPS*WLAT(IJ,1)
+
+         ic = 2
+         DPN = wok2(IJ) + DPSN(IJ,IC)*                                     &
+&                           (WLAT(IJ,IC)  *wok2(KLAT(IJ,IC,1)) +           &
+&                            WLATM1(IJ,IC)*wok2(KLAT(IJ,IC,2)))
+         DPN2 = DPN*WLATM1(IJ,2)
+         DPN  = DPN*WLAT(IJ,2)
+
+         DTC = DTC - MAX(0.,DPN) - MAX(0.,DPN2) + MIN(0.,DPS) + MIN(0.,DPS2)
+         COEF_LAT(IJ,K,M,1,1) =  MAX(0.,DPS)
+         COEF_LAT(IJ,K,M,1,2) =  MAX(0.,DPS2)
+         COEF_LAT(IJ,K,M,2,1) = -MIN(0.,DPN)
+         COEF_LAT(IJ,K,M,2,2) = -MIN(0.,DPN2)
+
+         DTP = SP*DRGM(IJ)*CGOND(IJ,M) + (THDD(IJ,K ,M)+THDD(IJ,KP,M))*DELTHR
+         DTM = SM*DRGM(IJ)*CGOND(IJ,M) + (THDD(IJ,K ,M)+THDD(IJ,KM,M))*DELTHR
+         DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
+         COEF_THETA(IJ,K,M,1) = -MIN(0.,DTP)
+         COEF_THETA(IJ,K,M,2) =  MAX(0.,DTM)
+
+         DOP = (SIDC(IJ,K,M) + SIDC(IJ,K,MP))*DFP
+         DOM = (SIDC(IJ,K,M) + SIDC(IJ,K,MM))*DFM
+         DTC = DTC - MAX(0.,DOP) + MIN(0.,DOM)
+         COEF_SIGD(IJ,K,M,1) = -MIN(0.,DOP)/1.1
+         COEF_SIGD(IJ,K,M,2) =  MAX(0.,DOM)*1.1
+
+         COEF_SUM(IJ,K,M) = DTC
+      END DO
+   END DO DIR
+END DO FRE
+
+IF (L_OBSTRUCTION) THEN
+   DO M = 1,ML
+      DO K = 1,KL
+         DO IJ = NIJS,NIJL
+            COEF_LAT(IJ,K,M,1,1) = COEF_LAT(IJ,K,M,1,1)*OBSLAT(IJ,1,M)
+            COEF_LAT(IJ,K,M,1,2) = COEF_LAT(IJ,K,M,1,2)*OBSLAT(IJ,1,M)
+            COEF_LAT(IJ,K,M,2,1) = COEF_LAT(IJ,K,M,2,1)*OBSLAT(IJ,2,M)
+            COEF_LAT(IJ,K,M,2,2) = COEF_LAT(IJ,K,M,2,2)*OBSLAT(IJ,2,M)
+            COEF_LON(IJ,K,M,1)   = COEF_LON(IJ,K,M,1)  *OBSLON(IJ,1,M)
+            COEF_LON(IJ,K,M,2)   = COEF_LON(IJ,K,M,2)  *OBSLON(IJ,2,M)
+         END DO
+      END DO
+   END DO
+END IF
+
+DEALLOCATE(WLATM1)
+DEALLOCATE(DELLA0)
+DEALLOCATE(DRGM)
+DEALLOCATE(WOK1)
+DEALLOCATE(WOK2)
+
+END SUBROUTINE PREP_SPHER_SHALLOW_CURR
+
+! ---------------------------------------------------------------------------- !
+
+SUBROUTINE PREP_SPHER_SHALLOW_CURR_REG
+
+INTEGER :: IJ, K, M, KP, KM, MM, MP, IC
+REAL    :: DELPRO, DELTH0, DELPH0, DELTHR, DELFR0, SD, CD, SP, SM
+REAL    :: DTC, DPN, DPS, DLE, DLW, DTP, DTM, DOP, DOM, DFP, DFM
+
+REAL, ALLOCATABLE, DIMENSION(:)   :: DELLA0
+REAL, ALLOCATABLE, DIMENSION(:)   :: DRGM
+REAL, ALLOCATABLE, DIMENSION(:)   :: WOK1
+REAL, ALLOCATABLE, DIMENSION(:)   :: WOK2
+
+DELPRO = REAL(IDELPRO)
+DELPH0 = 0.5*DELPRO/DELPHI
+DELTH0 = 0.5*DELPRO/DELTR
+DELTHR = 0.5*DELPRO/DELTH
+DELFR0 = 0.5*DELPRO/(0.1*ZPI)
+
+ALLOCATE(DELLA0(NIJS:NIJL))
+ALLOCATE(DRGM(NIJS:NIJL))
+DO IJ = NIJS,NIJL
+   DELLA0(IJ) = 0.5*DELPRO*DCO(IJ)/DELLAM(KFROMIJ(IJ))
+   DRGM(IJ)   = SINPH(KFROMIJ(IJ))*DCO(IJ)
+END DO
+
+ALLOCATE(WOK1(ninf-1:nsup))
+ALLOCATE(WOK2(ninf-1:nsup))
+
+IF (.NOT.ALLOCATED(COEF_LAT))   ALLOCATE(COEF_LAT(NIJS:NIJL,1:KL,1:ML,1:2,1:1))
+IF (.NOT.ALLOCATED(COEF_LON))   ALLOCATE(COEF_LON(NIJS:NIJL,1:KL,ML,1:2))
+IF (.NOT.ALLOCATED(COEF_THETA)) ALLOCATE(COEF_THETA(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SIGD))  ALLOCATE(COEF_SIGD(NIJS:NIJL,1:KL,1:ML,1:2))
+IF (.NOT.ALLOCATED(COEF_SUM))   ALLOCATE(COEF_SUM(NIJS:NIJL,1:KL,1:ML))
+
+FRE: DO M = 1,ML
+   MM = MPM(M,-1)
+   MP = MPM(M, 1)
+   DFP = DELFR0/FR(M)
+   DFM = DELFR0/FR(MM)
+
+   DIR: DO K = 1,KL
+      SD = SINTH(K)
+      CD = COSTH(K)
+      KP = KPM(K, 1)
+      KM = KPM(K,-1)
+      SP = DELTH0*(SINTH(K)+SINTH(KP))      !! GRID REFRACTION.
+      SM = DELTH0*(SINTH(K)+SINTH(KM))
+
+      WOK1(ninf-1:nsup) = U(ninf-1:nsup)+SD*CGOND(ninf-1:nsup,M)
+      WOK2(ninf-1:nsup) = (V(ninf-1:nsup)+CD*CGOND(ninf-1:nsup,M))*DELPH0
+
+      DO IJ = NIJS,NIJL
+
+         DLW = ( WOK1(IJ) + WOK1(KLON(IJ,1)) ) * DELLA0(IJ)
+         DLE = ( WOK1(IJ) + WOK1(KLON(IJ,2)) ) * DELLA0(IJ)
+         DTC = 1. - MAX(0.,DLE) + MIN(0.,DLW)
+         COEF_LON(IJ,K,M,1) =  MAX(0.,DLW)
+         COEF_LON(IJ,K,M,2) = -MIN(0.,DLE)
+
+         ic = 1
+         DPS = wok2(IJ) + DPSN(IJ,IC)*wok2(KLAT(IJ,IC,1))
+         ic = 2
+         DPN = wok2(IJ) + DPSN(IJ,IC)*wok2(KLAT(IJ,IC,1))
+
+         DTC = DTC - MAX(0.,DPN) + MIN(0.,DPS)
+         COEF_LAT(IJ,K,M,1,1)  =  MAX(0.,DPS)
+         COEF_LAT(IJ,K,M,2,1)  = -MIN(0.,DPN)
+
+         DTP = SP*DRGM(IJ)*CGOND(IJ,M) + (THDD(IJ,K ,M)+THDD(IJ,KP,M))*DELTHR
+         DTM = SM*DRGM(IJ)*CGOND(IJ,M) + (THDD(IJ,K ,M)+THDD(IJ,KM,M))*DELTHR
+         DTC = DTC - MAX(0.,DTP) + MIN(0.,DTM)
+         COEF_THETA(IJ,K,M,1) = -MIN(0.,DTP)
+         COEF_THETA(IJ,K,M,2) =  MAX(0.,DTM)
+
+         DOP = (SIDC(IJ,K,M) + SIDC(IJ,K,MP))*DFP
+         DOM = (SIDC(IJ,K,M) + SIDC(IJ,K,MM))*DFM
+         DTC = DTC - MAX(0.,DOP) + MIN(0.,DOM)
+         COEF_SIGD(IJ,K,M,1) = -MIN(0.,DOP)/1.1
+         COEF_SIGD(IJ,K,M,2) =  MAX(0.,DOM)*1.1
+
+         COEF_SUM(IJ,K,M) = DTC
+
+      END DO
+   END DO DIR
+END DO FRE
+
+IF (L_OBSTRUCTION) THEN
+   DO M = 1,ML
+      DO K = 1,KL
+         DO IJ = NIJS,NIJL
+            COEF_LAT(IJ,K,M,1,1) = COEF_LAT(IJ,K,M,1,1)*OBSLAT(IJ,1,M)
+            COEF_LAT(IJ,K,M,2,1) = COEF_LAT(IJ,K,M,2,1)*OBSLAT(IJ,2,M)
+            COEF_LON(IJ,K,M,1)   = COEF_LON(IJ,K,M,1)  *OBSLON(IJ,1,M)
+            COEF_LON(IJ,K,M,2)   = COEF_LON(IJ,K,M,2)  *OBSLON(IJ,2,M)
+         END DO
+      END DO
+   END DO
+END IF
+
+DEALLOCATE(DELLA0)
+DEALLOCATE(DRGM)
+DEALLOCATE(WOK1)
+DEALLOCATE(WOK2)
+
+END SUBROUTINE PREP_SPHER_SHALLOW_CURR_REG
+
+END SUBROUTINE PREPARE_PROPAGATION_COEF
+
+! ---------------------------------------------------------------------------- !
+
 SUBROUTINE CHECK_CFL
 
 ! ---------------------------------------------------------------------------- !
@@ -1282,11 +1921,13 @@ SUBROUTINE CHECK_CFL
 !     CHECK_CFL  - CFL CHECK.                                                  !
 !                                                                              !
 !     H. GUNTHER   GKSS   FEBRUARY 2002                                        !
+!     H. GUNTHER   HZG    MAY 2017                                             !
 !                                                                              !
 !     PURPOSE.                                                                 !
 !     --------                                                                 !
 !                                                                              !
-!       TO CHECK THE PROPAGATION TIME STEP.                                    !
+!       TO CHECK THE PROPAGATION WEIGHTS AND MODIFY PROPAGATION TIME STEP,     !
+!       IF NECESSARY                                                           !
 !                                                                              !
 !     METHOD.                                                                  !
 !     -------                                                                  !
@@ -1294,125 +1935,143 @@ SUBROUTINE CHECK_CFL
 !       FOR EACH GRID POINT, FREQUENCY AND DIRECTION THE RELATIVE LOSS OF      !
 !       ENERGY PER TIME STEP IS COMPUTED AND CHECKED TO BE LESS THAN 1.        !
 !                                                                              !
-!     INTERNAL SUBROUTINES.                                                    !
-!     ---------------------                                                    !
-!                                                                              !
-!         SPHERICAL GRID.                                                      !
-!                                                                              !
-!       *C_SPHER_DEEP*         DEEP WATER WITHOUT CURRENT REFRACTION.          !
-!       *C_SPHER_SHALLOW*      SHALLOW WATER WITHOUT CURRENT REFRACTION.       !
-!       *C_SPHER_DEEP_CURR*    DEEP WATER WITH CURRENT REFRACTION.             !
-!       *C_SPHER_SHALLOW_CURR* SHALLOW WATER WITH DEPTH AND CURRENT REFRACTION.!
-!                                                                              !
-!         CARTESIAN GRID.                                                      !
-!                                                                              !
-!       *C_CART_DEEP*          DEEP WATER WITHOUT CURRENT REFRACTION.          !
-!       *C_CART_SHALLOW*       SHALLOW WATER WITHOUT CURRENT REFRACTION.       !
-!       *C_CART_DEEP_CUR*      DEEP WATER WITH CURRENT REFRACTION.             !
-!       *C_CART_SHALLOW_CUR*   SHALLOW WATER WITH DEPTH AND CURRENT REFRACTION.!
-!                                                                              !
-!     REFERENCE.                                                               !
-!     ----------                                                               !
-!                                                                              !
-!       NONE.                                                                  !
-!                                                                              !
-
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
-
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     LOCAL VARIABLES.                                                         !
 !     ----------------                                                         !
 
-INTEGER :: IJ, K, M, IS, IC
-INTEGER :: KMK,KPK,MMM,MPM !! KM(K), ... NEEDED FOR COMPILER TO VECTORIZE LOOPS
-
-REAL    :: DELPH0, DELTH0, DELTHR 
-REAL    :: DELFR0, DFP, DFM, CGS, CGC, SM, SP
-REAL    :: SD, CD, SDA, CDA
-REAL    :: DTC, DTP, DTM
-
-REAL, ALLOCATABLE, DIMENSION(:) :: DPH, DLA
-REAL, ALLOCATABLE, DIMENSION(:) :: DELLA0 
-REAL, ALLOCATABLE, DIMENSION(:) :: DRGM
-
-REAL, ALLOCATABLE, DIMENSION(:,:,:)    :: CF  !! CFL NUMBERS.
+REAL    :: COEF_LAT_1_1_MAX, COEF_LAT_1_1_MIN
+REAL    :: COEF_LAT_1_2_MAX, COEF_LAT_1_2_MIN
+REAL    :: COEF_LON_1_1_MAX, COEF_LON_1_1_MIN
+REAL    :: COEF_LON_1_2_MAX, COEF_LON_1_2_MIN
+REAL    :: COEF_THETA_1_MAX, COEF_THETA_1_MIN
+REAL    :: COEF_THETA_2_MAX, COEF_THETA_2_MIN
+REAL    :: COEF_SIGD_1_MAX,  COEF_SIGD_1_MIN
+REAL    :: COEF_SIGD_2_MAX,  COEF_SIGD_2_MIN
+REAL    :: COEF_SUM_MAX,     COEF_SUM_MIN
+REAL    :: COEF_MAX,         COEF_MIN
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     0. INITIAL.                                                              !
-!        --------                                                              !
+!     1.0 MAXIMA AND MINIMA OF ALL WEIGTHS.                                    !
+!         ---------------------------------                                    !
 
-ALLOCATE (DELLA0(nijs:nijl)) 
-IF (SPHERICAL_RUN) ALLOCATE (DRGM  (nijs:nijl))
-ALLOCATE (CF    (nijs:nijl,1:KL,1:ML)) 
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     1.0 SELECT CASE.                                                         !
-!         -------------                                                        !
-
-IF (SPHERICAL_RUN) THEN
-
-!     1.1 CFL CHECK FOR SPHERICAL GRID.                                        !
-!         -----------------------------                                        !
-
-   IF (.NOT.REFRACTION_C_RUN) THEN
-      IF (SHALLOW_RUN) THEN
-         CALL C_SPHER_SHALLOW  !! SHALLOW WATER WITHOUT CURRENT REFRACTION.
-      ELSE
-         ALLOCATE(DLA   (nijs:nijl))
-         CALL C_SPHER_DEEP     !! DEEP WATER WITHOUT CURRENT REFRACTION.
-         DEALLOCATE (DLA)
-      END IF
-   ELSE
-      ALLOCATE(DPH   (ninf-1:nsup))
-      ALLOCATE(DLA   (ninf-1:nsup))
-      IF (SHALLOW_RUN) THEN
-         CALL C_SPHER_SHALLOW_CURR !! SHALLOW WATER WITH DEPTH AND CURRENT REF.
-      ELSE
-         CALL C_SPHER_DEEP_CURR    !! DEEP WATER WITH CURRENT REFRACTION.
-      END IF
-      DEALLOCATE (DPH, DLA)
-   END IF
-
+COEF_LAT_1_1_MAX = MAXVAL(COEF_LAT(:,:,:,:,1))
+COEF_LAT_1_1_MIN = MINVAL(COEF_LAT(:,:,:,:,1))
+IF (REDUCED_GRID) THEN
+  COEF_LAT_1_2_MAX = MAXVAL(COEF_LAT(:,:,:,:,2))
+  COEF_LAT_1_2_MIN = MINVAL(COEF_LAT(:,:,:,:,2))
 ELSE
+   COEF_LAT_1_2_MAX = 0.1
+   COEF_LAT_1_2_MIN = 0.1
+END IF
 
-!     1.2 CFL CHECK FOR CARTESIAN GRID.                                        !
-!         -----------------------------                                        !
+COEF_LON_1_1_MAX = MAXVAL(COEF_LON(:,:,:,1))
+COEF_LON_1_1_MIN = MINVAL(COEF_LON(:,:,:,1))
+IF (REFRACTION_C_RUN) THEN
+   COEF_LON_1_2_MAX = MAXVAL(COEF_LON(:,:,:,2))
+   COEF_LON_1_2_MIN = MINVAL(COEF_LON(:,:,:,2))
+ELSE
+   COEF_LON_1_2_MAX = 0.1
+   COEF_LON_1_2_MIN = 0.1
+END IF
+IF (ALLOCATED(COEF_THETA)) THEN
+   COEF_THETA_1_MAX = MAXVAL(COEF_THETA(:,:,:,1))
+   COEF_THETA_1_MIN = MINVAL(COEF_THETA(:,:,:,1))
+   COEF_THETA_2_MAX = MAXVAL(COEF_THETA(:,:,:,2))
+   COEF_THETA_2_MIN = MINVAL(COEF_THETA(:,:,:,2))
+ELSE
+   COEF_THETA_1_MAX = 0.1
+   COEF_THETA_1_MIN = 0.1
+   COEF_THETA_2_MAX = 0.1
+   COEF_THETA_2_MIN = 0.1
+END IF
+IF (ALLOCATED(COEF_SIGD)) THEN
+   COEF_SIGD_1_MAX = MAXVAL(COEF_SIGD(:,:,:,1))
+   COEF_SIGD_1_MIN = MINVAL(COEF_SIGD(:,:,:,1))
+   COEF_SIGD_2_MAX = MAXVAL(COEF_SIGD(:,:,:,2))
+   COEF_SIGD_2_MIN = MINVAL(COEF_SIGD(:,:,:,2))
+ELSE
+   COEF_SIGD_1_MAX = 0.1
+   COEF_SIGD_1_MIN = 0.1
+   COEF_SIGD_2_MAX = 0.1
+   COEF_SIGD_2_MIN = 0.1
+END IF
 
-   IF (.NOT.REFRACTION_C_RUN) THEN
-      IF (SHALLOW_RUN) THEN
-         CALL C_CART_SHALLOW      !! SHALLOW WATER WITHOUT CURRENT REFRACTION.
-      ELSE
-         CALL C_CART_DEEP         !! DEEP WATER WITHOUT CURRENT REFRACTION.
-      END IF
+COEF_SUM_MAX     = 1.-MINVAL(COEF_SUM(:,:,:))
+COEF_SUM_MIN     = 1.-MAXVAL(COEF_SUM(:,:,:))
 
-   ELSE
-      ALLOCATE(DPH   (ninf-1:nsup))
-      ALLOCATE(DLA   (ninf-1:nsup))
-      IF (SHALLOW_RUN) THEN
-         CALL C_CART_SHALLOW_CUR  !! SHALLOW WATER WITH DEPTH AND CURRENT REF.
-      ELSE
-         CALL C_CART_DEEP_CUR     !! DEEP WATER WITH CURRENT REFRACTION.
-      END IF
-      DEALLOCATE (DPH, DLA)
+COEF_MAX = MAX(COEF_LAT_1_1_MAX, COEF_LAT_1_2_MAX,                            &
+&              COEF_LON_1_1_MAX, COEF_LON_1_2_MAX,                            &
+&              COEF_THETA_1_MAX, COEF_THETA_2_MAX,                            &
+&              COEF_SIGD_1_MAX,  COEF_SIGD_2_MAX, COEF_SUM_MAX)
+COEF_MIN = MIN(COEF_LAT_1_1_MIN, COEF_LAT_1_2_MIN,                            &
+&              COEF_LON_1_2_MIN, COEF_LON_1_2_MIN,                            &
+&              COEF_THETA_1_MIN, COEF_THETA_2_MIN,                            &
+&              COEF_SIGD_1_MIN,  COEF_SIGD_2_MIN, COEF_SUM_MIN)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2.0 CHECK FOR NEGATIVE WEIGHTS.                                          !
+!         ---------------------------                                          !
+
+ALLOCATE (CFLMAX(1:petotal))
+
+CFLMAX(irank) = COEF_MIN
+if (petotal/=1) then
+   call mpi_gather_cfl (CFLMAX)
+   total_cfl = minval(CFLMAX)
+else
+   total_cfl = CFLMAX(irank)
+end if
+
+IF (total_cfl.LT.0.) THEN
+   WRITE(IU06,*) ' **********************************************************'
+   WRITE(IU06,*) ' *                                                        *'
+   WRITE(IU06,*) ' *           FATAL ERROR IN SUB. CFLCHECK                 *'
+   WRITE(IU06,*) ' *           ================================             *'
+   WRITE(IU06,*) ' *                                                        *'
+   WRITE(IU06,*) ' *            VIOLATIONS OF CFL-CRITERION                 *'
+   WRITE(IU06,*) ' *                                                        *'
+   WRITE(IU06,*) ' * negative propagation coefficent detected.              *'
+   WRITE(IU06,*) ' *                                                        *'
+   WRITE(IU06,*) ' * TOTAl Minimum over all processors = ', total_cfl
+   WRITE(IU06,*) ' * coefficents on Process Number     = ', irank
+   WRITE(IU06,*) ' * COEF_LAT_1_1_MIN = ', COEF_LAT_1_1_MIN
+   IF (REDUCED_GRID) THEN
+      WRITE(IU06,*) ' * COEF_LAT_1_2_MIN = ', COEF_LAT_1_2_MIN
    END IF
+   WRITE(IU06,*) ' * COEF_LON_1_1_MIN = ', COEF_LON_1_1_MIN
+   IF (REDUCED_GRID) THEN
+      WRITE(IU06,*) ' * COEF_LON_1_2_MIN = ', COEF_LON_1_2_MIN
+   END IF
+   IF (ALLOCATED(COEF_THETA)) THEN
+      WRITE(IU06,*) ' * COEF_THETA_1_MIN = ', COEF_THETA_1_MIN
+      WRITE(IU06,*) ' * COEF_THETA_2_MIN = ', COEF_THETA_2_MIN
+   END IF
+   IF (ALLOCATED(COEF_SIGD)) THEN
+      WRITE(IU06,*) ' * COEF_SIGD_1_MIN = ', COEF_SIGD_1_MIN
+      WRITE(IU06,*) ' * COEF_SIGD_2_MIN = ', COEF_SIGD_2_MIN
+   END IF
+   WRITE(IU06,*) ' * COEF_SUM_MIN     = ', COEF_SUM_MIN
+   WRITE(IU06,*) ' *                                                        *'
+   WRITE(IU06,*) ' *           PROGRAM ABORTS  PROGRAM ABORTS               *'
+   WRITE(IU06,*) ' *                                                        *'
+   WRITE(IU06,*) ' **********************************************************'
+   CALL ABORT1
 END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     2.0 EVALUATE CFL.                                                        !
+!     3.0 EVALUATE CFL.                                                        !
 !         -------------                                                        !
 
-ALLOCATE (CFLMAX(1:petotal))
-
-CFLMAX(irank) = MAXVAL(CF(nijs:nijl,1:KL,1:ML))
-MAXPOINT = MAXLOC(CF(nijs:nijl,1:KL,1:ML))
+CFLMAX(irank) = COEF_MAX
 if (petotal/=1) then
    call mpi_gather_cfl (CFLMAX)
    total_cfl = maxval(CFLMAX)
@@ -1420,8 +2079,7 @@ else
    total_cfl = CFLMAX(irank)
 end if
 
-IF (total_cfl .GT. XLIMIT) THEN
-   WRITE(IU06,*)
+IF (total_cfl.GT.XLIMIT) THEN
    WRITE(IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
    WRITE(IU06,*) ' +                                                   +'
    WRITE(IU06,*) ' +           WARNING ERROR IN SUB. CFLCHECK          +'
@@ -1429,15 +2087,25 @@ IF (total_cfl .GT. XLIMIT) THEN
    WRITE(IU06,*) ' +                                                   +'
    WRITE(IU06,*) ' +            VIOLATIONS OF CFL-CRITERION            +'
    WRITE(IU06,*) ' +                                                   +'
-   WRITE(IU06,*) ' + Maxium clf at all processes = ', total_cfl
-   WRITE(IU06,*) ' +                                                   +'
-   WRITE(IU06,*) ' + Process Number = ', irank
-   WRITE(IU06,*) ' +    MAXIMUM CFL = ', CFLMAX(irank)
-   WRITE(IU06,*) ' +       AT POINT = ', MAXPOINT(1)
-   WRITE(IU06,*) ' +           KLON = ', IXLG(MAXPOINT(1))
-   WRITE(IU06,*) ' +           KLAT = ', KXLT(MAXPOINT(1))
-   WRITE(IU06,*) ' +      DIRECTION = ', TH(MAXPOINT(2))*DEG
-   WRITE(IU06,*) ' +      FREQUENCY = ', FR(MAXPOINT(3))
+   WRITE(IU06,*) ' + TOTAl Maximum over all processors = ', total_cfl
+   WRITE(IU06,*) ' + coefficents on process number     = ', irank
+   WRITE(IU06,*) ' + COEF_LAT_1_1_MAX = ', COEF_LAT_1_1_MAX
+   IF (REDUCED_GRID) THEN
+      WRITE(IU06,*) ' + COEF_LAT_1_2_MAX = ', COEF_LAT_1_2_MAX
+   END IF
+   WRITE(IU06,*) ' + COEF_LON_1_1_MAX = ', COEF_LON_1_1_MAX
+   IF (REDUCED_GRID) THEN
+      WRITE(IU06,*) ' * COEF_LON_1_2_MAX = ', COEF_LON_1_2_MAX
+   END IF
+   IF (ALLOCATED(COEF_THETA)) THEN
+      WRITE(IU06,*) ' + COEF_THETA_1_MAX = ', COEF_THETA_1_MAX
+      WRITE(IU06,*) ' + COEF_THETA_2_MAX = ', COEF_THETA_2_MAX
+   END IF
+   IF (ALLOCATED(COEF_SIGD)) THEN
+      WRITE(IU06,*) ' * COEF_SIGD_1_MAX = ', COEF_SIGD_1_MAX
+      WRITE(IU06,*) ' * COEF_SIGD_2_MAX = ', COEF_SIGD_2_MAX
+   END IF
+   WRITE(IU06,*) ' + COEF_SUM_MAX     = ', COEF_SUM_MAX
    WRITE(IU06,*) ' +                                                   +'
    WRITE(IU06,*) ' +                 PROGRAM CONTINUES                 +'
    WRITE(IU06,*) ' +      WITH MODIFIED PROPAGATION TIME STEP          +'
@@ -1452,413 +2120,20 @@ IF (total_cfl .GT. XLIMIT) THEN
    WRITE(IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
 
 ELSE
-   NEWIDELPRO = REAL(IDELPRO)
    COUNTER = 1
 END IF
 
-DEALLOCATE (DELLA0) 
-IF (SPHERICAL_RUN) DEALLOCATE (DRGM)
-DEALLOCATE (CF    ) 
-DEALLOCATE (CFLMAX) 
-
-RETURN
-
-! ---------------------------------------------------------------------------- !
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.0 INTERNAL SUBROUTINES.                                                !
-!         ---------------------                                                !
-
-CONTAINS
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.1 CFL CHECK FOR CARTESIAN GRID WITHOUT CURRENT REFRACTION (DEEP).      !
-!         ---------------------------------------------------------------      !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_CART_DEEP
-
-   DELLA0(nijs:nijl) = REAL(IDELPRO)/DELLAM(KXLT(nijs:nijl))
-   DELPH0 = REAL(IDELPRO)/DELPHI
-
-   FRE: DO M = 1,ML
-      DIR: DO K = 1,KL
-         CF(nijs:nijl,K,M) = ( ABS(SINTH(K)*DELLA0(nijs:nijl))                 &
-&                            + ABS(COSTH(K)*DELPH0))*GOM(M)
-      END DO DIR
-   END DO FRE
-
-END SUBROUTINE C_CART_DEEP
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.2 CFL CHECK FOR CARTESIAN GRID WITHOUT CURRENT REFRACTION (SHALLOW).   !
-!         ------------------------------------------------------------------   !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_CART_SHALLOW
-
-   DELLA0(nijs:nijl) = 0.5*REAL(IDELPRO)/DELLAM(KXLT(nijs:nijl))
-   DELPH0 = 0.5*REAL(IDELPRO)/DELPHI
-   DELTHR = 0.5*REAL(IDELPRO)/DELTH
-
-   DIR: DO K = 1,KL
-      KPK = KP(K)
-      KMK = KM(K)
-      SD = SINTH(K)
-      CD = COSTH(K)
-      IF (SD.LT.0) THEN                  !! INDEX FOR ADJOINING LONGITUDE.
-         IS = 1
-      ELSE
-         IS = 2
-      END IF
-      IF (CD.LT.0) THEN                  !! INDEX FOR ADJOINING LATITUDE.
-         IC = 1
-      ELSE
-         IC = 2
-      END IF
-
-      SD = ABS(SD)
-      CD = ABS(CD*DELPH0)
-
-      FRE: DO M = 1,ML
-         CF(nijs:nijl,K,M) = SD*( CGOND(KLON(nijs:nijl,IS),M)                 &
-&                               + CGOND(nijs:nijl,M))*DELLA0(nijs:nijl)       &
-&                          + CD*( CGOND(KLAT(nijs:nijl,IC),M)                 &
-&                               + CGOND(nijs:nijl,M))
-         IF (REFRACTION_D_RUN) THEN
-            CF(nijs:nijl,K,M) = CF(nijs:nijl,K,M)                             &
-&                             + DELTHR  * ( MAX(0.,THDD(nijs:nijl,K  ,M))     &
-&                                          -MIN(0.,THDD(nijs:nijl,KMK,M)))
-         END IF
-      END DO FRE
-   END DO DIR
-
-END SUBROUTINE C_CART_SHALLOW
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.3 CFL CHECK FOR CARTESIAN GRID WITH CURRENT REFRACTION (DEEP).         !
-!         ------------------------------------------------------------         !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_CART_DEEP_CUR
-
-   DELLA0(nijs:nijl) = 0.5*REAL(IDELPRO)/DELLAM(KXLT(nijs:nijl))
-   DELPH0 = 0.5*REAL(IDELPRO)/DELPHI
-   DELTHR = 0.5*REAL(IDELPRO)/DELTH
-   DELFR0 = 0.5*REAL(IDELPRO)*2.1/0.2
-
-   DIR: DO K = 1,KL
-      KPK = KP(K)
-      KMK = KM(K)
-      SD = SINTH(K)
-      CD = COSTH(K)
-
-      FRE: DO M = 1,ML
-
-         CGS = GOM(M)*SD               !! GROUP VELOCITIES.
-         CGC = GOM(M)*CD
-
-         DLA(ninf-1) = CGS
-         DPH(ninf-1) = CGC*DELPH0
-         DLA(ninf:nsup) = (U(ninf:nsup) + CGS)
-         DPH(ninf:nsup) = (V(ninf:nsup) + CGC)*DELPH0
-
-         DO IJ = nijs,nijl
-            CF(IJ,K,M) = (  MAX(0. , DLA(IJ) + DLA(KLON(IJ,2)))               &
-&                         - MIN(0. , DLA(IJ) + DLA(KLON(IJ,1)))) * DELLA0(IJ) &
-&                      + MAX(0. , DPH(IJ) + DPH(KLAT(IJ,2)))                  &
-&                      - MIN(0. , DPH(IJ) + DPH(KLAT(IJ,1)))                  &
-&                      + (  MAX(0. , THDD(IJ,K  ,ML))                         &
-&                         - MIN(0. , THDD(IJ,KMK,ML)) )*DELTHR                &
-&                      + ABS(SIDC(IJ,K,ML)*DELFR0)
-
-         END DO
-      END DO FRE
-   END DO DIR
-
-END SUBROUTINE C_CART_DEEP_CUR
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.4 CFL CHECK FOR CARTESIAN GRID WITH CURRENT REFRACTION (SHALLOW).      !
-!         ---------------------------------------------------------------      !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_CART_SHALLOW_CUR
-
-   DELLA0(nijs:nijl) = 0.5*REAL(IDELPRO)/DELLAM(KXLT(nijs:nijl))
-   DELPH0 = 0.5*REAL(IDELPRO)/DELPHI
-   DELTHR = 0.5*REAL(IDELPRO)/DELTH
-   DELFR0 = 0.5*REAL(IDELPRO)/(0.1*ZPI)
-
-   DIR: DO K = 1,KL
-      KPK = KP(K)
-      KMK = KM(K)
-      SD = SINTH(K)
-      CD = COSTH(K)
-
-      FRE: DO M = 1,ML
-         MMM = MM(M)
-         MPM = MP(M)
-         DFP = DELFR0/FR(M)
-         DFM = DELFR0/FR(MMM)
-
-         DLA(ninf-1) = SD*CGOND(ninf-1,M)
-         DPH(ninf-1) = CD*CGOND(ninf-1,M)*DELPH0
-         DLA(ninf:nsup) = (U(ninf:nsup) + SD*CGOND(ninf:nsup,M))
-         DPH(ninf:nsup) = (V(ninf:nsup) + CD*CGOND(ninf:nsup,M)) * DELPH0
-
-         DO IJ = nijs,nijl
-            CF(IJ,K,M) = (   MAX(0. , DLA(IJ) + DLA(KLON(IJ,2)))              &
-&                          - MIN(0. , DLA(IJ) + DLA(KLON(IJ,1))))*DELLA0(IJ)  &
-&                      + MAX(0. , DPH(IJ) + DPH(KLAT(IJ,2)))                  &
-&                      - MIN(0. , DPH(IJ) + DPH(KLAT(IJ,1)))                  &
-&                      + (   MAX(0. , THDD(IJ,K  ,M))                         &
-&                          - MIN(0. , THDD(IJ,KMK,M)))*DELTHR                 &
-&                      + MAX(0. , (SIDC(IJ,K,M) + SIDC(IJ,K,MPM))*DFP)        &
-&                      - MIN(0. , (SIDC(IJ,K,M) + SIDC(IJ,K,MMM))*DFM)
-         END DO
-      END DO FRE
-   END DO DIR
-
-END SUBROUTINE C_CART_SHALLOW_CUR
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.5 CFL CHECK FOR SPHERICAL GRID WITHOUT CURRENT REFRACTION (DEEP).      !
-!         ---------------------------------------------------------------      !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_SPHER_DEEP
-
-   DELTH0 = 0.5*REAL(IDELPRO)/DELTR
-   DELPH0 = 0.5*REAL(IDELPRO)/DELPHI
-
-   DO IJ = nijs,nijl 
-      DELLA0(IJ) = REAL(IDELPRO)*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ)   = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   DIR: DO K = 1,KL
-      KPK = KP(K)
-      KMK = KM(K)
-      SP  = DELTH0*(SINTH(K)+SINTH(KPK))
-      SM  = DELTH0*(SINTH(K)+SINTH(KMK))
-      SDA = ABS(SINTH(K))
-      CDA = ABS(COSTH(K))*DELPH0
-      IF (COSTH(K).GT.0.) THEN
-         IC = 2         
-      ELSE
-         IC = 1
-      END IF
-
-      DLA(nijs:nijl) = MAX(0. , DRGM(nijs:nijl)*SP)                            &
-&                    - MIN(0. , DRGM(nijs:nijl)*SM)                            &
-&                    + CDA*(DPSN(nijs:nijl,IC) + 1.)                           &
-&                    + SDA*DELLA0(nijs:nijl)
-
-      FRE: DO M = 1,ML
-         CF(nijs:nijl,K,M) = DLA(nijs:nijl)*GOM(M)
-      END DO FRE
-   END DO DIR
-
-END SUBROUTINE C_SPHER_DEEP
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.6 CFL CHECK FOR SPHERICAL GRID WITHOUT CURRENT REFRACTION (SHALLOW).   !
-!         ------------------------------------------------------------------   !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_SPHER_SHALLOW
-
-   DELTH0 = 0.5*REAL(IDELPRO)/DELTR
-   DELPH0 = 0.5*REAL(IDELPRO)/DELPHI
-   DELTHR = 0.5*REAL(IDELPRO)/DELTH
-
-   DO IJ = nijs,nijl 
-      DELLA0(IJ) = 0.5*REAL(IDELPRO)*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ)   = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   DIR: DO K = 1,KL
-      KPK = KP(K)
-      KMK = KM(K)
-      SD = SINTH(K)
-      CD = COSTH(K)
-      SDA = ABS(SD)
-      CDA = ABS(CD)*DELPH0
-
-!     COMPUTE GRID REFRACTION.                                                 !
-
-      SP  = DELTH0*(SINTH(K)+SINTH(KPK))
-      SM  = DELTH0*(SINTH(K)+SINTH(KMK))
-
-      IF (SD.LT.0) THEN          !! INDEX FOR ADJOINING POINTS.
-         IS = 1
-      ELSE
-         IS = 2
-      END IF
-      IF (CD.LT.0.) THEN
-         IC = 1
-      ELSE
-         IC = 2
-      END IF
-
-      IF (REFRACTION_D_RUN) THEN  !! DEPTH REFRACTION
-         FRE1: DO M = 1,ML
-            DO IJ = nijs,nijl 
-               DTC = CDA * (CGOND(KLAT(IJ,IC),M)*DPSN(IJ,IC) + CGOND(IJ,M))    &
-                   + SDA * (CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))*DELLA0(IJ)
-               DTP = DRGM(IJ)*SP*CGOND(IJ,M) + THDD(IJ,K  ,M)*DELTHR
-               DTM = DRGM(IJ)*SM*CGOND(IJ,M) + THDD(IJ,KMK,M)*DELTHR
-
-               CF(IJ,K,M) = DTC + MAX (0.,DTP) - MIN (0.,DTM)
-            END DO
-         END DO FRE1
-
-      ELSE                          !! WITHOUT DEPTH REFRACTION
-
-         FRE2: DO M = 1,ML
-            DO IJ = nijs,nijl 
-               DTC = CDA * (CGOND(KLAT(IJ,IC),M)*DPSN(IJ,IC) + CGOND(IJ,M))    &
-                   + SDA * (CGOND(KLON(IJ,IS),M) + CGOND(IJ,M))*DELLA0(IJ)
-
-               DTP = DRGM(IJ)*SP*CGOND(IJ,M)   !! REFRACTION WEIGHTS.
-               DTM = DRGM(IJ)*SM*CGOND(IJ,M)
-
-               CF(IJ,K,M) = DTC + MAX(0.,DTP) - MIN(0.,DTM)
-            END DO
-         END DO FRE2
-      END IF
-
-   END DO DIR
-
-END SUBROUTINE C_SPHER_SHALLOW
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.7 CFL CHECK FOR SPHERICAL GRID WITH CURRENT REFRACTION (DEEP).         !
-!         ------------------------------------------------------------         !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_SPHER_DEEP_CURR
-
-   DELPH0 = 0.5*REAL(IDELPRO)/DELPHI
-   DELTH0 = 0.5*REAL(IDELPRO)/DELTR
-   DELTHR = 0.5*REAL(IDELPRO)/DELTH
-   DELFR0 = 0.5*REAL(IDELPRO)*2.1/0.2
-
-   DO IJ = nijs,nijl
-      DELLA0(IJ) = 0.5*REAL(IDELPRO)*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ) = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   DIR: DO K = 1,KL
-      KPK = KP(K)
-      KMK = KM(K)
-      SD = SINTH(K)
-      CD = COSTH(K)
-
-      SP = DELTH0*(SINTH(K)+SINTH(KPK))      !! GRID REFRACTION.
-      SM = DELTH0*(SINTH(K)+SINTH(KMK))
-
-      FRE: DO M = 1,ML
-
-         CGS = GOM(M)*SD                       !! GROUP VELOCITIES.
-         CGC = GOM(M)*CD
-
-         DLA(ninf-1) = CGS
-         DPH(ninf-1) = CGC*DELPH0
-         DLA(ninf:nsup) = (U(ninf:nsup) + CGS)
-         DPH(ninf:nsup) = (V(ninf:nsup) + CGC) * DELPH0
-
-         DO IJ = nijs,nijl
-            DTP = DRGM(IJ)*SP*GOM(M) + DELTHR*THDD(IJ,K  ,ML)   !! REFRACTION WEIGHTS.
-            DTM = DRGM(IJ)*SM*GOM(M) + DELTHR*THDD(IJ,KMK,ML)
-            CF(IJ,K,M) = MAX(0. , DLA(IJ) + DLA(KLON(IJ,2)))*DELLA0(IJ)      &
-&                      - MIN(0. , DLA(IJ) + DLA(KLON(IJ,1)))*DELLA0(IJ)      &
-&                      + MAX(0. , DPH(IJ) + DPH(KLAT(IJ,2))*DPSN(IJ,2))      &
-&                      - MIN(0. , DPH(IJ) + DPH(KLAT(IJ,1))*DPSN(IJ,1))      &
-&                      + MAX(0. , DTP)                                       &
-&                      - MIN(0. , DTM)                                       &
-&                      + ABS(SIDC(IJ,K,ML) * DELFR0)
-
-         END DO
-      END DO FRE
-   END DO DIR
-
-END SUBROUTINE C_SPHER_DEEP_CURR
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     3.8 CFL CHECK FOR SPHERICAL GRID WITH CURRENT REFRACTION (SHALLOW).      !
-!         ---------------------------------------------------------------      !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-
-SUBROUTINE C_SPHER_SHALLOW_CURR
-
-   DELPH0 = 0.5*REAL(IDELPRO)/DELPHI
-   DELTH0 = 0.5*REAL(IDELPRO)/DELTR
-   DELTHR = 0.5*REAL(IDELPRO)/DELTH
-   DELFR0 = 0.5*REAL(IDELPRO)/(0.1*ZPI)
-
-   DO IJ = nijs,nijl
-      DELLA0(IJ) = 0.5*REAL(IDELPRO)*DCO(IJ)/DELLAM(KXLT(IJ))
-      DRGM(IJ) = SINPH(KXLT(IJ))*DCO(IJ)
-   END DO
-
-   DIR: DO K = 1,KL
-      KPK = KP(K)
-      KMK = KM(K)
-      SD = SINTH(K)
-      CD = COSTH(K)
-
-      SP = DELTH0*(SINTH(K)+SINTH(KPK))    !! GRID REFRACTION.
-      SM = DELTH0*(SINTH(K)+SINTH(KMK))
-
-      FRE: DO M = 1,ML
-         MMM = MM(M)
-         MPM = MP(M)
-         DFP = DELFR0/FR(M)
-         DFM = DELFR0/FR(MMM)
-
-         DLA(ninf-1) = SD*CGOND(ninf-1,M)
-         DPH(ninf-1) = CD*CGOND(ninf-1,M)*DELPH0
-         DLA(ninf:nsup) = (U(ninf:nsup)+SD*CGOND(ninf:nsup,M))
-         DPH(ninf:nsup) = (V(ninf:nsup)+CD*CGOND(ninf:nsup,M)) * DELPH0
-
-         DO IJ = nijs,nijl
-            DTP = DRGM(IJ)*SP*CGOND(IJ,M) + THDD(IJ,K  ,M)*DELTHR 
-            DTM = DRGM(IJ)*SM*CGOND(IJ,M) + THDD(IJ,KMK,M)*DELTHR
-
-            CF(IJ,K,M) = MAX(0. , DLA(IJ) + DLA(KLON(IJ,2)))*DELLA0(IJ)        &
-&                      - MIN(0. , DLA(IJ) + DLA(KLON(IJ,1)))*DELLA0(IJ)        &
-&                      + MAX(0. , DPH(IJ) + DPH(KLAT(IJ,2))*DPSN(IJ,2))        &
-&                      - MIN(0. , DPH(IJ) + DPH(KLAT(IJ,1))*DPSN(IJ,1))        &
-&                      + MAX(0. , DTP)                                         &
-&                      - MIN(0. , DTM)                                         &
-&                      + MAX(0. , (SIDC(IJ,K,M) + SIDC(IJ,K,MPM))*DFP)         &
-&                      - MIN(0. , (SIDC(IJ,K,M) + SIDC(IJ,K,MMM))*DFM)
-         END DO
-      END DO FRE
-   END DO DIR
-
-END SUBROUTINE C_SPHER_SHALLOW_CURR
-
-! ---------------------------------------------------------------------------- !
+IF (COUNTER.NE.1) THEN
+   COEF_LAT(:,:,:,:,:) = COEF_LAT(:,:,:,:,:) /REAL(COUNTER)
+   COEF_LON(:,:,:,:)   = COEF_LON(:,:,:,:)   /REAL(COUNTER)
+   IF (ALLOCATED(COEF_THETA)) COEF_THETA(:,:,:,:) = COEF_THETA(:,:,:,:) /REAL(COUNTER)
+   IF (ALLOCATED(COEF_SIGD)) THEN
+       COEF_SIGD(:,:,:,:) = COEF_SIGD(:,:,:,:) /REAL(COUNTER)
+   ENDIF
+   COEF_SUM(:,:,:)     = 1. - (1.-COEF_SUM(:,:,:))/REAL(COUNTER)
+END IF
+
+DEALLOCATE (CFLMAX)
 
 END SUBROUTINE CHECK_CFL
 

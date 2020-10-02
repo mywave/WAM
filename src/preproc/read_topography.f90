@@ -210,7 +210,7 @@ D_MAP = -D_MAP   !! SEA DEPTH MUST BE POSITIVE
 !        --------------------                                                  !
 
 CALL SET_TOPOGRAPHY (N_LON, N_LAT, D_LON, D_LAT, SOUTH, NORTH, WEST, EAST,     &
-&                    REAL(D_MAP))
+&                    D_MAP)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !

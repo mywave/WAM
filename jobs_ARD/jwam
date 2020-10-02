@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+#==>  WAM model run
+#
+#     Arno Behrens (May 2019)
+#
+#SBATCH --job-name=TS_Wave
+#SBATCH --partition=pCluster
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=2
+#SBATCH --time=00:30:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=cluster
+#SBATCH --output=wam.o%j
+#SBATCH --error=wam.e%j
+#
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
+#
+set +k
+cdir=/gpfs/home/behrens/WAM_Cycle_6
+work=/gpfs/work/behrens/WAM_Cycle_6
+#
+cd ${work}/tempsg
+#cp ${cdir}/const/OBS* .
+cp ${cdir}/const/Coarse_Grid/ARD/WAM_User .
+cp ${work}/work/Grid_info_COARSE_GRID .
+cp ${cdir}/const/WIND_INPUT.DAT .
+#
+cp ${cdir}/abs/wam wam.exe
+mpirun ./wam.exe
+#
+cp logfile.0 ${cdir}/dayfiles/wam_prot_coarse_ARD
+mv BLS* MAP* OUT* C* ../coarse/ARD
+rm wam.exe WAM_User Grid_info_COARSE_GRID WIND_INPUT.DAT
+#rm OBS*
+#

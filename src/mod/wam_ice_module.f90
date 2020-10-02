@@ -29,7 +29,8 @@ USE WAM_GRID_MODULE,      ONLY:  &
 
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST
 USE WAM_GRID_MODULE,    ONLY: NX, NY, NSEA, L_S_MASK, NLON_RG, ZDELLO,         &
-&                             AMOWEP, AMOSOP, AMOEAP, AMONOP, XDELLO, XDELLA
+&                             AMOWEP, AMOSOP, AMOEAP, AMONOP, XDELLO, XDELLA,  &
+&                             IXLG, KXLT
 USE WAM_TIMOPT_MODULE,  ONLY: CDTPRO
 USE WAM_FRE_DIR_MODULE, ONLY: ML, KL
 
@@ -70,8 +71,8 @@ LOGICAL, ALLOCATABLE :: ICE_MAP_IN(:,:) !! ICE MAP.
 LOGICAL              :: ICE_RUN = .FALSE. !! TRUE IF ICE IS TAKEN INTO ACCOUNT
 CHARACTER (LEN=14)   :: CD_ICE      = ' ' !! DATE OF ICE FIELD USED IN WAM.
 CHARACTER (LEN=14)   :: CD_ICE_NEW  = ' ' !! PROPAGATION DATE FOR NEXT ICE FIELD
-INTEGER              :: N_ICE   = 0       !! NUMBER OF ICE POINTS.
-INTEGER, ALLOCATABLE :: IJ_ICE(:)         !! INDEX OF ICE POINTS.
+INTEGER              :: N_ICE   = 0       !! NUMBER OF ICE POINTS ON PROCESS.
+INTEGER, ALLOCATABLE :: IJ_ICE(:)         !! INDEX OF ICE POINTS ON PROCESS.
 
 PUBLIC ICE_RUN, CD_ICE_NEW
 
@@ -188,9 +189,9 @@ END DO
 IF (ITEST.GE.2) THEN
    WRITE (IU06,*) '  '
    WRITE (IU06,*) '   SUB. GET_ICE: NEW ICE FIELDS PASSED TO WAM MODEL'
-   WRITE (IU06,*) '     DATE OF ICE FIELD IS ... CD_ICE = ', CD_ICE
-   WRITE (IU06,*) '     NEXT ICE FIELD AT .. CD_ICE_NEW = ', CD_ICE_NEW
-   WRITE (IU06,*) '     NO. OF ICEPOINTS IS ..... N_ICE = ', N_ICE
+   WRITE (IU06,*) '     DATE OF ICE FIELD IS ........... CD_ICE = ', CD_ICE
+   WRITE (IU06,*) '     NEXT ICE FIELD AT .......... CD_ICE_NEW = ', CD_ICE_NEW
+   WRITE (IU06,*) '     NO. OF ICEPOINTS IS in GRID...... N_ICE = ', N_ICE
    WRITE (IU06,*) '  '
 END IF
 
@@ -245,8 +246,9 @@ IF (ICE_RUN) THEN
       WRITE (IU06,*) '  '
    END IF
 
+   WRITE (IU06,*) ' ICE INITIALISED'
    WRITE (IU06,*) ' DATE OF ICE FIELD IS............... CD_ICE = ', CD_ICE
-   WRITE (IU06,*) ' ICE INITIALISED, NO. OF ICEPOINTS IS N_ICE = ', N_ICE
+   WRITE (IU06,*) '     NO. OF ICEPOINTS IS in GRID...... N_ICE = ', N_ICE
    IF (IDEL_ICE_I.LE.0) THEN
       WRITE (IU06,*) ' ICE IS KEPT CONSTANT FOR THE FULL RUN '
    ELSE
@@ -258,7 +260,10 @@ IF (ICE_RUN) THEN
    IF (ITEST.GT.0 .AND. N_ICE.GT.0) THEN
       PMSK =  'S'                               !! SEA POINTS
       PMSK(IJ_ICE) = 'I'                        !! ICE POINTS
-      LST = UNPACK(PMSK, L_S_MASK, 'L')         !! LAND POINTS
+      LST(:,:) = 'L'                            !! LAND POINTS
+      DO I = 1, NSEA
+         LST (IXLG(I), KXLT(I)) = PMSK(I)
+      END DO
       DO I=1,NY
           LST(NLON_RG(I)+1:NX,I) = ' '
       END DO
@@ -352,8 +357,7 @@ CHARACTER (LEN=14),INTENT(IN) :: CDT          !! DATE/TIME OF ICE FIELD.
 INTEGER,           INTENT(IN) :: I_GRID(:,:)  !! ICE MAP
 
 INTEGER :: I, K, I_ICE, K_ICE, IJ, N
-LOGICAL :: BLOCK(1:NSEA)
-LOGICAL :: ICE_MAP(1:NX,1:NY) 
+LOGICAL :: ICE_MAP(1:NX,1:NY)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -544,20 +548,22 @@ END IF
 !     5. FIND POINT NUMBERS OF ICE POINTS.                                     !
 !        ---------------------------------                                     !
 
-BLOCK = PACK(ICE_MAP, L_S_MASK)
-N_ICE = COUNT(BLOCK)
+N_ICE = COUNT(ICE_MAP(:,:))
+
 IF (ALLOCATED(IJ_ICE)) DEALLOCATE(IJ_ICE)
 
 IF (N_ICE.GT.0) THEN
    ALLOCATE (IJ_ICE(1:N_ICE))
    N = 0
-   DO IJ = 1,NSEA
-      IF (BLOCK(IJ)) THEN
+   DO IJ = 1, NSEA
+      IF (ICE_MAP(IXLG(IJ), KXLT(IJ))) THEN
          N = N+1
          IJ_ICE(N) = IJ
       END IF
    END DO
 END IF
+
+
 
 END SUBROUTINE SET_ICE_I
 

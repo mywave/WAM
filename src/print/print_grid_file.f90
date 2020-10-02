@@ -52,7 +52,8 @@ USE WAM_PRINT_MODULE,   ONLY:  &
 
 USE WAM_FILE_MODULE,  ONLY: IU05, FILE05, IU06, FILE06, ITEST
 USE WAM_PRINT_MODULE, ONLY: CDATEA, CDATEE, IDELDO,                            &
-&                           NOUTT, COUTT,  NOUT_P, CFLAG_P, TITL_P, SCAL_P,    &
+&                           NOUTT, COUTT,                                      &
+&                           NOUT_P, CFLAG_P, TITL_P, SCAL_P, DIR_FLAG,         &
 &                           IU01, FILE01, CDTFILE, IDFILE,                     &
 &                           NX, NY, AMOWEP, AMOSOP, AMOEAP, AMONOP,            &
 &                           XDELLA, XDELLO, NLON_RG, ZDELLO,                   &
@@ -72,7 +73,7 @@ LOGICAL,SAVE :: FRSTIME = .TRUE.
 
 LOGICAL,SAVE :: REDUCED_GRID = .FALSE.
 REAL, ALLOCATABLE :: R_GRID(:,:)
-REAL :: ZMISS = -995.
+REAL :: ZMISS = -9999999.
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -147,36 +148,37 @@ FILES: DO
               WRITE(IU06,*) TITL_P(I), 'IS NOT STORED IN FILE'
             END IF
          END DO
-	 XDELLO = (AMOEAP-AMOWEP) / REAL(NX-1)
-	 REDUCED_GRID = MINVAL(NLON_RG).NE.NX
-	 IF (REDUCED_GRID) THEN
-            WRITE (IU06,*) ' INPUT DATA ARE ON A REDUCED GRID'
-            IF (REGULAR) THEN
-               WRITE (IU06,*) ' DATA ARE INTERPOLATED TO A REGULAR GRID'
-            ELSE
-               WRITE (IU06,*) '  DATA ARE NOT INTERPOLATED TO A REGULAR GRID'	    
-               REDUCED_GRID = .FALSE.
+	    XDELLO = (AMOEAP-AMOWEP) / REAL(NX-1)
+	    REDUCED_GRID = MINVAL(NLON_RG).NE.NX
+	    IF (REDUCED_GRID) THEN
+           WRITE (IU06,*) ' INPUT DATA ARE ON A REDUCED GRID'
+           IF (REGULAR) THEN
+              WRITE (IU06,*) ' DATA ARE INTERPOLATED TO A REGULAR GRID'
+           ELSE
+              WRITE (IU06,*) '  DATA ARE NOT INTERPOLATED TO A REGULAR GRID'
+              REDUCED_GRID = .FALSE.
+	       END IF
+        ELSE
+           WRITE (IU06,*) ' INPUT DATA ARE ON A REGULAR GRID'
 	    END IF
-         ELSE
-            WRITE (IU06,*) ' INPUT DATA ARE ON A REGULAR GRID'
-	 END IF
-         REDUCED_GRID = REDUCED_GRID .AND. REGULAR
-	 IF (REDUCED_GRID) ALLOCATE (R_GRID(NX,NY))
-         FRSTIME = .FALSE.
-         WRITE (IU06,*) ' '
+        REDUCED_GRID = REDUCED_GRID .AND. REGULAR
+	    IF (REDUCED_GRID) ALLOCATE (R_GRID(NX,NY))
+        FRSTIME = .FALSE.
+        WRITE (IU06,*) ' '
       END IF
+
       DO I = 1,NOUT_P
          IF (PFLAG_P(I) .AND. CFLAG_P(I)) THEN
             IF (REDUCED_GRID) THEN
 	           CALL REDUCED_TO_REGULAR (GRID(:,:,I), R_GRID,                   &
-&                                       NLON_RG, ZDELLO, XDELLO)
+&                                  NLON_RG, ZDELLO, XDELLO, ZMISS, DIR_FLAG(I))
                IF (I.EQ.5 ) GRID(:,:,I) = MIN(GRID(:,:,I),999.)
 	           CALL PRINT_ARRAY (IU06, CDTINTT, TITL_P(I), R_GRID,             &
 &                             AMOWEP, AMOSOP, AMOEAP, AMONOP, SCAL_P(I), ZMISS)
             ELSE 
                IF (I.EQ.5 ) GRID(:,:,I) = MIN(GRID(:,:,I),999.)
 	           CALL PRINT_ARRAY (IU06, CDTINTT, TITL_P(I), GRID(:,:,I),        &
-&                             AMOWEP, AMOSOP, AMOEAP, AMONOP, SCAL_P(I), ZMISS)
+&               AMOWEP, AMOSOP, AMOEAP, AMONOP, SCAL_P(I), ZMISS, NG_R=NLON_RG)
             END IF
          END IF
       END DO

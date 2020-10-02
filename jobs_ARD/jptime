@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+#==>  WAM post-processing ptime
+#
+#     Arno Behrens (September 2019)
+#
+#SBATCH --job-name=ptime
+#SBATCH --partition=pCluster
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=00:05:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=cluster
+#SBATCH --output=ptime.o%j
+#SBATCH --error=ptime.e%j
+#
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
+#
+set -k
+WAMDIR=/gpfs/home/behrens/WAM_Cycle_6
+WORK=/gpfs/work/behrens/WAM_Cycle_6
+#
+cd ${WORK}/tempsg
+cp ${WAMDIR}/const/Coarse_Grid/ARD/Time_User .
+cp ${WAMDIR}/abs/ptime ptime.exe
+#
+./ptime.exe
+mv Time_Prot ${WAMDIR}/dayfiles/ptime_prot_coarse_ARD
+rm Time_User ptime.exe 
+#
+# ===================================================================
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PTIME.
+# ===================================================================
+#

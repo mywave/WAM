@@ -22,11 +22,20 @@ USE WAM_GENERAL_MODULE, ONLY:  &
 USE WAM_FRE_DIR_MODULE, ONLY: ML, KL, FR, CO, TH, DELTH, SINTH, COSTH,         &
 &                             DF, DF_FR, DF_FR2,                               &
 &                             DFIM, DFIMOFR, DFIM_FR, DFIM_FR2,                &
-&                             MO_TAIL, MM1_TAIL, MP1_TAIL, MP2_TAIL,           &
-&                             TFAK, TFAC_ST
+&                             MO_TAIL, MM1_TAIL, MP1_TAIL, MP2_TAIL
 
-USE WAM_GENERAL_MODULE, ONLY: G, PI, ZPI, DKMAX, ZPISQRT,                      &
+USE WAM_TABLES_MODULE,  ONLY: TFAK, TFAC_ST
+
+USE WAM_GENERAL_MODULE, ONLY: G, PI, ZPI, DKMAX, ZPISQRT, GAMMA_E,             &
 &                             BF2MAX, BF2MIN, C4MAX, C4MIN
+
+USE WAM_OUTPUT_SET_UP_MODULE, ONLY: WMDUR, WMDX, WMDY                          !! WAM-MAX
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+!                                                                              !
+!     C. MODULE VARIABLES.                                                     !
+!                                                                              !
+! ---------------------------------------------------------------------------- !
 
 IMPLICIT NONE
 
@@ -34,12 +43,6 @@ PRIVATE
 
 REAL      :: EMIN = 1.0E-12    !! REPLACES THE INTRINSIC TINY
 
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-!                                                                              !
-!     C. MODULE VARIABLES.                                                     !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     D.  GENERIC INTERFACES (THIS MODULE CONTAINS THE PROCEDURES).            !
@@ -47,7 +50,7 @@ REAL      :: EMIN = 1.0E-12    !! REPLACES THE INTRINSIC TINY
 ! ---------------------------------------------------------------------------- !
 
 INTERFACE CHARNOCK_PAR                     !! CHARNOCK PARAMETER.
-MODULE PROCEDURE CHARNOCK_PAR
+   MODULE PROCEDURE CHARNOCK_PAR
 END INTERFACE
 PUBLIC CHARNOCK_PAR
 
@@ -131,6 +134,16 @@ INTERFACE H_MAX                            !! EXPECTED MAXIMUM WAVE HEIGHT.
    MODULE  PROCEDURE H_MAX
 END INTERFACE
 PUBLIC H_MAX
+
+INTERFACE WAMAX                            !! EXPECTED MAXIMUM WAVE HEIGHT.    !! WAM-MAX
+   MODULE  PROCEDURE WAMAX                                                     !! WAM-MAX
+END INTERFACE                                                                  !! WAM-MAX
+PUBLIC WAMAX                                                                   !! WAM-MAX
+
+INTERFACE TRANSF                           !! NARROW BAND LIMIT BENJAMIN-FEIR
+   MODULE  PROCEDURE TRANSF                !! INDEX FOR THE FINITE DEPTH CASE.
+END INTERFACE
+PUBLIC TRANSF
 
 INTERFACE TRANSF2                          !! NARROW BAND LIMIT BENJAMIN-FEIR
    MODULE  PROCEDURE TRANSF2               !! INDEX FOR THE FINITE DEPTH CASE.
@@ -693,7 +706,10 @@ TEMP(:,:) = SUM(F(:,:,:), DIM=2)
 FS     = FR(ML)
 XKC    = ZPI/XLAMBDAC
 FC     = SQRT(G*XKC+SURFT*XKC**3)/ZPI
-CONST1 = LOG(FC/FS)
+!
+!==>   deactivate tail correction since it's not always possible !
+!
+CONST1 = 0.*LOG(FC/FS)
 CONST2 = CONST1*ZPI**4*FS**5/G**2*DELTH
 
 SM(:)    = MAX(CONST2*TEMP(:,ML), EPSMIN)
@@ -1043,9 +1059,9 @@ SUBROUTINE STOKES_DRIFT (F3, UST, VST, IN)
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
-    
+
 REAL,              INTENT(IN)  :: F3(:,:,:)  !! BLOCK OF SPECTRA.
-REAL,              INTENT(OUT) :: UST(:)     !! U COMPONENTS OF STOCKES DRIFT. 
+REAL,              INTENT(OUT) :: UST(:)     !! U COMPONENTS OF STOCKES DRIFT.
 REAL,              INTENT(OUT) :: VST(:)     !! V COMPONENTS OF STOCKES DRIFT.
 INTEGER, OPTIONAL, INTENT(IN)  :: IN(:)      !! SHALLOW WATER TABLE INDEX
 
@@ -1081,14 +1097,14 @@ IF (PRESENT(IN)) THEN     !! SHALLOW WATER
          CI(IJ) = F3(IJ,1,M)*COSTH(1)
       END DO
       DIR_LOOP1: DO K=2,KL
-         DO IJ=1,SIZE(F3,1)   
+         DO IJ=1,SIZE(F3,1)
             SI(IJ) = SI(IJ) + F3(IJ,K,M)*SINTH(K)
             CI(IJ) = CI(IJ) + F3(IJ,K,M)*COSTH(K)
          END DO
       END DO DIR_LOOP1
 
-      DO IJ=1,SIZE(F3,1)   
-         SI(IJ) = FAKT(IJ) * SI(IJ) 
+      DO IJ=1,SIZE(F3,1)
+         SI(IJ) = FAKT(IJ) * SI(IJ)
          CI(IJ) = FAKT(IJ) * CI(IJ)
          UST(IJ) = UST(IJ) + SI(IJ)
          VST(IJ) = VST(IJ) + CI(IJ)
@@ -1099,19 +1115,19 @@ ELSE                        !! DEEP WATER
 
    FREQ_LOOP2: DO M = 1,ML
       FAK   = FAK_DEEP * FR(M)**3 * DFIM(M)
-      DO IJ=1,SIZE(F3,1)   
+      DO IJ=1,SIZE(F3,1)
          SI(IJ) = F3(IJ,1,M)*SINTH(1)
          CI(IJ) = F3(IJ,1,M)*COSTH(1)
       END DO
       DIR_LOOP2: DO K=2,KL
-         DO IJ=1,SIZE(F3,1)   
+         DO IJ=1,SIZE(F3,1)
             SI(IJ) = SI(IJ) + F3(IJ,K,M)*SINTH(K)
             CI(IJ) = CI(IJ) + F3(IJ,K,M)*COSTH(K)
          END DO
       END DO DIR_LOOP2
 
-      DO IJ=1,SIZE(F3,1)   
-         SI(IJ) = FAK * SI(IJ) 
+      DO IJ=1,SIZE(F3,1)
+         SI(IJ) = FAK * SI(IJ)
          CI(IJ) = FAK * CI(IJ)
          UST(IJ) = UST(IJ) + SI(IJ)
          VST(IJ) = VST(IJ) + CI(IJ)
@@ -1506,8 +1522,8 @@ REAL, PARAMETER :: ZDP=2./PI
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     1. COSINE SQUARE SPREAD.                                                         !
-!     ------------------------                                                         !
+!     1. COSINE SQUARE SPREAD.                                                 !
+!     ------------------------                                                 !
 
 ST(:) = MAX(0. ,COS(TH(:)-THES))
 ST = ZDP*ST**2
@@ -1545,8 +1561,8 @@ SUBROUTINE COS2_SPR_B (TH, THES, ST)
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
 
-REAL,    INTENT(IN) :: TH(:)       !! DIRECTIONS.
-REAL,    INTENT(IN) :: THES(:)     !! MEAN WAVE DIRECTIONS.
+REAL,    INTENT(IN)  :: TH(:)      !! DIRECTIONS.
+REAL,    INTENT(IN)  :: THES(:)    !! MEAN WAVE DIRECTIONS.
 REAL,    INTENT(OUT) :: ST(:,:)    !! SPREADING FUNCTION.
 
 ! ---------------------------------------------------------------------------- !
@@ -1559,8 +1575,8 @@ INTEGER         :: K
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     1. COSINE SQUARE SPREAD.                                                         !
-!     ------------------------                                                         !
+!     1. COSINE SQUARE SPREAD.                                                 !
+!     ------------------------                                                 !
 
 DO K = 1,SIZE(TH)
    ST(:,K) = MAX(0. ,COS(TH(K)-THES(:)))
@@ -1785,7 +1801,7 @@ IF (PRESENT(WM1)) THEN
       WM1 = (EMEAN/WM1)**2                            !! NORMALIZE WITH ENERGY.
    ELSE
       WM1 = 1.
-   END IF  
+   END IF
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -1811,7 +1827,7 @@ IF (PRESENT(WM2)) THEN
       WM2 = (WM2/EMEAN)**2                            !! NORMALIZE WITH ENERGY.
    ELSE
       WM2 = 1.
-   END IF  
+   END IF
 END IF
 
 END SUBROUTINE WM1_WM2_WAVENUMBER_1
@@ -1822,16 +1838,18 @@ SUBROUTINE KURTOSIS (F3, DEPTH, C4, BF2, QP, FP, THMAX, HMAX, TMAX)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!    KURTOSIS   DETERMINES KURTOSIS, BENJAMIN-FEIR INDEX
+!    KURTOSIS   DETERMINES SKEWNESS, KURTOSIS, BENJAMIN-FEIR INDEX
 !               GODA'S PEAKEDNESS PARAMETER AND NORMALIZED
 !               MAXIMUM WAVE HEIGHT.
 !                                                                              !
 !     PETER JANSSEN       JULY 2007.
+!     PETER JANSSEN       APRIL 2014. INCLUDES SKEWNESS EFFECTS, WHILE
+!                         NUMBER OF WAVES IS DETERMINED BY EWING (1973)
 !                                                                              !
 !     PURPOSE.
 !     --------
 !                                                                              !
-!           DETERMINATION OF KURTOSIS, B-F INDEX , GODA QP AND
+!           DETERMINATION OF SKEWNESS, KURTOSIS, B-F INDEX , GODA QP AND
 !                              HMAX AND TMAX
 !                                                                              !
 !     METHOD.
@@ -1856,6 +1874,33 @@ SUBROUTINE KURTOSIS (F3, DEPTH, C4, BF2, QP, FP, THMAX, HMAX, TMAX)
 !            OPPOSITE CASE C4 < 0. HERE, FOLLOWING THE WORK
 !            OF JANSSEN & ONORATO (2007) WE HAVE PARAMETRIZED THIS SHALLOW
 !            WATER EFFECT BY MEANS OF THE FUNCTION TRANSF2.
+!
+!            APRIL 2014:
+!            ----------
+!
+!            1) FORMULATE DYNAMIC KURTOSIS C4 IN TERMS OF THE DIMENSIONLESS
+!               NUMBER R = 0.5*(SIG_TH/SIG_OM)**2 (SEE TECH MEMO 588).
+!               RESULTS IN GOOD AGREEMENT WITH  MORI FORMULATION FOR
+!                  C4 = XJ*BFI**2
+!               WITH
+!                  XJ = C4_CONST/SQRT(1+7.*R),
+!               WHERE
+!                  C4_CONST = PI/(3.*SQRT(3.))
+!            2) BOUND WAVES HAVE ALSO FINITE SKEWNESS WHICH AFFECTS ENVELOPE
+!               WAVE HEIGHT DISTRIBUTION (SEE MEMO ON UPDATES)
+!            3) FOR MAXIMUM WAVE HEIGHT THE NUMBER NW OF INDEPENDENT EVENTS
+!               IS REQUIRED. THUS FAR NUMBER OF INDEPENDENT EVENTS WAS OBTAINED
+!               BY SAMPLING WITH THE PEAK FREQUENCY. THIS IS NOT CORRECT. IT
+!               IS MORE APPROPRIATE TO USE AS ESTIMATE OF EVENTS THE NUMBER OF
+!               WAVE GROUPS IN THE TIME SERIES. THIS IS OBTAINED USING JOHN
+!               EWINGS (1973) RESULT ON THE LENGTH OF A WAVE GROUP REFERRED TO
+!               SIGNIFICANT WAVE HEIGHT.
+!     ON THE EXTENSION OF THE FREAK WAVE WARNING SYSTEM AND ITS VERIFICATION.
+!     PETER A.E.M JANSSEN AND J.-R. BIDLOT, ECMWF TECH MEMO 588.
+
+!     FURTHER UPDATES TO THE FREAK WAVE WARNING SYSTEM. PETER A.E.M.
+!     JANSSEN AND J.-R. BIDLOT, TO BE PUBLISHED AS ECMWF TECH MEMO
+!
 !                                                                              !
 !     EXTERNALS.
 !     ----------
@@ -1886,6 +1931,7 @@ SUBROUTINE KURTOSIS (F3, DEPTH, C4, BF2, QP, FP, THMAX, HMAX, TMAX)
 !                                                                              !
 REAL,    INTENT(IN)            :: F3(:,:,:)  !! 2-DIMENSIONAL SPECTRA.
 REAL,    INTENT(IN)            :: DEPTH(:)   !! WATER DEPTH.
+! REAL,    INTENT(OUT)           :: C3(:)      !! SKEWNESS.
 REAL,    INTENT(OUT)           :: C4(:)      !! KURTOSIS.
 REAL,    INTENT(OUT)           :: BF2(:)     !! BENJAMIN-FEIR INDEX.
 REAL,    INTENT(OUT)           :: QP(:)      !! GODA'S QUALITY FACTOR.
@@ -1911,6 +1957,12 @@ INTEGER ::  NW(SIZE(F3,1))    !! NUMBER OF WAVES.
 
 REAL :: ZSUM3, ZJ , ZEPS, ZNU, HS, SIG_OM1
 
+REAL :: ZKAPPA30, ZKAPPA03, ZKAPPA12, ZKAPPA21, ZKAPPA40, ZKAPPA04, ZKAPPA22, ZKAPPA4
+REAL :: ZR, ZARG, ZC4_CONST
+REAL :: ZK, ZF_WG
+
+REAL :: C3(SIZE(F3,1))      !! SKEWNESS.
+
 REAL :: F1D(SIZE(F3,1),SIZE(F3,3))    !! FREQUENCY SPECTRA
 REAL :: XMAX(SIZE(F3,1))              !! MAX FREQ SPECTRA
 REAL :: SIG_OM(SIZE(F3,1))            !! RELATIVE WIDTH IN FREQUENCY
@@ -1924,6 +1976,7 @@ REAL, DIMENSION(SIZE(F3,1)) :: ETA2,SUM0,SUM1, SUM2, SUM4, XKP, EPS
 REAL, DIMENSION(SIZE(F3,3)) :: FAC4
 
 ZSUM3  = PI/(3.*SQRT(3.))
+ZC4_CONST = PI/(3.*SQRT(3.))
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -1998,32 +2051,77 @@ DO IJ = 1, SIZE(F3,1)
    ENDIF
 END DO
 
+!! DO IJ = 1, SIZE(F3,1)
+!!    IF (ETA2(IJ).GT.0.) THEN
+!!       SIG_TH(IJ) = MAX(SIG_TH(IJ),ZA_MORI)
+!!       ZJ = ZA_MORI/SIG_TH(IJ)*ZSUM3
+!!       C4(IJ) = ZJ*BF2(IJ)+8.*EPS(IJ)**2
+!!       C4(IJ) = MAX(MIN(C4(IJ),C4MAX),C4MIN)
+!!    ELSE
+!!       C4(IJ)  = 0.
+!!    ENDIF
+!! END DO
+
+
+
 DO IJ = 1, SIZE(F3,1)
    IF (ETA2(IJ).GT.0.) THEN
-      SIG_TH(IJ) = MAX(SIG_TH(IJ),ZA_MORI)
-      ZJ = ZA_MORI/SIG_TH(IJ)*ZSUM3
-      C4(IJ) = ZJ*BF2(IJ)+8.*EPS(IJ)**2
+!
+!           SKEWNESS
+!
+      ZKAPPA30 = 3.*EPS(IJ)
+      ZKAPPA03 = 0.
+      ZKAPPA12 = ZKAPPA30/3.
+      ZKAPPA21 = 0.
+!
+!           BOUND-WAVE PART OF KURTOSIS
+!
+
+      ZKAPPA40 = 18.*EPS(IJ)**2
+      ZKAPPA04 = 0.
+      ZKAPPA22 = ZKAPPA40/6.
+      ZKAPPA4  = ZKAPPA40+ZKAPPA04+2.*ZKAPPA22
+!
+!           DYNAMIC PART OF KURTOSIS
+!
+      ZR = 0.5*(SIG_TH(IJ)/SIG_OM(IJ))**2
+      ZJ = ZC4_CONST/SQRT(1+7.*ZR)
+
+      C4(IJ) = ZJ*BF2(IJ)+ZKAPPA4/8.
       C4(IJ) = MAX(MIN(C4(IJ),C4MAX),C4MIN)
+
+      ZARG = 5.*(ZKAPPA30**2+ZKAPPA03**2)+9*(ZKAPPA21**2+                    &
+&            ZKAPPA12**2)+6.*(ZKAPPA30*ZKAPPA12+ZKAPPA03*ZKAPPA21)
+
+      C3(IJ) = SQRT(ZARG/72.)
    ELSE
-      C4(IJ)  = 0.
+      C4(IJ) = 0.
+      C3(IJ) = 0.
    ENDIF
-END DO
+ENDDO
+
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     4. DETERMINE HMAX AND TMAX.
 !       (EXPECTED IN RECORD OF LENGTH GIVEN BY DURATION).
 !       -------------------------------------------------
+!
+!     WAVE GROUP FREQUENCY F_WG FOLLOWS FROM EWING (1973) AND CRAMER AND
+!     LEADBETTER (1967), WHERE K = 2  CORRESPONDS TO SIGNIFICANT HEIGHT LEVEL.
+
+ZK = 2.
 
 DO IJ = 1, SIZE(F3,1)
-   IF (FP(IJ).EQ.0.) THEN
-      NW(IJ) = NINT(0.1*DURATION)
+   IF (ETA2(IJ).GT.0. .AND. FP(IJ).GT.0.) THEN
+      ZF_WG  = ZK*SIG_OM(IJ)*FP(IJ)*SQRT(ZPI)
+      NW(IJ) = NINT(DURATION*ZF_WG)
    ELSE
-      NW(IJ) = NINT(DURATION*FP(IJ))
+      NW(IJ) = 0
    ENDIF
-END DO
+ENDDO
 
-CALL H_MAX (C4, NW, HMAX)
+CALL H_MAX (C3, C4, NW, HMAX)
 
 DO IJ = 1, SIZE(F3,1)
    IF (SUM1(IJ).GT.0. .AND. HMAX(IJ).GT.0.) THEN
@@ -2190,7 +2288,7 @@ END SUBROUTINE PEAK_FREQ
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE H_MAX (C4, NW, HMAX_N)
+SUBROUTINE H_MAX (C3, C4, NW, HMAX_N)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -2212,38 +2310,374 @@ SUBROUTINE H_MAX (C4, NW, HMAX_N)
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
 !                                                                              !
+REAL,    INTENT(IN)   :: C3(:)     !! SKEWNESS
 REAL,    INTENT(IN)   :: C4(:)     !! KURTOSIS(<ETA>^4/(3<ETA^2>^2)-1)
 INTEGER, INTENT(IN)   :: NW(:)     !! NUMBER OF WAVES
 REAL,    INTENT(OUT)  :: HMAX_N(:) !! MAXIMUM WAVE HEIGHT NORMALIZED WITH
-!! SIGNIFICANT WAVE HEIGHT H_S.
+                                   !! SIGNIFICANT WAVE HEIGHT H_S.
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     LOCAL VARIABLES.                                                         !
 !     ----------------                                                         !
 
-REAL, PARAMETER :: GAMMA_E = 0.57721566  ! EULER CONSTANT
-REAL, PARAMETER :: CONST   = 0.5*(GAMMA_E**2+PI**2/6.)
+REAL, PARAMETER :: GAMMA_E = 0.57721566  !! EULER CONSTANT
+REAL, PARAMETER :: ZETA_3  = 1.20206     !! RIEMANN ZETA FUNCTION
+
+!   G1, G2, G3 ARE FIRST, SECOND AND THIRD DERIVATIVE OF GAMMA FUNCTION AT Z=1.
+REAL, PARAMETER :: G1 = -GAMMA_E
+REAL, PARAMETER :: G2 = (GAMMA_E**2+PI**2/6.)
+REAL, PARAMETER :: G3 = -2.*ZETA_3-GAMMA_E*PI**2/2.-GAMMA_E**3
 
 INTEGER :: IJ
-REAL    :: C4M, Z0, B_Z, ARG
+REAL    :: C3M, C4M, Z0, ALPHA, C_Z, D_Z, E_Z, BETA, ARG, Z
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. DETERMINE EXPECTED MAXIMUM WAVE HEIGHT.
 !        ---------------------------------------
 
-DO IJ = 1, SIZE(C4)
-   C4M = MIN (C4MAX, C4(IJ))
-   C4M = MAX (C4MIN, C4M)
+DO IJ = 1, SIZE(C3)
+   IF (NW(IJ).GT.0) THEN
+      C3M = C3(IJ)
+      C4M = MIN (C4MAX, C4(IJ))
+      C4M = MAX (C4MIN, C4M)
 
-   Z0 = 0.5*LOG(REAL(NW(IJ)))
-   B_Z = 2.*Z0*(Z0-1.)
-   ARG = MAX(1.+C4M*(B_Z-GAMMA_E*(1.-2.*Z0)-CONST), 0.1)
-   HMAX_N(IJ) = SQRT(Z0 + 0.5*(GAMMA_E+LOG(ARG)))
+      Z0 = 0.5*LOG(REAL(NW(IJ)))
+      ALPHA = 2.*Z0*(Z0-1.)+(1.-2.*Z0)*G1+0.5*G2
+
+      C_Z = Z0*(4.*Z0**2-12.*Z0+6.)-(6.*Z0**2-12.*Z0+3.)*G1
+      D_Z = 3.*(Z0-1.)*G2
+      E_Z = -0.5*G3
+      BETA = C_Z+D_Z+E_Z
+
+      ARG = 1.+C4M*ALPHA+C3M**2*BETA
+      ARG = MAX(ARG,0.1)
+      Z = Z0+0.5*(GAMMA_E+LOG(ARG))
+
+      HMAX_N(IJ) = SQRT(Z)
+   ELSE
+      HMAX_N(IJ) = 0.
+   ENDIF
 END DO
 
 END SUBROUTINE H_MAX
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE WAMAX (F, DEPTH, THMAX, CMAX_F, HMAX_N, CMAX_ST, HMAX_ST, MASK)               !! WAM-MAX
+                                                                                         !! WAM-MAX
+ ! ---------------------------------------------------------------------------- !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+ !   WAMAX   DETERMINE EXPECTED MAXIMUM CREST AND CREST-TO-TROUGH WAVE HEIGHTS. !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+ !     FRANCESCO BARBARIOL  CNR-ISMAR   adapted from WW3 5.16 (09/2018)         !        !! WAM-MAX
+ !     PAOLO PEZZUTTO       CNR-ISMAR   min of autocov golden search (03/2019)  !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+ !     PURPOSE:                                                                 !        !! WAM-MAX
+ !     -------                                                                  !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+ !           DETERMINE EXPECTED MAXIMUM CREST AND CREST-TO-TROUGH WAVE HEIGHTS  !        !! WAM-MAX
+ !           ACCORDING TO TWO DIFFERENT STATISTICAL APPROACHES:                 !        !! WAM-MAX
+ !           1. TIME EXTREMES:                                                  !        !! WAM-MAX
+ !              1a. CREST H., FORRISTALL (2000), NONLINEAR 2ND ORDER            !        !! WAM-MAX
+ !              1b. WAVE H., NAESS (1985), LINEAR (ARBITRARY BANDWIDTH)         !        !! WAM-MAX
+ !           2. SPACE-TIME EXTREMES:                                            !        !! WAM-MAX
+ !              2a. CREST H., BENETAZZO ET AL. (2015), NONLINEAR 2ND ORDER      !        !! WAM-MAX
+ !              2b. WAVE H., FEDELE (2012), BOCCOTTI (2000), LINEAR             !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+ ! ---------------------------------------------------------------------------- !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+ !     INTERFACE VARIABLES.                                                     !        !! WAM-MAX
+ !     --------------------                                                     !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+REAL,    INTENT(IN)    :: F(:,:,:)     !! BLOCK OF SPECTRA                               !! WAM-MAX
+REAL,    INTENT(IN)    :: DEPTH(:)     !! DEPTH                                          !! WAM-MAX
+REAL,    INTENT(IN)    :: THMAX(:)     !! PEAK DIRECTION                                 !! WAM-MAX
+REAL,    INTENT(OUT)   :: CMAX_F(:)    !! MAXIMUM CREST H.- TIME (FORRISTALL)            !! WAM-MAX
+REAL,    INTENT(OUT)   :: HMAX_N(:)    !! MAXIMUM WAVE H.- TIME (NAESS)                  !! WAM-MAX
+REAL,    INTENT(OUT)   :: CMAX_ST(:)   !! MAXIMUM CREST H.- SPACE-TIME (STQD)            !! WAM-MAX
+REAL,    INTENT(OUT)   :: HMAX_ST(:)   !! MAXIMUM WAVE H.- SPACE-TIME (STQD)             !! WAM-MAX
+LOGICAL, INTENT(IN),  OPTIONAL   :: MASK(:,:,:)    !! INTEGRATION MASK                   !! WAM-MAX
+ ! ---------------------------------------------------------------------------- !        !! WAM-MAX
+ !                                                                              !        !! WAM-MAX
+ !     LOCAL VARIABLES.                                                         !        !! WAM-MAX
+ !     ----------------                                                         !        !! WAM-MAX
+                                                                                         !! WAM-MAX
+! REAL, PARAMETER :: GAMMA_E = 0.57721566  !! EULER CONSTANT (moved as global)           !! WAM-MAX
+                                                                                         !! WAM-MAX
+INTEGER :: IJ, T, M, K, MAXIT                                                            !! WAM-MAX
+REAL    :: Z0, NW, ALFA, BETA, URSN, STEEP, WNUM1, PHIST, XK, AXYT, N3, N2, N1, HS       !! WAM-MAX
+REAL    :: LX(SIZE(F,1)), LY(SIZE(F,1)), AXT(SIZE(F,1)), AYT(SIZE(F,1)), AXY(SIZE(F,1))  !! WAM-MAX
+REAL    :: TEMP_X(SIZE(F,1),SIZE(F,3)), TEMP_Y(SIZE(F,1),SIZE(F,3))                      !! WAM-MAX
+REAL    :: TEMP_X2(SIZE(F,1),SIZE(F,3)), TEMP_Y2(SIZE(F,1),SIZE(F,3))                    !! WAM-MAX
+REAL    :: TEMP_XY(SIZE(F,1),SIZE(F,3)), NI(SIZE(F,1)), MU(SIZE(F,1))                    !! WAM-MAX
+REAL    :: CX(SIZE(F,1),SIZE(F,2)), CY(SIZE(F,1),SIZE(F,2))                              !! WAM-MAX
+REAL    :: CCX(SIZE(F,1),SIZE(F,2),SIZE(F,3)), CCY(SIZE(F,1),SIZE(F,2),SIZE(F,3))        !! WAM-MAX
+REAL    :: TEMP(SIZE(F,1),SIZE(F,3))                                                     !! WAM-MAX
+REAL    :: ACF(SIZE(F,1)), TLG(SIZE(F,1))                                                !! WAM-MAX
+REAL    :: T1(SIZE(F,1)), T2(SIZE(F,1)), EMEAN(SIZE(F,1))                                !! WAM-MAX
+REAL    :: TLGS(4), ACFS(4)                                                              !! WAM-MAX
+REAL, PARAMETER   :: GRR = (1.+SQRT(5.))/2. !! GOLDEN RATIO                              !! WAM-MAX
+REAL    :: TOL                            ! GOLDEN SEARCH TOLERANCE                      !! WAM-MAX
+
+! ---------------------------------------------------------------------------- !         !! WAM-MAX
+!                                                                              !         !! WAM-MAX
+!     0. COMPUTE SPECTRAL PARAMETER BY INTEGRATION OF SPECTRA.                 !         !! WAM-MAX
+!        --------------------------------------------------------------------- !         !! WAM-MAX
+
+! INITIALIZE VARIABLES FOR INTEGRATION                                                   !! WAM-MAX
+
+ACF = 0.                                                                                 !! WAM-MAX
+T1 = 0.                                                                                  !! WAM-MAX
+T2 = 0.                                                                                  !! WAM-MAX
+LX = 0.                                                                                  !! WAM-MAX
+LY = 0.                                                                                  !! WAM-MAX
+AXT = 0.                                                                                 !! WAM-MAX
+AXY = 0.                                                                                 !! WAM-MAX
+AYT = 0.                                                                                 !! WAM-MAX
+EMEAN = 0.                                                                               !! WAM-MAX
+
+! COMPUTE MEAN PERIODS (WITHOUT TAIL CONTRIBUTION)                                       !! WAM-MAX
+! COMPUTE MEAN WAVE AND CREST LENGTH (WITHOUT TAIL CONTRIBUTION, WRT PEAK DIR.)          !! WAM-MAX
+! COMPUTE IRREGULARITY PARAMETERS (WITHOUT TAIL CONTRIBUTION, WRT PEAK DIR.)             !! WAM-MAX
+
+DO K = 1,KL                                                                              !! WAM-MAX
+   DO IJ = 1,SIZE(TEMP,1)                                                                !! WAM-MAX
+      CX(IJ,K) = COSTH(K)*COS(THMAX(IJ)/180.*PI)+SINTH(K)*SIN(THMAX(IJ)/180.*PI)         !! WAM-MAX
+      CY(IJ,K) = SINTH(K)*COS(THMAX(IJ)/180.*PI)-COSTH(K)*SIN(THMAX(IJ)/180.*PI)         !! WAM-MAX
+   END DO                                                                                !! WAM-MAX
+END DO                                                                                   !! WAM-MAX
+CCX(1:SIZE(F,1),1:KL,1:ML) = SPREAD(CX,3,ML)                                             !! WAM-MAX
+CCY(1:SIZE(F,1),1:KL,1:ML) = SPREAD(CY,3,ML)                                             !! WAM-MAX
+
+IF (PRESENT(MASK)) THEN                                                                  !! WAM-MAX
+   TEMP = SUM(F, DIM=2, MASK=MASK)                                                       !! WAM-MAX
+   TEMP_X = SUM(F*CCX, DIM=2, MASK=MASK)                                                 !! WAM-MAX
+   TEMP_Y = SUM(F*CCY, DIM=2, MASK=MASK)                                                 !! WAM-MAX
+   TEMP_X2 = SUM(F*CCX**2, DIM=2, MASK=MASK)                                             !! WAM-MAX
+   TEMP_Y2 = SUM(F*CCY**2, DIM=2, MASK=MASK)                                             !! WAM-MAX
+   TEMP_XY = SUM(F*CCX*CCY, DIM=2, MASK=MASK)                                            !! WAM-MAX
+ELSE                                                                                     !! WAM-MAX
+   TEMP = SUM(F, DIM=2)                                                                  !! WAM-MAX
+   TEMP_X = SUM(F*CCX, DIM=2)                                                            !! WAM-MAX
+   TEMP_Y = SUM(F*CCY, DIM=2)                                                            !! WAM-MAX
+   TEMP_X2 = SUM(F*CCX**2, DIM=2)                                                        !! WAM-MAX
+   TEMP_Y2 = SUM(F*CCY**2, DIM=2)                                                        !! WAM-MAX
+   TEMP_XY = SUM(F*CCX*CCY, DIM=2)                                                       !! WAM-MAX
+END IF                                                                                   !! WAM-MAX
+
+DO M = 1,ML                                                                              !! WAM-MAX
+   DO IJ = 1,SIZE(TEMP_X2,1)                                                             !! WAM-MAX
+      XK = AKI(2.*PI*FR(M),DEPTH(IJ))                                                    !! WAM-MAX
+      EMEAN(IJ) = EMEAN(IJ) + TEMP(IJ,M)*DFIM(M)                                         !! WAM-MAX
+      T1(IJ) = T1(IJ) + TEMP(IJ,M)*DFIM_FR(M)                                            !! WAM-MAX
+      T2(IJ) = T2(IJ) + TEMP(IJ,M)*DFIM_FR2(M)                                           !! WAM-MAX
+      LX(IJ) = LX(IJ) + TEMP_X2(IJ,M)*XK**2*DFIM(M)                                      !! WAM-MAX
+      LY(IJ) = LY(IJ) + TEMP_Y2(IJ,M)*XK**2*DFIM(M)                                      !! WAM-MAX
+      AXY(IJ) = AXY(IJ) + TEMP_XY(IJ,M)*XK**2*DFIM(M)                                    !! WAM-MAX
+      AXT(IJ) = AXT(IJ) + TEMP_X(IJ,M)*XK*(2.*PI*FR(M))*DFIM(M)                          !! WAM-MAX
+      AYT(IJ) = AYT(IJ) + TEMP_Y(IJ,M)*XK*(2.*PI*FR(M))*DFIM(M)                          !! WAM-MAX
+   END DO                                                                                !! WAM-MAX
+END DO                                                                                   !! WAM-MAX
+
+WHERE (EMEAN.GT.EMIN)                                                                    !! WAM-MAX
+   AXY = AXY/SQRT(LX*LY)                                                                 !! WAM-MAX
+   AXT = AXT/(2.*PI*SQRT(LX*T2))                                                         !! WAM-MAX
+   AYT = AYT/(2.*PI*SQRT(LY*T2))                                                         !! WAM-MAX
+   LX = 2.*PI*SQRT(EMEAN/LX)                                                             !! WAM-MAX
+   LY = 2.*PI*SQRT(EMEAN/LY)                                                             !! WAM-MAX
+   NI = SQRT(EMEAN*T2/T1**2 - 1)                                                         !! WAM-MAX
+   MU = (2.*PI*T1)**2*EMEAN**(-3./2.)*(1.-NI+NI**2)/G                                    !! WAM-MAX
+   T1 = EMEAN/T1                                                                         !! WAM-MAX
+   T2 = SQRT(EMEAN/T2)                                                                   !! WAM-MAX
+ELSEWHERE                                                                                !! WAM-MAX
+   AXY = 0.                                                                              !! WAM-MAX
+   AXT = 0.                                                                              !! WAM-MAX
+   AYT = 0.                                                                              !! WAM-MAX
+   LX = 1.                                                                               !! WAM-MAX
+   LY = 1.                                                                               !! WAM-MAX
+   NI = 0.                                                                               !! WAM-MAX
+   MU = 0.                                                                               !! WAM-MAX
+   T1 = 1.                                                                               !! WAM-MAX
+   T2 = 1.                                                                               !! WAM-MAX
+END WHERE                                                                                !! WAM-MAX
+!                                                                                        !! WAM-MAX
+! ---------------------------------------------------------------------------- !         !! WAM-MAX
+!                                                                              !         !! WAM-MAX
+!     0. MIN OF AUTOCOVARIANCE FUNCTION                                        !         !! WAM-MAX
+!        VIA GOLDEN RATIO SEARCH                                               !         !! WAM-MAX
+!        --------------------------------------------------------------------- !         !! WAM-MAX
+MAXIT = 10                                                                               !! WAM-MAX
+TOL = 0.01                                                                               !! WAM-MAX
+DO IJ = 1,SIZE(TEMP,1)                                                                   !! WAM-MAX
+   TLGS(1) = 0.3*T2(IJ)                                                                  !! WAM-MAX
+   TLGS(4) = 1.3*T2(IJ)                                                                  !! WAM-MAX
+   TLGS(2) = TLGS(4) - (TLGS(4) - TLGS(1))/GRR                                           !! WAM-MAX
+   TLGS(3) = TLGS(1) + (TLGS(4) - TLGS(1))/GRR                                           !! WAM-MAX
+   ACFS(1) = SUM( COS( 2.*PI*FR(:)*TLGS(1) ) * TEMP(IJ,:) * DFIM(:) )                    !! WAM-MAX
+   ACFS(4) = SUM( COS( 2.*PI*FR(:)*TLGS(4) ) * TEMP(IJ,:) * DFIM(:) )                    !! WAM-MAX
+   ACFS(2) = SUM( COS( 2.*PI*FR(:)*TLGS(2) ) * TEMP(IJ,:) * DFIM(:) )                    !! WAM-MAX
+   ACFS(3) = SUM( COS( 2.*PI*FR(:)*TLGS(3) ) * TEMP(IJ,:) * DFIM(:) )                    !! WAM-MAX
+   DO T = 1,MAXIT                                                                        !! WAM-MAX
+      IF (ACFS(2) .LT. ACFS(3)) THEN                                                     !! WAM-MAX
+         ACF(IJ) = ACFS(2)                                                               !! WAM-MAX
+         TLG = TLGS(2)                                                                   !! WAM-MAX
+         TLGS(4) = TLGS(3)                                                               !! WAM-MAX
+         ACFS(4) = ACFS(3)                                                               !! WAM-MAX
+         TLGS(3) = TLGS(2)                                                               !! WAM-MAX
+         ACFS(3) = ACFS(2)                                                               !! WAM-MAX
+         TLGS(2) = TLGS(4) - (TLGS(4) - TLGS(1))/GRR                                     !! WAM-MAX
+         ACFS(2) = SUM( COS( 2.*PI*FR(:)*TLGS(2) ) * TEMP(IJ,:) * DFIM(:) )              !! WAM-MAX
+      ELSE                                                                               !! WAM-MAX
+         ACF(IJ) = ACFS(3)                                                               !! WAM-MAX
+         TLGS(1) = TLGS(2)                                                               !! WAM-MAX
+         ACFS(1) = ACFS(2)                                                               !! WAM-MAX
+         TLGS(2) = TLGS(3)                                                               !! WAM-MAX
+         ACFS(2) = ACFS(3)                                                               !! WAM-MAX
+         TLG = TLGS(3)                                                                   !! WAM-MAX
+         TLGS(3) = TLGS(1) + (TLGS(4) - TLGS(1))/GRR                                     !! WAM-MAX
+         ACFS(3) = SUM( COS( 2.*PI*FR(:)*TLGS(3) ) * TEMP(IJ,:) * DFIM(:) )              !! WAM-MAX
+      END IF                                                                             !! WAM-MAX
+      IF ( (ABS(TLGS(4)-TLGS(1))) .LT. (TOL*(ABS(TLGS(2))+ABS(TLGS(3)))) ) THEN          !! WAM-MAX
+         EXIT                                                                            !! WAM-MAX
+      END IF                                                                             !! WAM-MAX
+   END DO                                                                                !! WAM-MAX
+END DO                                                                                   !! WAM-MAX
+!                                                                                        !! WAM-MAX
+! ---------------------------------------------------------------------------- !         !! WAM-MAX
+!                                                                              !         !! WAM-MAX
+!     1. COMPUTE OUTPUT VARIABLES                                              !         !! WAM-MAX
+!        --------------------------------------------------------------------- !         !! WAM-MAX
+DO IJ = 1,SIZE(DEPTH)                                                                    !! WAM-MAX
+! ---------------------------------------------------------------------------- !         !! WAM-MAX
+!                                                                              !         !! WAM-MAX
+!         1a. DETERMINE EXPECTED MAXIMUM CREST HEIGHT - TIME (FORRISTALL).     !         !! WAM-MAX
+!        --------------------------------------------------------------------- !         !! WAM-MAX
+   IF (T1(IJ).GT.0 .AND. T2(IJ).GT.0 .AND. DEPTH(IJ).GT.0 .AND. EMEAN(IJ).GT.0) THEN     !! WAM-MAX
+      HS = 4*SQRT(EMEAN(IJ))                                                             !! WAM-MAX
+      WNUM1 = AKI(2.*PI/T1(IJ),DEPTH(IJ))                                                !! WAM-MAX
+      STEEP = 2.*PI*HS/G/T1(IJ)**2                                                       !! WAM-MAX
+      URSN = HS/WNUM1**2/DEPTH(IJ)**3                                                    !! WAM-MAX
+      ALFA = 0.3536+0.2568*STEEP+0.08*URSN                                               !! WAM-MAX
+      BETA = 2.-1.7912*STEEP-0.5302*URSN+0.284*URSN**2                                   !! WAM-MAX
+      NW = WMDUR/T2(IJ)                                                                  !! WAM-MAX
+      Z0 = LOG(REAL(NW))                                                                 !! WAM-MAX
+      CMAX_F(IJ) = ALFA*Z0**(1./BETA)*(1.+GAMMA_E/(BETA*Z0))*HS                          !! WAM-MAX
+! ---------------------------------------------------------------------------- !         !! WAM-MAX
+!                                                                              !         !! WAM-MAX
+!         1b. DETERMINE EXPECTED MAXIMUM WAVE HEIGHT - TIME (NAESS).           !         !! WAM-MAX
+!        --------------------------------------------------------------------- !         !! WAM-MAX
+      PHIST = ACF(IJ)/EMEAN(IJ)                                                          !! WAM-MAX
+      HMAX_N(IJ) = 0.5*SQRT(1.-PHIST)*SQRT(Z0)*(1.+0.5*GAMMA_E/Z0)*HS                    !! WAM-MAX
+! ---------------------------------------------------------------------------- !         !! WAM-MAX
+!                                                                              !         !! WAM-MAX
+!         2a. DETERMINE EXPECTED MAXIMUM CREST HEIGHT - SPACE-TIME (STQD).     !         !! WAM-MAX
+!        --------------------------------------------------------------------- !         !! WAM-MAX
+
+      AXYT = SQRT(1+2*AXT(IJ)*AXY(IJ)*AYT(IJ)-AXT(IJ)**2-AXY(IJ)**2-AYT(IJ)**2)          !! WAM-MAX
+      N3 = 2.*PI*WMDX*WMDY*WMDUR/LX(IJ)/LY(IJ)/T2(IJ)*AXYT                               !! WAM-MAX
+      N2 = SQRT(2.*PI)*(WMDX*WMDUR/LX(IJ)/T2(IJ)*SQRT(1-AXT(IJ)**2) &                    !! WAM-MAX
+&          +WMDX*WMDY/LX(IJ)/LY(IJ)*SQRT(1-AXY(IJ)**2) &                                 !! WAM-MAX
+&          +WMDY*WMDUR/LY(IJ)/T2(IJ)*SQRT(1-AYT(IJ)**2))                                 !! WAM-MAX
+      N1 = WMDX/LX(IJ) + WMDY/LY(IJ) + WMDUR/T2(IJ)                                      !! WAM-MAX
+
+      IF (WMDX.NE.0 .AND. WMDY.NE.0 .AND. WMDUR.NE.0) THEN                               !! WAM-MAX
+         Z0 = SQRT(2.*LOG(REAL(N3))+2.*LOG(2.*LOG(REAL(N3))+2.*LOG(2.*LOG(REAL(N3)))))   !! WAM-MAX
+      ELSE IF (WMDUR.EQ.0) THEN                                                          !! WAM-MAX
+         Z0 = SQRT(2.*LOG(REAL(N2))+LOG(2.*LOG(REAL(N2))+LOG(2.*LOG(REAL(N2)))))         !! WAM-MAX
+      ELSE IF (WMDX.EQ.0 .AND. WMDY.EQ.0) THEN                                           !! WAM-MAX
+         Z0 = SQRT(2.*LOG(REAL(N1)))                                                     !! WAM-MAX
+      END IF                                                                             !! WAM-MAX
+      CMAX_ST(IJ) = ((Z0+0.5*MU(IJ)*Z0**2)+GAMMA_E*((1.+MU(IJ)*Z0) &                     !! WAM-MAX
+&                   *(Z0-(2.*N3*Z0+N2)/(N3*Z0**2+N2*Z0+N1))**(-1))) *SQRT(EMEAN(IJ))     !! WAM-MAX
+! ---------------------------------------------------------------------------- !         !! WAM-MAX
+!                                                                              !         !! WAM-MAX
+!         2b. DETERMINE EXPECTED MAXIMUM WAVE HEIGHT - SPACE-TIME (STQD).      !         !! WAM-MAX
+!        --------------------------------------------------------------------- !         !! WAM-MAX
+
+      HMAX_ST(IJ) = (Z0+GAMMA_E*(Z0-(2.*N3*Z0+N2)/(N3*Z0**2+N2*Z0+N1))**(-1))* &         !! WAM-MAX
+&                   SQRT(2.*(1.-PHIST)) *SQRT(EMEAN(IJ))                                 !! WAM-MAX
+   ELSE                                                                                  !! WAM-MAX
+      CMAX_F(IJ) = 0.                                                                    !! WAM-MAX
+      HMAX_N(IJ) = 0.                                                                    !! WAM-MAX
+      CMAX_ST(IJ) = 0.                                                                   !! WAM-MAX
+      HMAX_ST(IJ) = 0.                                                                   !! WAM-MAX
+   END IF                                                                                !! WAM-MAX
+END DO                                                                                   !! WAM-MAX
+!close (87)
+                                                                                         !! WAM-MAX
+END SUBROUTINE WAMAX                                                                     !! WAM-MAX
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+REAL FUNCTION TRANSF (XK, D)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!    TRANSF   DETERMINE NARROW BAND LIMIT BENJAMIN-FEIR INDEX FOR              !
+!              THE FINITE DEPTH CASE.
+!                                                                              !
+!     PETER JANSSEN       JULY 2005.
+!                                                                              !
+!     PURPOSE.
+!     --------
+!                                                                              !
+!           DETERMINATION OF THE NARROW BAND LIMIT BENJAMIN-FEIR INDEX FOR     !
+!           THE FINITE DEPTH CASE.                                             !
+!
+!           BF**2 = (2 S^2)/SIG_OM^2) . TRANSF2(XK,D)
+!
+!                                                                              !
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+!                                                                              !
+REAL,    INTENT(IN)    :: XK   !! WAVE NUMBER
+REAL,    INTENT(IN)    :: D    !! DEPTH
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------                                                         !
+
+REAL ::  EPS, X, T_0, OM, C_0, V_G, DV_G, XNL_1, XNL_2, XNL
+
+EPS = 0.0001
+
+! ---------------------------------------------------------------------------- !
+!
+!     1. DETERMINE TRANSFER FUNCTION.
+!        ----------------------------
+
+IF (D.LT.999. .AND. D.GT.0.) THEN
+   X   = XK*D
+   IF (X .GT. DKMAX) THEN
+      TRANSF = 1.
+   ELSE
+      T_0 = TANH(X)
+      OM  = SQRT(G*XK*T_0)
+      C_0 = OM/XK
+      IF (X .LT. EPS) THEN
+         V_G = 0.5*C_0
+         V_G = C_0
+      ELSE
+         V_G = 0.5*C_0*(1.+2.*X/SINH(2.*X))
+      ENDIF
+      DV_G = (T_0-X*(1.-T_0**2))**2+4.*X**2*T_0**2*(1.-T_0**2)
+
+      XNL_1 = (9.*T_0**4-10.*T_0**2+9.)/(8.*T_0**3)
+      XNL_2 = ((2.*V_G-0.5*C_0)**2/(G*D-V_G**2)+1.)/X
+
+      XNL = XNL_1-XNL_2
+      TRANSF = XNL**2/(DV_G*T_0**8)
+   ENDIF
+ELSE
+   TRANSF = 1.
+ENDIF
+
+END FUNCTION TRANSF
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
@@ -2259,7 +2693,7 @@ REAL FUNCTION TRANSF2 (XK, D)
 !     PURPOSE.
 !     --------
 !                                                                              !
-!           DETERMINATION OF THENARROW BAND LIMIT BENJAMIN-FEIR INDEX FOR      !
+!           DETERMINATION OF THE NARROW BAND LIMIT BENJAMIN-FEIR INDEX FOR     !
 !           THE FINITE DEPTH CASE.                                             !
 !
 !           BF**2 = (2 S^2)/SIG_OM^2) . TRANSF2(XK,D)
@@ -2286,7 +2720,7 @@ REAL ::  X, T_0, OM, C_0, C_S, V_G, D2OM, XNL_1, XNL_2, T_NL
 !        ----------------------------
 
 X   = MIN(XK*D, DKMAX)
-X   = MAX(X, 0.5)
+X   = MAX(X, 0.05)
 T_0 = TANH(X)
 OM  = SQRT(G*XK*T_0)
 C_0 = OM/XK
@@ -2301,7 +2735,5 @@ T_NL = XK**3*(XNL_1-XNL_2)
 TRANSF2 = (V_G/C_0)**2*G*T_NL/XK**4/D2OM
 
 END FUNCTION TRANSF2
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 END MODULE WAM_INTERFACE_MODULE

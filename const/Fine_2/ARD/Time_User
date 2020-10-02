@@ -1,0 +1,87 @@
+C                                                                               
+C            INPUT OF PROGRAM PRINT_TIME                                    
+C            ===========================                                   
+C                                                                               
+C        USER INFORMATION IS BEING READ BY SUB. READ__WAM_USER
+C        WITH THE PRESUMPTIONS THAT:
+C         1. EVERY LINE STARTING WITH 'C' OR 'c' IS A COMMENT LINE
+C         2. VALUES ARE PUT IN BELOW POSITIONS INDICATED WITH '-'
+C         3. IF VALUES ARE NOT SPECIFIED DEFAULT VALUES WILL BE USED.
+C         4. VALUES MARKED BY C => MUST BE DEFINED BY THE USER.
+C         5. DEFAULT VALUES ARE DEFINED BY SUB. CLEAR_PRINT_USER_MODULE
+C            CONTAINED IN WAM_PRINT_USER_MODULE.
+C
+C ------------------------------------------------------------------------------
+C                                                                               
+C
+C           **** PERIOD OF MODEL RUN ****
+C
+C =>    CDATEA  START DATE OF  RUN  (YYYYMMDDHHMMSS)
+C =>    CDATEE  END   DATE OF  RUN  (YYYYMMDDHHMMSS)
+C       IDELDO  OUTPUT TIME STEP                       DEFAULT 1
+C       U       TIME UNIT: M OR m MINUTE; H OR h HOUR; DEFAULT H.
+C                                                                               
+C        CDATEA          CDATEE   IDELDO  U                                           
+C--------------  --------------  -------  -                                            
+ 19780906060000  19780908060000        1  H                                         
+C
+C ------------------------------------------------------------------------------
+C
+C           **** OUTPUT SITES ****                                              
+C                                                                               
+C   SPECIFY A LIST WITH UP TO 20 SITES AND CLOSE THE LIST BY 'END'.
+C
+C           XLONG  = LONGITUDE IN DEGREE                                       
+C           XLAT   = LATITUDE IN DEGREE                                        
+C           NAME   = SITE NAME (UP TO 20 CHARACTER)                            
+C      COORDINATE FORMAT:  REAL DEGREES F13.8    OR
+C                          TEXTSTRING -DDD:MM:SS.SS OR +DDD:MM:SS.SS
+C
+C   XLONG         XLAT       NAME
+C------------- ------------- ---------+---------+
+    10.00        -9.50       Station 1 
+    10.00        -9.00       Station 2 
+    10.00        -8.50       Station 3 
+    10.00        -8.00       Station 4 
+    10.00        -7.50       Station 5 
+    10.00        -7.00       Station 6 
+    10.00        -5.50       Station 7
+    10.00        -5.00       Station 8
+    10.00        -4.50       Station 9 
+    10.00          .00       Station 10 
+    10.00         1.00       Station 11
+    10.00         2.00       Station 12
+    10.00         3.00       Station 13
+    10.00         4.00       Station 14
+    10.00         5.00       Station 15
+    10.00         6.00       Station 16
+    10.00        10.00       Station 17                                                                              
+C                                                                               
+ END      THE INPUT LIST HAS TO BE CLOSED BY THIS END LINE                                                      
+C                                                                               
+C ------------------------------------------------------------------------------
+C                                                                               
+C                 **** INPUT DATA FILE ****
+C                                                                               
+C  =>   CDATEF  DATE OF FIRST FILE NAME (YYYYMMDDHHMMSS)                      
+C       IDELFI  FILE TIME STEP (IF <=0 A NEW FILE IS NOT USED);  DEFAULT 24                                
+C       U       TIME UNIT: M OR m MINUTE; H OR h HOUR;           DEFAULT H.
+C                                                                               
+C        CDATEF   IDELFI  U                                                   
+C--------------  -------  -                                                  
+ 19780906060000       24  H                                                 
+C                                                                               
+C           **** INPUT AND OUTPUT FILE NAMES ****    
+C
+C    THE PROGRAM OPENS AUTOMATICALLY THE FOLLOWING FILES, WHICH ARE 
+C    DEFINED IN "PRINT_TIME.f90":
+C
+C       FILE05 = 'Time_User' TO READ THIS INPUT FILE.
+C       FILE06 = 'Time_Prot' TO WRITE A PROTOCOL.
+C    
+C  => INTEGRATED DATA FILE IDENTIFIER (UNIT = IU01, UNFORMATED INPUT)
+C---------+---------+---------+---------+---------+---------+---------+         
+ MAP2
+C ------------------------------------------------------------------------------
+C         END OF USER INPUT PROGRAM PRINT_TIME.                                      
+C ------------------------------------------------------------------------------

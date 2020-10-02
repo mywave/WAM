@@ -1,7 +1,7 @@
 program make_netcdf
 
 ! ---------------------------------------------------------------------------- !
-!                                                                              !    
+!                                                                              !
 !     *make_netcdf* - change output from binary format to NetCDF    ---------- !
 !                                                                              !
 !     A. Behrens    Helmholtz-Zentrum Geesthacht       March 2011   ---------- !
@@ -61,11 +61,9 @@ use wam_netcdf_module
 USE WAM_PRINT_MODULE, ONLY: ITEST,                                             &
 &                           CDATEA, CDATEE, IDELDO,                            &
 &                           IU01, FILE01, CDTFILE, IDFILE,                     &
-&                           NX, NY, GRID
-
-USE WAM_OUTPUT_SET_UP_MODULE,ONLY: CDTINTT, NOUTT, COUTT,                      &
-&                                  NOUT_P, PFLAG_P, CFLAG_P,                   &
-&                                  TITL_P, SCAL_P, idelint
+&                           NX, NY, GRID, TITL_P, SCAL_P, DIR_FLAG,            &
+&                           CDTINTT, NOUTT, COUTT,                             &
+&                           NOUT_P, PFLAG_P, CFLAG_P
 
 IMPLICIT NONE
 
@@ -87,9 +85,10 @@ integer, allocatable, dimension (:)  :: nlon_rg
 integer, allocatable, dimension (:)  :: zdello
 real, allocatable, dimension (:)     :: rzdello
 real, allocatable, dimension (:,:,:) :: reg_grid
-    
+
 character (len=14) :: cstart
 integer :: iwest, ieast, isouth, inorth, iredu
+real    :: zmiss = -9999999.
 real    :: dnx, dny, amowep, amosop, amoeap, amonop, xdella, xdello
 
 ! ---------------------------------------------------------------------------- !
@@ -102,7 +101,7 @@ namelist /nlnetcdf/ cdatea, cdatee, ideldo, cflag_p, cdtfile, idfile,          &
 
 OPEN (UNIT=IU05, FILE=FILE05, FORM="FORMATTED", STATUS="OLD")
 OPEN (UNIT=IU06, FILE=FILE06, FORM="FORMATTED", STATUS="UNKNOWN")
-     
+
 !*    1.1 read namelist user input
 !         ------------------------
 
@@ -126,12 +125,12 @@ endif
 !         ------------------------------------------------
 
 IF (NOUTT.GT.0) THEN
-   CDATEE = '  '                                                             
-   CDATEA = COUTT(1)                                                      
-   DO I = 1,NOUTT                                                      
-      IF (COUTT(I).LT.CDATEA) CDATEA = COUTT(I)                                       
-      IF (COUTT(I).GT.CDATEE) CDATEE = COUTT(I)                                       
-   END DO                                                              
+   CDATEE = '  '
+   CDATEA = COUTT(1)
+   DO I = 1,NOUTT
+      IF (COUTT(I).LT.CDATEA) CDATEA = COUTT(I)
+      IF (COUTT(I).GT.CDATEE) CDATEE = COUTT(I)
+   END DO
 END IF
 CDTINTT = '  '
 
@@ -151,14 +150,14 @@ FILES: DO
 
 !     2.2  LOOP OVER OUTPUT TIMES.
 !          -----------------------
-    
-    TIMES: DO   
-    
+
+    TIMES: DO
+
 !     2.2.1 READ IN WIND AND WAVE FIELDS.
 !           -----------------------------
 
       read (iu01,err=999,end=999,iostat=ios) cdtintt, dnx, dny,              &
-&                                  iwest, isouth, ieast, inorth, cstart    
+&                                  iwest, isouth, ieast, inorth, cstart
       amowep = m_sec_to_deg (iwest)
       amoeap = m_sec_to_deg (ieast)
       amosop = m_sec_to_deg (isouth)
@@ -182,7 +181,7 @@ FILES: DO
             read (iu01,err=999,end=999) grid(:,:,i)
             if (iredu==1) then
                call reduced_to_regular (grid(:,:,i), reg_grid(:,:,i),        &
-&                                       nlon_rg, rzdello, xdello)
+&                   nlon_rg, rzdello, xdello, zmiss, dir_flag(i))
             endif
          endif
       enddo
@@ -202,7 +201,7 @@ FILES: DO
 
       WRITE (IU06,*) ' '
       IF (FRSTIME) THEN
- 
+
 !*       open NetCDF file
 !        ----------------
 
@@ -216,14 +215,15 @@ FILES: DO
          write (iu06,*) ' +++ idelint, nx, ny, amosop, amowep, xdella, xdello : ',  &
 &                             idelint, nx, ny, amosop, amowep, xdella, xdello
          DO I = 1,NOUT_P
+           WRITE(IU06,*) PFLAG_P(I), '  ', CFLAG_P(I), '  ', TITL_P(I)                   !! WAM-MAX
            IF (.NOT.PFLAG_P(I) .AND. CFLAG_P(I)) THEN
               WRITE(IU06,*) TITL_P(I), 'IS NOT STORED IN FILE'
             END IF
-         END DO     
+         END DO
          FRSTIME = .FALSE.
-         WRITE (IU06,*) ' ' 
+         WRITE (IU06,*) ' '
       END IF
- 
+
       do i = 1,nout_p
          if (pflag_p(i).and.cflag_p(i)) then
             if (iredu==1) then
@@ -242,18 +242,18 @@ FILES: DO
       IF (CDATEA.GT.CDATEE) EXIT FILES
       if (cdatea>cdtfile) exit times
    END DO TIMES
-   
+
    CALL INCDATE (CDTFILE, IDFILE)       !! INCREMENT DATE FOR THE NEXT FILE.
    if (cdtfile>cdatee) exit files
    CLOSE (UNIT=IU01, STATUS='KEEP')     !! CLOSE OLD FILE
 END DO FILES
- 
+
 call wkncc                              !! close NetCDF file
 999 stop
 
 ! ---------------------------------------------------------------------------- !
 
-CONTAINS 
+CONTAINS
 
 SUBROUTINE NEXT_OUTPUT_TIME
 IF (NOUTT.EQ.0) THEN

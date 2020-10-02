@@ -12,10 +12,14 @@ MODULE WAM_COLDSTART_MODULE
 ! ---------------------------------------------------------------------------- !
 
 USE WAM_GENERAL_MODULE, ONLY: &
-&       ABORT1                     !! ABORT PROCESSING.
-USE WAM_WIND_MODULE,    ONLY: &
-&       WAM_WIND                   !! READ AND PREPARE WINDS.
+&       ABORT1                    !! ABORT PROCESSING.
 
+USE WAM_WIND_MODULE,    ONLY: &
+&       WAM_WIND                  !! READ AND PREPARE WINDS.
+
+USE WAM_JONSWAP_MODULE, ONLY: &
+&      FETCH_LAW,             &   !! COMPUTE JONSWAP PARAMETERS FROM FETCH LAW.
+&      JONSWAP                    !! COMPUTE JONSWAP SPECTRA.
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
 !     B. VARIABLES FROM OTHER MODULES.                                         !
@@ -32,6 +36,8 @@ USE WAM_MODEL_MODULE,   ONLY: FL3, U10, UDIR
 
 USE WAM_TIMOPT_MODULE,  ONLY: CDATEA, CDATEE, CDTPRO, CDTSOU,                 &
 &                             CDA, CDTA, CDCA, COLDSTART
+
+USE WAM_TABLES_MODULE,  ONLY: FLMINFR
 
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST
 
@@ -104,11 +110,6 @@ PUBLIC SET_C_START_PAR
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
-INTERFACE FETCH_LAW              !! COMPUTE JONSWAP PARAMETERS FROM FETCH LAW.
-   MODULE PROCEDURE FETCH_LAW
-END INTERFACE
-PRIVATE FETCH_LAW
-
 INTERFACE SPECTRA                !! COMPUTATION OF 2-D SPECTRA.
    MODULE PROCEDURE SPECTRA
 END INTERFACE
@@ -155,10 +156,7 @@ SUBROUTINE PREPARE_COLDSTART
 !     LOCAL VARIABLES.                                                         !
 !     ----------------                                                         !
 
-INTEGER :: ij
-
-real, allocatable, dimension (:) :: rudir
-real, allocatable, dimension (:) :: ru10
+REAL, PARAMETER :: ZDP=2./PI
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -175,14 +173,8 @@ CDCA    = ' '     !! CURRENTS
 !     2. PREPARE FIRST WINDFIELD.                                              !
 !        ------------------------                                              !
 
-allocate (ru10(nsea), rudir(nsea))
 CDA = CDATEA
-CALL WAM_WIND (ru10, rudir, CDA)
-
-u10(nijs:nijl)  = ru10(nijs:nijl)
-udir(nijs:nijl) = rudir(nijs:nijl)
-
-deallocate (ru10, rudir)
+CALL WAM_WIND (u10, udir, CDA)
 
 IF (ITEST.GE.3) THEN
       WRITE (IU06,*) '      SUB. PREPARE_COLDSTART: WAM_WIND DONE'
@@ -203,34 +195,29 @@ IF (ALLOCATED(THES )) DEALLOCATE(THES)
    
 ALLOCATE (FP(nijs:nijl), ALPHJ(nijs:nijl), THES(nijs:nijl))
 
-IF (IOPTI.EQ.0) THEN
-   FP = FM
-   ALPHJ = ALFA
-   THES = THETAQ
-ELSE IF (IOPTI.EQ.1) THEN
-   FP = FM
-   ALPHJ = 0.
-   do ij=nijs,nijl
-      THES(ij)  = UDIR(ij)
-   enddo
-ELSE IF (IOPTI.EQ.2) THEN
-   FP = FM
-   ALPHJ = ALFA
-   do ij= nijs,nijl
-      if (u10(ij)>0.1E-08) then
-         thes(ij) = udir(ij)
-      else
-         thes(ij) = thetaq
-      endif
-   enddo
-END IF
-
 IF (IOPTI.NE.0) THEN
    IF (FETCH.LT.0.1E-5) FETCH = 0.5*DELPHI
-   CALL FETCH_LAW (FETCH, FM, U10)
+   CALL FETCH_LAW (FETCH, FM, U10, ALPHJ, FP)
    IF (ITEST.GE.3) THEN
       WRITE (IU06,*) '      SUB. PREPARE_COLDSTART: FETCH_LAW DONE'
    END IF
+END IF
+
+IF (IOPTI.EQ.0) THEN
+   FP(:)    = FM
+   ALPHJ(:) = ALFA
+   THES(:)  = THETAQ
+ELSE IF (IOPTI.EQ.1) THEN
+   WHERE (u10(:).LE.0.1E-08) ALPHJ(:) = 0.
+   THES(:)  = UDIR(:)
+ELSE IF (IOPTI.EQ.2) THEN
+   WHERE (u10(:).LE.0.1E-08)
+      FP(:)    = FM
+      ALPHJ(:) = ALFA
+      THES(:)  = THETAQ
+   ELSEWHERE
+      THES(:)  = UDIR(:)
+   END WHERE
 END IF
 
 ! ---------------------------------------------------------------------------- !
@@ -243,7 +230,7 @@ IF (ITEST.GE.3) WRITE (IU06,*) '      SUB. PREPARE_COLDSTART: SPECTRA DONE'
 
 DEALLOCATE (FP, ALPHJ, THES)
 
-END SUBROUTINE  PREPARE_COLDSTART
+END SUBROUTINE PREPARE_COLDSTART
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
@@ -349,74 +336,6 @@ END SUBROUTINE SET_C_START_PAR
 !                                                                              !
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE FETCH_LAW (FETCH, FPMAX, U10)
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!   FETCH_LAW - COMPUTE JONSWAP PARAMETERS FROM FETCH LAW.                     !
-!                                                                              !
-!     S. HASSELMANN  - JULY 1990                                               !
-!     H. GUNTHER     - DECEMBER 1990   MODIFIED FOR CYCLE_4.                   !
-!                                                                              !
-!     PURPOSE.                                                                 !
-!     --------                                                                 !
-!                                                                              !
-!       COMPUTES FOR EACH GRID POINT THE PEAK FREQUENCY FROM A FETCH LAW       !
-!       AND THE JONSWAP ALPHA FROM THE ALPHA NY RELATION.                      !
-!                                                                              !
-!     METHOD.                                                                  !
-!     -------                                                                  !
-!                                                                              !
-!       FP = A * (G*FETCH/U_10**2)**D    A = 2.84                              !
-!       FP = MAX [FP, 0.13]              D = -3./10.                           !
-!       FP = MIN [FP, FRMAX*U_10/G]                                            !
-!       ALPHJ = B * FP**2/3              B = 0.033                             !
-!       ALPHJ = MAX [ALPHJ, 0.0081]                                            !
-!       FP = G/U_10*FP                                                         !
-!                                                                              !
-!     REFERENCES.                                                              !
-!     -----------                                                              !
-!                                                                              !
-!       K.HASSELMAN,D.B.ROOS,P.MUELLER AND W.SWELL                             !
-!          A PARAMETRIC WAVE PREDICTION MODEL                                  !
-!          JOURNAL OF PHSICAL OCEANOGRAPHY, VOL. 6, NO. 2, MARCH 1976.         !
-!                                                                              !
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     INTERFACE VARIABLES.                                                     !
-!     --------------------                                                     !
-
-REAL,    INTENT(IN) :: FETCH          !! FETCH TO BE USED (METRES).
-REAL,    INTENT(IN) :: FPMAX          !! MAXIMUM PEAK FREQUENCY (HERTZ).
-REAL,    INTENT(IN) :: U10(:)         !! MODULUS OF WIND VELOCITY [M/S].
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     LOCAL VARIABLES.                                                         !
-!     ----------------                                                         !
-
-REAL, PARAMETER :: A = 2.84,  D = -(3./10.) !! PEAKFREQUENCY FETCH LAW CONSTANTS
-REAL, PARAMETER :: B = 0.033, E = 2./3.     !! ALPHA-PEAKFREQUENCY LAW CONSTANTS
-
-REAL :: UG(SIZE(U10))
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     1. COMPUTE VALUES FROM FETCH LAWS.                                       !
-!        -------------------------------                                       !
-
-WHERE (U10 .GT. 0.1E-08)
-   UG = G/U10
-   FP = MAX(0.13, A*((G*FETCH)/(U10**2))**D)
-   FP = MIN(FP, FPMAX/UG)
-   ALPHJ = MAX(0.0081, B * FP**E)
-   FP = FP*UG
-END WHERE
-
-END SUBROUTINE FETCH_LAW
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
 SUBROUTINE SPECTRA (FL3)
 
 ! ---------------------------------------------------------------------------- !
@@ -460,31 +379,19 @@ REAL, INTENT(OUT) :: FL3(:,:,:)      !! block of 2-d spectr.
 !     ----------------                                                         !
 
 REAL, PARAMETER :: ZDP=2./PI
-REAL, PARAMETER :: PIRHF = G**2/(ZPI**4)  !! PM SPECTRUM FACTOR
+REAL, PARAMETER :: GAMMA = 3.000000
+REAL, PARAMETER :: SA=7.000000E-02
+REAL, PARAMETER :: SB=9.000000E-02
 
 INTEGER :: M, K
-REAL    :: FRH, SIGMA(SIZE(FL3,1)), ARG(SIZE(FL3,1))
-REAL    :: ST(SIZE(FL3,1),SIZE(FL3,2)),                          &
-&          ET(SIZE(FL3,1),SIZE(FL3,3))
+REAL    :: ST(SIZE(FL3,1),SIZE(FL3,2)), ET(SIZE(FL3,1),SIZE(FL3,3))
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. COMPUTE JONSWAP SPECTRUM.                                             !
 !        -------------------------                                             !
 
-ET = 0.
-DO M = 1,ML
-   FRH = FR(M)
-   ARG = 1.25*(FP/FRH)**4
-   WHERE (ARG.LT.99.) ET(:,M) = ALPHJ*PIRHF/FRH**5*EXP(-ARG)
-   SIGMA = SA
-   WHERE (FRH.GT.FP) SIGMA = SB
-   ARG = .5*((FRH-FP) / (SIGMA*FP))**2
-   
-   WHERE (ARG.LT.99.) ET(:,M) = ET(:,M)*exp(log(GAMMA)*EXP(-ARG))
-!AB   WHERE (ARG.LT.99.) ET(:,M) = ET(:,M)*GAMMA**EXP(-ARG)
-    
-END DO
+CALL JONSWAP (FR, ALPHJ, GAMMA, SA, SB, FP, ET)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !

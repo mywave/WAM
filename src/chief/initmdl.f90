@@ -89,10 +89,7 @@ USE WAM_OUTPUT_MODULE,       ONLY: &
 USE WAM_PROPAGATION_MODULE,  ONLY: &
 &       PREPARE_PROPAGATION          !! PREPARES PROPAGATION, DOES CFL CHECK.
 
-USE WAM_RADIATION_MODULE,    ONLY: &
-&       PREPARE_RADIATION            !! PREPARES RADIATION MODULE.
-
-USE WAM_RESTART_MODULE,      ONLY: & 
+USE WAM_RESTART_MODULE,      ONLY: &
 &       PREPARE_RESTART_FILE         !! PREPARES RESTART_FILE.
 
 USE WAM_SOURCE_MODULE,       ONLY: & 
@@ -109,16 +106,21 @@ use wam_assi_set_up_module,  only: &
 !     MODULE VARIABLES.                                                        !
 !     -----------------                                                        !
 
-USE WAM_FILE_MODULE, ONLY: IU06, FILE06, ITEST, IU20, IU25, FILE20, FILE25
-USE WAM_NEST_MODULE, ONLY: COARSE, FINE
+USE WAM_FILE_MODULE,          ONLY: IU06, FILE06, ITEST, IU20, IU25,           &
+&                                   FILE20, FILE25
+USE WAM_GENERAL_MODULE,       ONLY: BETAMAX, BETAMAX_ARD, ZALP, ZALP_ARD,      &
+&                                   ALPHA, ALPHA_ARD,                          &
+&                                   TAUWSHELTER, TAUWSHELTER_ARD
+
+USE WAM_GRID_MODULE,          ONLY: REDUCED_GRID
+USE WAM_NEST_MODULE,          ONLY: COARSE, FINE
 
 USE WAM_OUTPUT_SET_UP_MODULE, ONLY: CDTINTT, CDTSPT, CDT_OUT, IDEL_OUT
-USE WAM_TIMOPT_MODULE,        ONLY: CDTPRO
-
-use wam_grid_module,        only: nsea, klat, klon, nx
-use wam_mpi_module,         only: ninf
-use wam_model_module,       only: fl3
-use wam_assi_set_up_module, only: iassi
+USE WAM_TIMOPT_MODULE,        ONLY: CDTPRO, IPHYS, SPHERICAL_RUN
+USE WAM_FRE_DIR_MODULE,       ONLY: ML
+use wam_mpi_module,           only: ninf,nsup, nijs, nijl
+use wam_model_module,         only: fl3, DEPTH
+use wam_assi_set_up_module,   only: iassi
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -145,19 +147,51 @@ IF (ITEST.GE.2) WRITE(IU06,*) '   SUB. INITMDL: READ_PREPROC_FILE DONE'
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
+!     2.1 CORRECT ALPHA PARAMETER IF LESS THAN 30 FREQUENCIES.                 !
+!         ----------------------------------------------------                 !
+
+IF(IPHYS.EQ.1) THEN
+   BETAMAX = BETAMAX_ARD
+   ZALP = ZALP_ARD
+   ALPHA = ALPHA_ARD
+   TAUWSHELTER = TAUWSHELTER_ARD
+ENDIF
+
+IF (ML.LE.30) ALPHA = 0.0075
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     2.2 check options.                                                       !
+!         --------------                                                       !
+
+IF (.NOT.SPHERICAL_RUN .AND. REDUCED_GRID) THEN
+   WRITE (IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' +             WARNING ERROR SUB.INITMDL.            +'
+   WRITE (IU06,*) ' +        ===================================        +'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' + CARTEASIAN PROPAGATION ON A REDUCED GRID IS NOT   +'
+   WRITE (IU06,*) ' + IMPLEMENTED.                                      +'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' +               MODEL CONTINUES                     +'
+   WRITE (IU06,*) ' +             WITH SPHERICAL PROPAGATION            +'
+   WRITE (IU06,*) ' +                                                   +'
+   WRITE (IU06,*) ' +++++++++++++++++++++++++++++++++++++++++++++++++++++'
+   SPHERICAL_RUN = .TRUE.
+END IF
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
 !     2.5 Decomposition of grid domain among processes.
 !         ---------------------------------------------
 
-call mpi_decomp 
-if (itest>=2)  write (iu06,*) '   mpi_decomp: mpi_decomp'
+call mpi_decomp
+if (itest>=2)  write (iu06,*) '   SUB. INITMDL: mpi_decomp: mpi_decomp'
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     3. PREPARE START SPECTRA WINDS, TOPO AND CURRENTS.                       !
 !        -----------------------------------------------                       !
-
-WHERE (KLAT .EQ. 0) KLAT = NINF-1  !! UPDATE KLAT AND KLON FOR DECOMPOSED GRID.
-WHERE (KLON .EQ. 0) KLON = NINF-1
 
 CALL PREPARE_START
 IF (ITEST.GE.2) WRITE(IU06,*) '   SUB. INITMDL: PREPARE_START DONE'
@@ -175,7 +209,7 @@ IF (ITEST.GE.2) WRITE(IU06,*) '   SUB. INITMDL: PREPARE_PROPAGATION DONE'
 !     5. PREPARE SOURCE FUNCTIONS.                                             !
 !        -------------------------                                             !
 
-CALL PREPARE_SOURCE
+CALL PREPARE_SOURCE (DEPTH(NIJS:NIJL))
 IF (ITEST.GE.2) WRITE (IU06,*) '   SUB. INITMDL: PREPARE_SOURCE DONE'
 
 ! ---------------------------------------------------------------------------- !
@@ -183,7 +217,7 @@ IF (ITEST.GE.2) WRITE (IU06,*) '   SUB. INITMDL: PREPARE_SOURCE DONE'
 !     6. PREPARE OUTPUT FOR INTEGRATED PARAMETER AND/OR SPECTRA.               !
 !        -------------------------------------------------------               !
 
-CALL PREPARE_OUTPUT   
+CALL PREPARE_OUTPUT
 IF (ITEST.GE.2)  WRITE(IU06,*) '   SUB. INITMDL: PREPARE_OUTPUT DONE'
 
 ! ---------------------------------------------------------------------------- !
@@ -208,18 +242,8 @@ END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     9. INITIALIZE RADIATION COMPUTATIONS AND OUTPUT.                         !
-!        ---------------------------------------------                         !
-
-CALL PREPARE_RADIATION (FL3)
-IF (ITEST.GE.2) THEN
-   WRITE (IU06,*) '    SUB. INITMDL: PREPARE_RADIATION DONE '
-END IF
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!    10. PREPARE ASSIMILATION.                                                 !
-!
+!     9. PREPARE ASSIMILATION.                                                 !
+!        ---------------------                                                 !
 
 if (iassi==1) then
    call prepare_assimilation

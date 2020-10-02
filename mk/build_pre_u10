@@ -1,0 +1,19 @@
+#!/bin/sh
+set -ex
+. ${0%/*}/.dirset
+path_o=${PRODADMDIR}/obj
+path_f=${PRODADMDIR}/src/box
+   
+module load compilers/intel/2019.4.243
+module load intelmpi/2019.4.243
+module load netcdf
+     
+modfile="incdate pre_u10"
+
+cd $path_o
+
+cp ${path_f}/pre_u10.f90 ${path_o}
+cp ${path_f}/incdate.f90 ${path_o}
+ifort pre_u10.f90 incdate.f90 -o pre_u10
+rm -f pre_u10.f90 incdate.f90
+mv pre_u10 ../abs

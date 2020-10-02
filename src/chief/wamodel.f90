@@ -212,14 +212,13 @@ USE WAM_PROPAGATION_MODULE,   ONLY: &
 &       PROPAGS,                    & !! PROPAGATION SCHEME.
 &       PREPARE_PROPAGATION
 
-USE WAM_RADIATION_MODULE,     ONLY: &
-&       RADIATION_STRESS              !! COMPUTE RQADIATION STRESS.
-
 USE WAM_RESTART_MODULE,       ONLY: &
 &       SAVE_RESTART_FILE             !! SAVES RESTART FILES.
 
 USE WAM_SOURCE_MODULE,        ONLY: &
-&       IMPLSCH                       !! INTEGRATION OF SOURCE FUNCTION.
+&       IMPLSCH,                    & !! INTEGRATION OF SOURCE FUNCTION.
+&       MAKE_SHALLOW_SNL              !! COMPUTE THE NONLINEAR TRANSFER FUNCTION
+                                      !! COEFFICIENTS FOR SHALLOW WATER.
 
 USE WAM_TOPO_MODULE,          ONLY: &
 &       PUT_DRY,                    & !! PUTS DRY INDICATOR INTO DATA FILED.
@@ -242,25 +241,23 @@ USE WAM_FILE_MODULE,          ONLY: IU06, ITEST, IU20, IU25, FILE20, FILE25
 
 USE WAM_ICE_MODULE,           ONLY: ICE_RUN, CD_ICE_NEW
 
-USE WAM_MODEL_MODULE,         ONLY: FL3, U10, UDIR, USTAR, TAUW, Z0,           &
-&                                   DEPTH, INDEP
+USE WAM_MODEL_MODULE,         ONLY: FL3, U10, UDIR, USTAR, TAUW, Z0,  ROAIRN, &
+&                                   WSTAR, DEPTH, INDEP
 
 USE WAM_NEST_MODULE,          ONLY: COARSE, FINE
 
 USE WAM_OUTPUT_SET_UP_MODULE, ONLY: CDTINTT, CDTSPT, CDT_OUT, IDEL_OUT,        &
-&                                   fflag20, fflag25
+&                                   fflag20, fflag25, CFLAG_P
 
 USE WAM_PROPAGATION_MODULE,   ONLY: NADV
-
-USE WAM_RADIATION_MODULE,     ONLY: CDTOUT
 
 USE WAM_RESTART_MODULE,       ONLY: CDT_RES
 
 USE WAM_TIMOPT_MODULE,        ONLY: CDATEE, CDTPRO, CDTSOU, IDELPRO, IDELT,    &
 &                                   SHALLOW_RUN, CDATEWO,                      &
 &                                   CDTA, TOPO_RUN, CD_TOPO_NEW,               &
-&                                   CDCA, CURRENT_RUN, CD_CURR_NEW, cdtstop
-
+&                                   CDCA, CURRENT_RUN, CD_CURR_NEW, cdtstop,   &
+&                                   LCFLX
 use wam_grid_module,          only: one_point
 use wam_mpi_module,           only: nijs, nijl
 use wam_assi_set_up_module,   only: iassi, cdtass
@@ -305,9 +302,15 @@ PROP: DO KADV = 1,NADV
    IF (TOPO_RUN) THEN
       IF (CDTPRO.GE.CD_TOPO_NEW) THEN
          CALL GET_TOPO (CD_TOPO_NEW)
+
          NEW_DEPTH_OR_CURR = .TRUE.
          IF (ITEST.GE.2) THEN
             WRITE(IU06,*) '   SUB. WAMODEL: NEW DEPTH FIELD CDTA = ',CDTA
+         END IF
+
+         CALL MAKE_SHALLOW_SNL (DEPTH(nijs:nijl))
+         IF (ITEST.GE.2) THEN
+            WRITE (IU06,*) '   SUB. WAMODEL: MAKE_SHALLOW_SNL DONE '
          END IF
       END IF
    END IF
@@ -324,10 +327,10 @@ PROP: DO KADV = 1,NADV
 
 !     1.3 COMPUTE OF PROPAGATION.                                              !
 !         -----------------------                                              !
-   
+
     IF (.NOT. ONE_POINT) THEN
        CALL PROPAGS (FL3)
-    END IF
+    END If
 
 !     1.4 SOURCE INTEGRATION AND LOOP.                                         !
 !         -----------------------------                                        !
@@ -336,6 +339,9 @@ PROP: DO KADV = 1,NADV
    CALL INCDATE (CDTSOE,IDELT)
 
    PHYSICS: DO WHILE (CDTSOE.LE.CDTPRO)
+      LCFLX = CDTINTT.EQ.CDTSOE .AND. ANY(CFLAG_P (59:62))
+
+
       IF (ITEST.GE.2) THEN
          WRITE(IU06,*) '   SUB. WAMODEL: START OF SOURCE INTEGRATION AT ',     &
 &                      'CDTSOU = ',CDTSOU
@@ -344,9 +350,9 @@ PROP: DO KADV = 1,NADV
       IF (CDTSOE.GE.CDATEWO) THEN         !! NEW WINDS IF NEEDED
          CALL GET_WIND (CDATEWO)
       END IF
-!AB
-      call implsch (fl3, u10, udir, tauw, ustar, z0,                          &
-&                                         depth(nijs:nijl), indep(nijs:nijl))
+
+      CALL IMPLSCH (FL3, U10, UDIR, TAUW, USTAR, Z0, ROAIRN, WSTAR,            &
+&                          DEPTH(NIJS:NIJL), INDEP(NIJS:NIJL))
 
       CDTSOU = CDTSOE                     !! UPDATE SOURCE TIME.
       CALL INCDATE (CDTSOE,IDELT)
@@ -434,17 +440,8 @@ PROP: DO KADV = 1,NADV
 
    if (cdt_res==cdtpro.and.cdt_res<=cdtstop) call save_restart_file
 
-!     1.10 RADIATION STRESS.                                                   !
-!          -----------------                                                   !
 
-   IF (CDTPRO.EQ.CDTOUT) THEN
-      CALL RADIATION_STRESS (fl3)
-      IF (ITEST.GE.2) THEN
-         WRITE (IU06,*) '   SUB. WAMODEL: RADIATION_STRESS DONE '
-      END IF
-   END IF
-
-!     1.11 PRINT TIME.                                                         !
+!     1.10 PRINT TIME.                                                         !
 !          -----------                                                         !
 
    WRITE (IU06,'(/,3X,''!!!!!!!!!!!!!! WAVE FIELDS INTEGRATED  DATE IS: '',    &

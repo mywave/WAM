@@ -21,9 +21,13 @@ USE WAM_OUTPUT_SET_UP_MODULE, ONLY: &
 &       SET_OUTPUT_SITES,           & !! SET OUTPUT SITES FOR SPECTRA.
 &       SET_OUTPUT_TIMES,           & !! SET OUTPUT TIMES.
 &       set_spectral_code,          & !! set spectral code and output time period
+&       set_wammax_options,         & !! set wam-max time/space-time options       !! WAM-MAX
 &       set_ready_outfile_flag,     & !! ready files for integrated parameters ?
 &       set_ready_outfile_directory   !! set full path name of output ready file
                                       !! diectory (integrated parameters)
+
+USE WAM_GENERAL_MODULE, ONLY:       & !! Sets Betamax
+&       SET_GENERAL_MODULE
 
 USE WAM_WIND_MODULE,      ONLY:     &
 &       SET_WIND_TIMESTEPS,         & !! SET WIND TIMESTEPS.
@@ -67,10 +71,6 @@ USE WAM_FILE_MODULE,      ONLY:     &
 &       SET_MAP_FILE,               & !! INTEGRATED DATA FILE (UNFORM. OUTPUT).
 &       SET_SPECTRA_FILE              !! SPECTRA DATA FILE (UNFORM. OUTPUT).
 
-USE WAM_RADIATION_MODULE, ONLY:     &
-&       SET_RADIATION_TIMES,        & !! SETS TIMES FOR RADIATION STRESS COMP.
-&       SET_RADIATION_FILE            !! SETS FILE FOR RADIATION OUTPUT.         
-
 USE WAM_RESTART_MODULE,   ONLY:     &
 &       SET_RESTART_FILE_STEP         !! SETS RESTART FILE TIMESTEP.
 
@@ -105,15 +105,15 @@ CHARACTER (LEN=14) :: END_DATE   = ' '  !! END DATE OF RUN.
 
 ! ---------------------------------------------------------------------------- !
 
-LOGICAL :: COLDSTART     !! TRUE = COLDSTART, FALSE = HOT START. 
+LOGICAL :: COLDSTART     !! TRUE = COLDSTART, FALSE = HOT START.
 
 INTEGER :: IOPTI         !! COLD START OPTION:
-                         !! =  0 WIND INDEPENDENT INITIAL VALUES.                              
-                         !! =  1 WIND DEPENDENT INITIAL VALUES AND                             
-                         !!      ENERGY EQUAL ZERO IF WINDSPEED IS ZERO                        
-                         !! =  2 WIND DEPENDENT INITIAL VALUES AND                             
-                         !!      ENERGY COMPUTED FROM GIVEN PARAMETERS IF                      
-                         !!      WINDSPEED IS ZERO.                                            
+                         !! =  0 WIND INDEPENDENT INITIAL VALUES.
+                         !! =  1 WIND DEPENDENT INITIAL VALUES AND
+                         !!      ENERGY EQUAL ZERO IF WINDSPEED IS ZERO
+                         !! =  2 WIND DEPENDENT INITIAL VALUES AND
+                         !!      ENERGY COMPUTED FROM GIVEN PARAMETERS IF
+                         !!      WINDSPEED IS ZERO.
 
 REAL :: ALPHA     !! PHILLIPS' PARAMETER  (NOT USED IF IOPTI = 1)
 REAL :: FM        !! PEAK FREQUENCY (HZ) AND/OR MAXIMUM FREQUENCY
@@ -121,20 +121,30 @@ REAL :: GAMMA     !! OVERSHOOT FACTOR
 REAL :: SIGMA_A   !! LEFT PEAK WIDTH
 REAL :: SIGMA_B   !! RIGHT PEAK WIDTH
 REAL :: THETAQ    !! WAVE DIRECTION (DEG) (NOT USED IF IOPTI = 1)
-REAL :: FETCH     !! FETCH IN METRES (IF ZERO THEN 0.5 OF THE                        
+REAL :: FETCH     !! FETCH IN METRES (IF ZERO THEN 0.5 OF THE
                   ! LATITUDE INCREMENT IS USED.)
 
 ! ---------------------------------------------------------------------------- !
 
-LOGICAL :: SPHERICAL_RUN       !! TRUE: SPHERICAL  PROPAGATION,  
+LOGICAL :: SPHERICAL_RUN       !! TRUE: SPHERICAL  PROPAGATION,
                                !! FALSE: CARTESIAN PROPAGATION.
-LOGICAL :: SHALLOW_RUN         !! TRUE:  SHALLOW WATER MODEL, 
-                               !! FALSE:  DEEP WATER MODEL. 
-LOGICAL :: REFRACTION_D_RUN    !! TRUE: DEPTH REFRACTION ON.                                            
-LOGICAL :: REFRACTION_C_RUN    !! TRUE: CURRENT REFRACTION ON.                                            
-LOGICAL :: WAVE_BREAKING_RUN   !! TRUE: WAVE BREAKING ON.                                          
-LOGICAL :: PHILLIPS_RUN        !! TRUE:  PHILLIPS SOURCE ON.                                          
+LOGICAL :: SHALLOW_RUN         !! TRUE:  SHALLOW WATER MODEL,
+                               !! FALSE:  DEEP WATER MODEL.
+LOGICAL :: REFRACTION_D_RUN    !! TRUE: DEPTH REFRACTION ON.
+LOGICAL :: REFRACTION_C_RUN    !! TRUE: CURRENT REFRACTION ON.
+LOGICAL :: L_OBSTRUCTION       !! FALSE: NO REDUCTION DUE TO SUB-GRID FEATURES.
+LOGICAL :: L_DECOMP            !! TRUE: IF MPI RUN, THEN 1D DECOMPOSITION OF GRID.
+INTEGER :: IPHYS               !! PHYSICS PARAMETERISATION FOR INPUT AND
+                               !! OPEN OCEAN DISSIPATION
+                               !!  0 : ECMWF CY45R1
+                               !!  1 : ECMWF CY46R1, based on Ardhuin et al. 2010
+LOGICAL :: WAVE_BREAKING_RUN   !! TRUE: WAVE BREAKING ON.
+LOGICAL :: PHILLIPS_RUN        !! TRUE:  PHILLIPS SOURCE ON.
+INTEGER :: ISNONLIN            !! = 0 OLD DEPTH SCALING
+                               !! ≠ 0 NEW DEPTH SCALING
 INTEGER :: ITEST               !! TEST OUTPUT UP TO LEVEL.
+
+REAL    :: BETAMAX             !! PARAMETER FOR WIND INPUT
 
 ! ---------------------------------------------------------------------------- !
 
@@ -145,9 +155,9 @@ CHARACTER (LEN=1)  :: SOURCE_TIMESTEP_UNIT
 
 ! ---------------------------------------------------------------------------- !
 
-INTEGER            :: RESTART_SAVE_TIMESTEP 
+INTEGER            :: RESTART_SAVE_TIMESTEP
 CHARACTER (LEN=1)  :: RESTART_SAVE_TIMESTEP_UNIT
-INTEGER            :: RESTART_FILE_UNIT 
+INTEGER            :: RESTART_FILE_UNIT
 CHARACTER (LEN=80) :: RESTART_FILE_NAME
 
 ! ---------------------------------------------------------------------------- !
@@ -155,18 +165,18 @@ CHARACTER (LEN=80) :: RESTART_FILE_NAME
 LOGICAL            :: COARSE_GRID_RUN             !! TRUE: COARSE GRID MODEL.
 INTEGER            :: COARSE_OUTPUT_TIMESTEP
 CHARACTER (LEN=1)  :: COARSE_OUTPUT_TIMESTEP_UNIT
-INTEGER            :: COARSE_FILE_SAVE_TIMESTEP 
+INTEGER            :: COARSE_FILE_SAVE_TIMESTEP
 CHARACTER (LEN=1)  :: COARSE_FILE_SAVE_TIMESTEP_UNIT
 INTEGER            :: COARSE_OUTPUT_FILE_UNIT
 CHARACTER (LEN=80) :: COARSE_OUTPUT_FILE_NAME
 
 LOGICAL            :: FINE_GRID_RUN               !! TRUE: FINE GRID MODEL.
 INTEGER            :: FINE_INPUT_FILE_UNIT
-CHARACTER (LEN=80) :: FINE_INPUT_FILE_NAME 
+CHARACTER (LEN=80) :: FINE_INPUT_FILE_NAME
 
 ! ---------------------------------------------------------------------------- !
 
-INTEGER            :: WIND_INPUT_TIMESTEP 
+INTEGER            :: WIND_INPUT_TIMESTEP
 CHARACTER (LEN=1)  :: WIND_INPUT_TIMESTEP_UNIT
 INTEGER            :: WIND_OUTPUT_TIMESTEP
 CHARACTER (LEN=1)  :: WIND_OUTPUT_TIMESTEP_UNIT
@@ -196,7 +206,7 @@ CHARACTER (LEN=80) :: CURRENT_INPUT_FILE_NAME
 INTEGER            :: ICE_INPUT_TIMESTEP
 CHARACTER (LEN=1)  :: ICE_INPUT_TIMESTEP_UNIT
 INTEGER            :: ICE_INPUT_FILE_UNIT
-CHARACTER (LEN=80) :: ICE_INPUT_FILE_NAME 
+CHARACTER (LEN=80) :: ICE_INPUT_FILE_NAME
 
 ! ---------------------------------------------------------------------------- !
 
@@ -220,9 +230,10 @@ CHARACTER (LEN=14), DIMENSION(MOUTT) :: COUTT  !! SPECIFIED OUTPUT TIMES.
 
 ! ---------------------------------------------------------------------------- !
 
-INTEGER, PARAMETER         :: NOUT_P = 40
+INTEGER, PARAMETER         :: NOUT_P = 70
 LOGICAL, DIMENSION(NOUT_P) :: FFLAG_P         !! FILE PARAMETER OUTPUT FLAG.
 LOGICAL, DIMENSION(NOUT_P) :: PFLAG_P         !! PRINTER PARAMETER OUTPUT FLAG.
+logical :: orientation_of_directions          !! coming from or going to ?
 
 ! ---------------------------------------------------------------------------- !
 
@@ -230,22 +241,13 @@ INTEGER, PARAMETER         :: NOUT_S = 4
 LOGICAL, DIMENSION(NOUT_S) :: FFLAG_S         !! FILE SPECTRA OUTPUT FLAG. 
 LOGICAL, DIMENSION(NOUT_S) :: PFLAG_S         !! PRINTER SPECTRA  OUTPUT FLAG.
 
-INTEGER, PARAMETER         :: MOUTP   = 20
-CHARACTER(LEN=LEN_COOR), DIMENSION(MOUTP) :: OUTLAT 
+INTEGER, PARAMETER         :: MOUTP   = 200
+CHARACTER(LEN=LEN_COOR), DIMENSION(MOUTP) :: OUTLAT
 CHARACTER(LEN=LEN_COOR), DIMENSION(MOUTP) :: OUTLONG
     
 CHARACTER (LEN=20), DIMENSION(MOUTP) :: NAME
 
-! ---------------------------------------------------------------------------- !
-
-INTEGER            :: RADIATION_OUTPUT_TIMESTEP
-CHARACTER (LEN=1)  :: RADIATION_OUTPUT_TIMESTEP_UNIT
-INTEGER            :: RADIATION_FILE_TIMESTEP
-CHARACTER (LEN=1)  :: RADIATION_FILE_TIMESTEP_UNIT
-INTEGER            :: RADIATION_OUTPUT_FILE_UNIT
-CHARACTER (LEN=80) :: RADIATION_OUTPUT_FILE_NAME
-
-INTEGER, PARAMETER         :: NOUT_R = 8
+INTEGER, PARAMETER         :: NOUT_R = 12
 LOGICAL, DIMENSION(NOUT_R) :: FFLAG_R         !! FILE OUTPUT FLAG.
 LOGICAL, DIMENSION(NOUT_R) :: PFLAG_R         !! PRINTER OUTPUT FLAG.
 
@@ -284,6 +286,13 @@ real                :: influence_radius
 real                :: observation_scatter
 real                :: model_scatter
 
+real                :: wammax_dur                                          !! WAM-MAX
+character (len=  5) :: wammax_dur_unit                                     !! WAM-MAX
+real                :: wammax_dx                                           !! WAM-MAX
+character (len=  5) :: wammax_dx_unit                                      !! WAM-MAX
+real                :: wammax_dy                                           !! WAM-MAX
+character (len=  5) :: wammax_dy_unit                                      !! WAM-MAX
+
 ! ---------------------------------------------------------------------------- !
 
 NAMELIST /WAM_NAMELIST/                                                        &
@@ -292,8 +301,10 @@ NAMELIST /WAM_NAMELIST/                                                        &
 &       IOPTI, ALPHA, FM, GAMMA, SIGMA_A, SIGMA_B, THETAQ, FETCH,              &
 &       SPHERICAL_RUN,              SHALLOW_RUN,                               &
 &       REFRACTION_D_RUN,           REFRACTION_C_RUN,                          &
+&       L_OBSTRUCTION,              L_DECOMP,                                  &
+&       BETAMAX,                    IPHYS,                                     &
 &       WAVE_BREAKING_RUN,          PHILLIPS_RUN,                              &
-&       ITEST,                                                                 &
+&       ISNONLIN,                   ITEST,                                     &
 &       PROPAGATION_TIMESTEP,       PROPAGATION_TIMESTEP_UNIT,                 &
 &       SOURCE_TIMESTEP,            SOURCE_TIMESTEP_UNIT,                      &
 &       RESTART_SAVE_TIMESTEP,      RESTART_SAVE_TIMESTEP_UNIT,                &
@@ -321,16 +332,14 @@ NAMELIST /WAM_NAMELIST/                                                        &
 &       SPECTRA_OUTPUT_FILE_UNIT,   SPECTRA_OUTPUT_FILE_NAME,                  &
 &       OUTPUT_FILE_SAVE_TIMESTEP,  OUTPUT_FILE_SAVE_TIMESTEP_UNIT,            &
 &       COUTT,                                                                 &
-&       FFLAG_P,  PFLAG_P,  FFLAG_S,  PFLAG_S,                                 &
+&       FFLAG_P,  PFLAG_P,  FFLAG_S,  PFLAG_S, orientation_of_directions,      &
 &       OUTLAT,   OUTLONG,   NAME,                                             &
-&       RADIATION_OUTPUT_TIMESTEP,  RADIATION_OUTPUT_TIMESTEP_UNIT,            &
-&       RADIATION_FILE_TIMESTEP,    RADIATION_FILE_TIMESTEP_UNIT,              &
-&       RADIATION_OUTPUT_FILE_UNIT, RADIATION_OUTPUT_FILE_NAME,                &
-&       FFLAG_R, PFLAG_R,                                                      &
 &       spectral_code,              hours_2d_spectra,                          &
 &       ready_file_flag,            ready_file_directory,   model_area,        &
 &       ready_outfile_flag,         ready_outfile_directory,                   &
 &       PREPROC_OUTPUT_FILE_UNIT,   PREPROC_OUTPUT_FILE_NAME,                  &
+&       wammax_dur,                 wammax_dx,                                 &  !! WAM-MAX
+&       wammax_dy,                                                             &  !! WAM-MAX
 &       assimilation_flag,          influence_radius,                          &
 &       observation_scatter,        model_scatter,                             &
 &       assimilation_start_date,    assimilation_end_date,                     &
@@ -408,35 +417,40 @@ END_DATE   = ' '  !! END   DATE OF RUN.
 
 ! ---------------------------------------------------------------------------- !
 
-COLDSTART = .TRUE.  !! TRUE: COLDSTART, FALSE: HOT START. 
+COLDSTART = .TRUE.  !! TRUE: COLDSTART, FALSE: HOT START.
 
 IOPTI     = 1       !! COLD START OPTION:
-                    !! =  0 WIND INDEPENDENT INITIAL VALUES.                              
-                    !! =  1 WIND DEPENDENT INITIAL VALUES AND                             
-                    !!      ENERGY EQUAL ZERO IF WINDSPEED IS ZERO                        
-                    !! =  2 WIND DEPENDENT INITIAL VALUES AND                             
-                    !!      ENERGY COMPUTED FROM GIVEN PARAMETERS IF                      
-                    !!      WINDSPEED IS ZERO.                                            
+                    !! =  0 WIND INDEPENDENT INITIAL VALUES.
+                    !! =  1 WIND DEPENDENT INITIAL VALUES AND
+                    !!      ENERGY EQUAL ZERO IF WINDSPEED IS ZERO
+                    !! =  2 WIND DEPENDENT INITIAL VALUES AND
+                    !!      ENERGY COMPUTED FROM GIVEN PARAMETERS IF
+                    !!      WINDSPEED IS ZERO.
 ALPHA     = 0.018   !! PHILLIPS' PARAMETER  (NOT USED IF IOPTI = 1).
 FM        = 0.2     !! PEAK FREQUENCY (HZ) AND/OR MAXIMUM FREQUENCY.
 GAMMA     = 3.0     !! OVERSHOOT FACTOR.
 SIGMA_A   = 0.07    !! LEFT PEAK WIDTH.
 SIGMA_B   = 0.09    !! RIGHT PEAK WIDTH.
 THETAQ    = 0.0     !! WAVE DIRECTION (DEG) (NOT USED IF IOPTI = 1).
-FETCH     = 30000.  !! FETCH IN METRES (IF ZERO THEN 0.5 OF THE                        
+FETCH     = 30000.  !! FETCH IN METRES (IF ZERO THEN 0.5 OF THE
                     !! LATITUDE INCREMENT IS USED.).
 
 ! ---------------------------------------------------------------------------- !
 
-SPHERICAL_RUN        = .TRUE.   !! TRUE:  SPHERICAL  PROPAGATION,  
+SPHERICAL_RUN        = .TRUE.   !! TRUE:  SPHERICAL  PROPAGATION,
                                 !! FALSE: CARTESIAN PROPAGATION.
-SHALLOW_RUN          = .TRUE.   !! TRUE:  SHALLOW WATER MODEL, 
-                                !! FALSE: DEEP WATER MODEL. 
-REFRACTION_D_RUN     = .FALSE.  !! TRUE:  DEPTH REFRACTION ON.                                            
-REFRACTION_C_RUN     = .FALSE.  !! TRUE:  CURRENT REFRACTION ON.                                            
-WAVE_BREAKING_RUN    = .FALSE.  !! TRUE:  WAVE BREAKING ON.                                          
-PHILLIPS_RUN         = .FALSE.  !! TRUE:  PHILLIPS SOURCE ON.                                          
+SHALLOW_RUN          = .TRUE.   !! TRUE:  SHALLOW WATER MODEL,
+                                !! FALSE: DEEP WATER MODEL.
+REFRACTION_D_RUN     = .FALSE.  !! TRUE:  DEPTH REFRACTION ON.
+REFRACTION_C_RUN     = .FALSE.  !! TRUE:  CURRENT REFRACTION ON.
+L_OBSTRUCTION        = .FALSE.  !! FALSE: NO REDUCTION DUE TO SUB-GRID FEATURES
+L_DECOMP             = .TRUE.   !! TRUE: 1D GRID DECOMPOSITION.
+IPHYS                = 0        !! Janssen physics
+WAVE_BREAKING_RUN    = .FALSE.  !! TRUE:  WAVE BREAKING ON.
+PHILLIPS_RUN         = .FALSE.  !! TRUE:  PHILLIPS SOURCE ON.
+ISNONLIN             = 0        !! OLD DEPTH SCALING FOR SNL.
 ITEST                = 0        !! TEST OUTPUT UP TO LEVEL.
+BETAMAX              = 1.20     !! PARAMETER FOR WIND INPUT.
 
 ! ---------------------------------------------------------------------------- !
 
@@ -447,10 +461,10 @@ SOURCE_TIMESTEP_UNIT       = 'S'  !! SOURCE TIME STEP UNIT.
 
 ! ---------------------------------------------------------------------------- !
 
-RESTART_SAVE_TIMESTEP      =  0    !! RESTART FILE SAVE TIMESTEP.   
-RESTART_SAVE_TIMESTEP_UNIT = 'H'   !! RESTART FILE SAVE TIMESTEP UNIT.            
+RESTART_SAVE_TIMESTEP      =  0    !! RESTART FILE SAVE TIMESTEP.
+RESTART_SAVE_TIMESTEP_UNIT = 'H'   !! RESTART FILE SAVE TIMESTEP UNIT.
 RESTART_FILE_UNIT          = 17    !! RESTART FILE UNIT.
-RESTART_FILE_NAME          = 'BLS' !! RESTART FILE IDENTIFIER., 
+RESTART_FILE_NAME          = 'BLS' !! RESTART FILE IDENTIFIER.
 
 ! ---------------------------------------------------------------------------- !
 
@@ -468,35 +482,35 @@ FINE_INPUT_FILE_NAME           = 'CBO'   !! FINE SPECTRA INPUT FILE IDENTIFIER.
 
 ! ---------------------------------------------------------------------------- !
 
-WIND_INPUT_TIMESTEP         = 0 
-WIND_INPUT_TIMESTEP_UNIT    = 'S' 
-WIND_OUTPUT_TIMESTEP        = 0 
+WIND_INPUT_TIMESTEP         = 0
+WIND_INPUT_TIMESTEP_UNIT    = 'S'
+WIND_OUTPUT_TIMESTEP        = 0
 WIND_OUTPUT_TIMESTEP_UNIT   = 'S'
 WIND_INPUT_FILE_UNIT        = 1
 WIND_INPUT_FILE_NAME        = ' '
 
 ! ---------------------------------------------------------------------------- !
 
-TOPO_INPUT_TIMESTEP          = 0 
-TOPO_INPUT_TIMESTEP_UNIT     = 'S' 
-TOPO_OUTPUT_TIMESTEP         = 0 
+TOPO_INPUT_TIMESTEP          = 0
+TOPO_INPUT_TIMESTEP_UNIT     = 'S'
+TOPO_OUTPUT_TIMESTEP         = 0
 TOPO_OUTPUT_TIMESTEP_UNIT    = 'S'
 TOPO_INPUT_FILE_UNIT         = 8
 TOPO_INPUT_FILE_NAME         = ' '
 
 ! ---------------------------------------------------------------------------- !
 
-CURRENT_INPUT_TIMESTEP       = 0 
-CURRENT_INPUT_TIMESTEP_UNIT  = 'S' 
-CURRENT_OUTPUT_TIMESTEP      = 0 
+CURRENT_INPUT_TIMESTEP       = 0
+CURRENT_INPUT_TIMESTEP_UNIT  = 'S'
+CURRENT_OUTPUT_TIMESTEP      = 0
 CURRENT_OUTPUT_TIMESTEP_UNIT = 'S'
 CURRENT_INPUT_FILE_UNIT      = 9
 CURRENT_INPUT_FILE_NAME      = ' '
 
 ! ---------------------------------------------------------------------------- !
 
-ICE_INPUT_TIMESTEP           = 0 
-ICE_INPUT_TIMESTEP_UNIT      = 'S' 
+ICE_INPUT_TIMESTEP           = 0
+ICE_INPUT_TIMESTEP_UNIT      = 'S'
 ICE_INPUT_FILE_UNIT          = 3
 ICE_INPUT_FILE_NAME          = ' '
 
@@ -510,14 +524,15 @@ SPECTRA_OUTPUT_TIMESTEP        = 1
 SPECTRA_OUTPUT_TIMESTEP_UNIT   = 'H'
 SPECTRA_OUTPUT_FILE_UNIT       = 25
 SPECTRA_OUTPUT_FILE_NAME       = 'OUT'
-OUTPUT_FILE_SAVE_TIMESTEP      = 24            
-OUTPUT_FILE_SAVE_TIMESTEP_UNIT = 'H'            
+OUTPUT_FILE_SAVE_TIMESTEP      = 24
+OUTPUT_FILE_SAVE_TIMESTEP_UNIT = 'H'
 
 
 COUTT = ' '           !! SPECIFIED OUTPUT TIMES.
 
 FFLAG_P     = .TRUE.  !! PARAMETER FILE OUTPUT FLAG.
 PFLAG_P     = .FALSE. !! PARAMETER PRINTER OUTPUT FLAG.
+orientation_of_directions = .true.   !! coming from or going to (default)
 
 FFLAG_S     = .TRUE.  !! SPECTRA FILE OUTPUT FLAG.
 PFLAG_S     = .FALSE. !! SPECTRA PRINTER OUTPUT FLAG.
@@ -525,19 +540,6 @@ PFLAG_S     = .FALSE. !! SPECTRA PRINTER OUTPUT FLAG.
 OUTLAT      = ' '     !! LATITUDES OF OUTPUT SITES.
 OUTLONG     = ' '     !! LONGITUDES OF OUTPUT SITES.
 NAME        = ' '     !! OUTPUT SITES NAMES.
-
-! ---------------------------------------------------------------------------- !
-
-RADIATION_OUTPUT_TIMESTEP      =  0  !! > 0  : OUTPUT TIMESTEP OF RADIATION STRESS
-                                     !! <= 0 : OUTPUT EVERY PROPAGATION STEP
-RADIATION_OUTPUT_TIMESTEP_UNIT = 'S'
-RADIATION_FILE_TIMESTEP        = 0   !! >  0 : FILE SAVE TIME STEP OF RADIATION STRESS.
-                                     !! <= 0 : SAVE FILE EVERY OUTPUT_FILE_SAVE_TIMESTEP
-RADIATION_FILE_TIMESTEP_UNIT   = 'S'
-RADIATION_OUTPUT_FILE_UNIT     = 27
-RADIATION_OUTPUT_FILE_NAME     = 'RAD'
-FFLAG_R                        = .FALSE.   !! RADIATION FILE OUTPUT FLAG.
-PFLAG_R                        = .FALSE.   !! RADIATION PRINTER OUTPUT FLAG.
 
 ! ---------------------------------------------------------------------------- !
 
@@ -571,6 +573,15 @@ first_guess_ip_file_unit    = 30
 first_guess_ip_filename     = 'MAPFG'
 first_guess_sp_file_unit    = 35
 first_guess_sp_filename     = 'OUTFG'
+
+! ---------------------------------------------------------------------------- ! !! WAM-MAX
+
+wammax_dur       = 1200.0                                                        !! WAM-MAX
+wammax_dx        = 1000.0                                                        !! WAM-MAX
+wammax_dy        = 1000.0                                                        !! WAM-MAX
+wammax_dur_unit  = 's'                                                           !! WAM-MAX
+wammax_dx_unit   = 'm'                                                           !! WAM-MAX
+wammax_dy_unit   = 'm'                                                           !! WAM-MAX
 
 END SUBROUTINE CLEAR_WAM_USER_MODULE
 
@@ -609,7 +620,7 @@ ELSE
 END IF
 
 IF (IOS.EQ.0) THEN
-   WRITE (IU06,*) '     SUB. READ_WAM_NAMELIST SUCCESSFULLY COMPLETED. ' 
+   WRITE (IU06,*) '     SUB. READ_WAM_NAMELIST SUCCESSFULLY COMPLETED. '
 END IF
 
 END SUBROUTINE READ_WAM_NAMELIST
@@ -647,9 +658,15 @@ CALL SET_MODEL_OPTION (SPHERICAL     = SPHERICAL_RUN,                          &
 &                      SHALLOW       = SHALLOW_RUN,                            &
 &                      REFRACTION_D  = REFRACTION_D_RUN,                       &
 &                      REFRACTION_C  = REFRACTION_C_RUN,                       &
+&                      R_FACTOR      = L_OBSTRUCTION,                          &
+&                      L_DEC         = L_DECOMP,                               &
+&                      IWAMPHYS      = IPHYS,                                  &
 &                      WAVE_BREAKING = WAVE_BREAKING_RUN,                      &
-&                      PHILLIPS      = PHILLIPS_RUN)
+&                      PHILLIPS      = PHILLIPS_RUN,                           &
+&                      INONLIN       = ISNONLIN)
 CALL SET_TEST_OPTION (TEST=ITEST)
+
+CALL SET_GENERAL_MODULE (B_MAX = BETAMAX)
 
 ! ---------------------------------------------------------------------------- !
 
@@ -663,7 +680,7 @@ CALL SET_INTEGRATION_TIMESTEPS (P=PROPAGATION_TIMESTEP,                        &
 CALL CHANGE_TO_SECONDS (RESTART_SAVE_TIMESTEP, RESTART_SAVE_TIMESTEP_UNIT)
 CALL SET_RESTART_FILE_STEP (STEP=RESTART_SAVE_TIMESTEP )
 CALL SET_RESTART_FILE (NAME=RESTART_FILE_NAME,                                 &
-&                      UNIT=RESTART_FILE_UNIT) 
+&                      UNIT=RESTART_FILE_UNIT)
 
 ! ---------------------------------------------------------------------------- !
 
@@ -676,9 +693,9 @@ CALL CHANGE_TO_SECONDS (COARSE_FILE_SAVE_TIMESTEP,                             &
 CALL SET_BOUNDARY_OUTPUT_TIMESTEPS (STEP_OUTPUT=COARSE_OUTPUT_TIMESTEP,        &
 &                                   STEP_FILE=COARSE_FILE_SAVE_TIMESTEP)
 CALL SET_B_OUTPUT_FILE (NAME=COARSE_OUTPUT_FILE_NAME,                          &
-&                       UNIT=COARSE_OUTPUT_FILE_UNIT) 
+&                       UNIT=COARSE_OUTPUT_FILE_UNIT)
 CALL SET_B_INPUT_FILE  (NAME=FINE_INPUT_FILE_NAME,                             &
-&                       UNIT=FINE_INPUT_FILE_UNIT) 
+&                       UNIT=FINE_INPUT_FILE_UNIT)
 
 ! ---------------------------------------------------------------------------- !
 
@@ -687,7 +704,7 @@ CALL CHANGE_TO_SECONDS (WIND_OUTPUT_TIMESTEP, WIND_OUTPUT_TIMESTEP_UNIT)
 CALL SET_WIND_TIMESTEPS (IN=WIND_INPUT_TIMESTEP,                               &
 &                        OUT=WIND_OUTPUT_TIMESTEP)
 CALL SET_WIND_FILE (NAME=WIND_INPUT_FILE_NAME,                                 &
-&                    UNIT=WIND_INPUT_FILE_UNIT)  
+&                    UNIT=WIND_INPUT_FILE_UNIT)
 
 ! ---------------------------------------------------------------------------- !
 
@@ -696,7 +713,7 @@ CALL CHANGE_TO_SECONDS (TOPO_OUTPUT_TIMESTEP, TOPO_OUTPUT_TIMESTEP_UNIT)
 CALL SET_TOPO_TIMESTEPS (IN=TOPO_INPUT_TIMESTEP,                               &
 &                        OUT=TOPO_OUTPUT_TIMESTEP)
 CALL SET_TOPO_FILE (NAME=TOPO_INPUT_FILE_NAME,                                 &
-&                   UNIT=TOPO_INPUT_FILE_UNIT) 
+&                   UNIT=TOPO_INPUT_FILE_UNIT)
 
 ! ---------------------------------------------------------------------------- !
 
@@ -705,14 +722,14 @@ CALL CHANGE_TO_SECONDS (CURRENT_OUTPUT_TIMESTEP, CURRENT_OUTPUT_TIMESTEP_UNIT)
 CALL SET_CURRENT_TIMESTEPS (IN=CURRENT_INPUT_TIMESTEP,                         &
 &                           OUT=CURRENT_OUTPUT_TIMESTEP)
 CALL SET_CURRENT_FILE (NAME=CURRENT_INPUT_FILE_NAME,                           &
-&                      UNIT=CURRENT_INPUT_FILE_UNIT) 
+&                      UNIT=CURRENT_INPUT_FILE_UNIT)
 
 ! ---------------------------------------------------------------------------- !
 
 CALL CHANGE_TO_SECONDS (ICE_INPUT_TIMESTEP, ICE_INPUT_TIMESTEP_UNIT)
 CALL SET_ICE_TIMESTEP (IN=ICE_INPUT_TIMESTEP)
 CALL SET_ICE_FILE (NAME=ICE_INPUT_FILE_NAME,                                   &
-&                  UNIT=ICE_INPUT_FILE_UNIT) 
+&                  UNIT=ICE_INPUT_FILE_UNIT)
 
 ! ---------------------------------------------------------------------------- !
 
@@ -729,32 +746,20 @@ CALL SET_OUTPUT_FILE_STEP (STEP=OUTPUT_FILE_SAVE_TIMESTEP)
 CALL SET_MAP_FILE (NAME=PARAMETER_OUTPUT_FILE_NAME,                            &
 &                  UNIT=PARAMETER_OUTPUT_FILE_UNIT) 
 CALL SET_SPECTRA_FILE (NAME=SPECTRA_OUTPUT_FILE_NAME,                          &
-&                      UNIT=SPECTRA_OUTPUT_FILE_UNIT) 
+&                      UNIT=SPECTRA_OUTPUT_FILE_UNIT)
 
 CALL SET_OUTPUT_TIMES (TIME=COUTT)
 
-CALL SET_PARAMETER_OUTPUT_FLAGS (PF=PFLAG_P, FF=FFLAG_P)
+CALL SET_PARAMETER_OUTPUT_FLAGS (PF=PFLAG_P, FF=FFLAG_P, od=                   &
+&                                orientation_of_directions)
 CALL SET_SPECTRA_OUTPUT_FLAGS (PF=PFLAG_S, FF=FFLAG_S)
 
 CALL SET_OUTPUT_SITES (LONG=OUTLONG, LAT=OUTLAT, NA=NAME)
 
 ! ---------------------------------------------------------------------------- !
 
-CALL CHANGE_TO_SECONDS (RADIATION_OUTPUT_TIMESTEP,                             &
-&                       RADIATION_OUTPUT_TIMESTEP_UNIT)
-CALL SET_RADIATION_TIMES (OUT_DEL=RADIATION_OUTPUT_TIMESTEP,                   &
-&                         PF=PFLAG_R, FF=FFLAG_R)
-
-CALL CHANGE_TO_SECONDS (RADIATION_FILE_TIMESTEP,                               &
-&                       RADIATION_FILE_TIMESTEP_UNIT)
-CALL SET_RADIATION_FILE (FILE_INC=RADIATION_FILE_TIMESTEP,                     &
-&                        NAME=RADIATION_OUTPUT_FILE_NAME,                      &
-&                        UNIT=RADIATION_OUTPUT_FILE_UNIT) 
-
-! ---------------------------------------------------------------------------- !
-
 CALL SET_PREPROC_FILE (NAME=PREPROC_OUTPUT_FILE_NAME,                          &
-&                      UNIT=PREPROC_OUTPUT_FILE_UNIT) 
+&                      UNIT=PREPROC_OUTPUT_FILE_UNIT)
 
 ! ---------------------------------------------------------------------------- !
 
@@ -764,6 +769,10 @@ call set_ready_outfile_flag (op=ready_outfile_flag)
 call set_ready_outfile_directory (oname=ready_outfile_directory)
 call set_spectral_code (ihour=hours_2d_spectra, icode=spectral_code)
 
+! ---------------------------------------------------------------------------- ! !! WAM-MAX
+!                                                                                !! WAM-MAX
+call set_wammax_options ( dt=wammax_dur, dx=wammax_dx, dy=wammax_dy)             !! WAM-MAX
+!                                                                                !! WAM-MAX
 ! ---------------------------------------------------------------------------- !
 
 call set_assimilation_option (as=assimilation_flag, ra=influence_radius,       &
@@ -790,7 +799,7 @@ END SUBROUTINE SET_WAM_USER_PARAMETER
 !                                                                              !
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE CHANGE_TO_SECONDS (TIME, UNIT) 
+SUBROUTINE CHANGE_TO_SECONDS (TIME, UNIT)
 
 INTEGER,           INTENT(INOUT) :: TIME
 CHARACTER (LEN=1), INTENT(INOUT) :: UNIT

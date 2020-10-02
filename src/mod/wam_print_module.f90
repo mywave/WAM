@@ -22,8 +22,13 @@ USE WAM_GENERAL_MODULE, ONLY:  &   !! TERMINATES PROCESSING.
 !                                                                              !
 ! ---------------------------------------------------------------------------- !
 
-USE WAM_FILE_MODULE,         ONLY: IU06, ITEST
-   
+USE WAM_FILE_MODULE,             ONLY: IU06, ITEST
+
+USE WAM_OUTPUT_PARAMETER_MODULE, ONLY:                                         &
+&            NOUT_P, TITL_P, SCAL_P, NOUT_S, TITL_S, DIR_FLAG
+
+
+
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 !                                                                              !
 !     C. MODULE VARIABLES.                                                     !
@@ -66,141 +71,20 @@ CHARACTER (LEN=20), DIMENSION(:), ALLOCATABLE :: NAME(:)  !! OUTPUT SITE NAMES.
 !     6. PARAMETER FLAGS, TITLE AND SCALING FACTORS.                           !
 !        -------------------------------------------                           !
 
-INTEGER, PARAMETER         :: NOUT_P = 40
 LOGICAL, DIMENSION(NOUT_P) :: CFLAG_P         !! FILE PARAMETER OUTPUT FLAG.
 LOGICAL, DIMENSION(NOUT_P) :: PFLAG_P         !! FLAG OF DATA IN MODULE.
-
-CHARACTER(LEN=60), DIMENSION(NOUT_P) :: TITL_P = (/                  &
-& ' WIND SPEED U10 ( METRES/SECOND )                           ',    &   !!  1
-& ' WIND DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !!  2
-& ' FRICTION VELOCITY ( METRES/SECOND )                        ',    &   !!  3
-& ' DRAG COEFFICIENT ( PROMILLE )                              ',    &   !!  4
-& ' CHARNOCK PARAMETER                                         ',    &   !!  5
-& ' WATER DEPTH (METRES) (DEEPER THAN 999M ARE PRINTED AS 999) ',    &   !!  6
-& ' CURRENT SPEED ( METRES/SECOND )                            ',    &   !!  7
-& ' CURRENT DIRECTION ( DEGREE FROM NORTH TO )                 ',    &   !!  8
-& ' SIGNIFICANT WAVE HEIGHT ( METRES )                         ',    &   !!  9
-& ' WAVE PEAK PERIOD ( SECONDS )                               ',    &   !! 10
-& ' WAVE MEAN PERIOD (SECONDS )                                ',    &   !! 11
-& ' WAVE TM1 PERIOD ( SECONDS )                                ',    &   !! 12
-& ' WAVE TM2 PERIOD ( SECONDS )                                ',    &   !! 13
-& ' WAVE DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !! 14
-& ' DIRECTIONAL SPREAD ( DEGREES )                             ',    &   !! 15
-& ' NORMALISED WAVE STRESS ( % )                               ',    &   !! 16
-& ' SEA SIGNIFICANT WAVE HEIGHT ( METRES )                     ',    &   !! 17
-& ' SEA PEAK PERIOD ( SECONDS )                                ',    &   !! 18
-& ' SEA MEAN PERIOD ( SECONDS )                                ',    &   !! 19
-& ' SEA TM1 PERIOD ( SECONDS )                                 ',    &   !! 20
-& ' SEA TM2 PERIOD (  SECONDS )                                ',    &   !! 21
-& ' SEA DIRECTION ( DEGREE FROM NORTH TO )                     ',    &   !! 22
-& ' SEA DIRECTIONAL SPREAD ( DEGREES )                         ',    &   !! 23
-& ' DUMMY                                                      ',    &   !! 24
-& ' SWELL SIGNIFICANT WAVE HEIGHT ( METRES )                   ',    &   !! 25
-& ' SWELL PEAK PERIOD ( SECONDS )                              ',    &   !! 26
-& ' SWELL MEAN PERIOD ( SECONDS )                              ',    &   !! 27
-& ' SWELL TM1 PERIOD ( SECONDS )                               ',    &   !! 28
-& ' SWELL TM2 PERIOD ( SECONDS )                               ',    &   !! 29
-& ' SWELL DIRECTION ( DEGREE FROM NORTH TO )                   ',    &   !! 30
-& ' SWELL DIRECTIONAL SPREAD ( DEGREES )                       ',    &   !! 31
-& ' DUMMY                                                      ',    &   !! 32
-& ' GODA PEAKEDNESS PARAMETER                                  ',    &   !! 33
-& ' KURTOSIS                                                   ',    &   !! 34
-& ' BENJAMIN-FEIR INDEX                                        ',    &   !! 35
-& ' NORMALIZED MAXIMUM WAVE HEIGHT                             ',    &   !! 36
-& ' MAXIMUM WAVE PERIOD ( SECONDS )                            ',    &   !! 37
-& ' PEAK FREQUENCY (INTERPOLATED) ( HZ )                       ',    &   !! 38
-& ' PEAK DIRECTION ( DEGREE FROM NORTH TO )                    ',    &   !! 39
-& ' MEAN SQUARE SLOPE                                          '/)       !! 40
-
-REAL, PARAMETER, DIMENSION(NOUT_P) :: SCAL_P = (/                              &
-&                     10.            ,    &   !!  1
-&                      1.            ,    &   !!  2
-&                    100.            ,    &   !!  3
-&                  10000.            ,    &   !!  4
-&                  10000.            ,    &   !!  5
-&                      1.            ,    &   !!  6
-&                    100.            ,    &   !!  7
-&                      1.            ,    &   !!  8
-&                     10.            ,    &   !!  9
-&                     10.            ,    &   !! 10
-&                     10.            ,    &   !! 11
-&                     10.            ,    &   !! 12
-&                     10.            ,    &   !! 13
-&                      1.            ,    &   !! 14
-&                      1.            ,    &   !! 15
-&                    100.            ,    &   !! 16
-&                     10.            ,    &   !! 17
-&                     10.            ,    &   !! 18
-&                     10.            ,    &   !! 19
-&                     10.            ,    &   !! 20
-&                     10.            ,    &   !! 21
-&                      1.            ,    &   !! 22
-&                      1.            ,    &   !! 23
-&                      1.            ,    &   !! 24
-&                     10.            ,    &   !! 25
-&                     10.            ,    &   !! 26
-&                     10.            ,    &   !! 27
-&                     10.            ,    &   !! 28
-&                     10.            ,    &   !! 29
-&                      1.            ,    &   !! 30
-&                      1.            ,    &   !! 31
-&                      1.            ,    &   !! 32
-&                     10.            ,    &   !! 33
-&                    100.            ,    &   !! 34
-&                     10.            ,    &   !! 35
-&                     10.            ,    &   !! 36
-&                     10.            ,    &   !! 37
-&                   1000.            ,    &   !! 38
-&                      1.            ,    &   !! 39
-&                   1000.            /)       !! 40
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     7. SPECTRA FLAGS AND TITLE.                                              !
 !        ------------------------                                              !
 
-INTEGER, PARAMETER         :: NOUT_S = 4
 LOGICAL, DIMENSION(NOUT_S) :: CFLAG_S         !! SPECTRA OUTPUT FLAG.
 LOGICAL, DIMENSION(NOUT_S) :: PFLAG_S         !! FLAG OF DATA IN MODULE.
 
-CHARACTER(LEN=60), DIMENSION(NOUT_S) :: TITL_S = (/                  &
-& ' SPECTRUM                                                   ',    &   !!  1
-& ' SEA SPECTRUM                                               ',    &   !!  2
-& ' SWELL SPECTRUM                                             ',    &   !!  3
-& ' DUMMY                                                      '/)       !!  4
-
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
-!     8. RADIATION FLAGS, TITLE AND SCALING FACTORS.                           !
-!        -------------------------------------------                           !
-
-INTEGER, PARAMETER         :: NOUT_R = 8
-LOGICAL, DIMENSION(NOUT_R) :: CFLAG_R         !! SPECTRA OUTPUT FLAG.
-LOGICAL, DIMENSION(NOUT_R) :: PFLAG_R         !! FLAG OF DATA IN MODULE.
-
-CHARACTER(LEN=60), DIMENSION(NOUT_R) :: TITL_R = (/                  &
-& ' RADIATION STRESS TENSOR SXX ( KG/S/S )                     ',    &   !!  1
-& ' RADIATION STRESS TENSOR SYY ( KG/S/S )                     ',    &   !!  2
-& ' RADIATION STRESS TENSOR SXY ( KG/S/S )                     ',    &   !!  3
-& ' DUMMY                                                      ',    &   !!  4
-& ' X-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              ',    &   !!  5
-& ' Y-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              ',    &   !!  6
-& ' X-COMP. STOKES DRIFT ( M/S )                               ',    &   !!  7
-& ' Y-COMP. STOKES DRIFT ( M/S )                               '/)       !!  8
-
-REAL, PARAMETER, DIMENSION(NOUT_R) :: SCAL_R = (/                    &
-&                      0.            ,    &   !!  1
-&                      0.            ,    &   !!  2
-&                      0.            ,    &   !!  3
-&                      1.            ,    &   !!  4
-&                      0.            ,    &   !!  5
-&                      0.            ,    &   !!  6
-&                      0.            ,    &   !!  7
-&                      0.            /)       !!  8
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     9. INTERPOLATION OPTION.                                                 !
+!     8. INTERPOLATION OPTION.                                                 !
 !        ---------------------                                                 !
 
 LOGICAL  :: REGULAR  !! IF TRUE, REDUCED GRIDS ARE INTERPOLATED TO REGULAR ONES.
@@ -330,11 +214,6 @@ INTERFACE SET_PARAMETER_OUTPUT_FLAGS
 END INTERFACE
 PUBLIC SET_PARAMETER_OUTPUT_FLAGS
 
-INTERFACE SET_RADIATION_OUTPUT_FLAGS
-   MODULE PROCEDURE SET_RADIATION_OUTPUT_FLAGS
-END INTERFACE
-PUBLIC SET_RADIATION_OUTPUT_FLAGS
-
 INTERFACE SET_SPECTRA_OUTPUT_FLAGS
    MODULE PROCEDURE SET_SPECTRA_OUTPUT_FLAGS
 END INTERFACE
@@ -349,11 +228,6 @@ INTERFACE PRINT_TIME_USER
    MODULE PROCEDURE PRINT_TIME_USER
 END INTERFACE
 PUBLIC PRINT_TIME_USER
-
-INTERFACE PRINT_RADIATION_USER
-   MODULE PROCEDURE PRINT_RADIATION_USER
-END INTERFACE
-PUBLIC PRINT_RADIATION_USER
 
 INTERFACE PRINT_SPECTRA_USER
    MODULE PROCEDURE PRINT_SPECTRA_USER
@@ -568,7 +442,9 @@ END IF
 CFLAG_P = PF
 
 CFLAG_P(24) = .FALSE.
-CFLAG_P(32) = .FALSE.
+CFLAG_P(50) = .FALSE.
+CFLAG_P(54) = .FALSE.
+CFLAG_P(66) = .FALSE.
 
 IF (.NOT.ANY(CFLAG_P(:))) THEN
    WRITE(IU06,*) '*****************************************************'
@@ -586,46 +462,6 @@ IF (.NOT.ANY(CFLAG_P(:))) THEN
 END IF
 
 END SUBROUTINE SET_PARAMETER_OUTPUT_FLAGS
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
-SUBROUTINE SET_RADIATION_OUTPUT_FLAGS (PF)
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     INTERFACE VARIABLES.                                                     !
-!     --------------------                                                     !
-
-LOGICAL, INTENT(IN) :: PF(:)   !! PRINTER FLAGS.
-
-! ---------------------------------------------------------------------------- !
-
-IF (SIZE(PF).NE.NOUT_R) THEN
-   WRITE(IU06,*) '*  PROGRAM NEEDS ', NOUT_R,' FLAGS FOR RADIATION OUTPUT *'
-   WRITE(IU06,*) '*  NUMBER OF PRINTER FLAGS IS : ', SIZE(PF)
-   CALL ABORT1
-END IF
-
-CFLAG_R = PF
-
-CFLAG_R(4)  = .FALSE.    !! CORRECT DUMMY PARAMETER.
-
-IF (.NOT.ANY(CFLAG_R(:))) THEN
-   WRITE(IU06,*) '*****************************************************'
-   WRITE(IU06,*) '*                                                   *'
-   WRITE(IU06,*) '*   FATAL ERROR IN SUB. SET_RADIATION_OUTPUT_FLAGS  *'
-   WRITE(IU06,*) '*   ==============================================  *'
-   WRITE(IU06,*) '*                                                   *'
-   WRITE(IU06,*) '*  ALL FLAGS FOR RADIATION OUTPUT ARE .FALSE.       *'
-   WRITE(IU06,*) '*  CORRECT USER INPUT                               *'
-   WRITE(IU06,*) '*                                                   *'
-   WRITE(IU06,*) '*          PROGRAM ABORTS.   PROGRAM ABORTS.        *'
-   WRITE(IU06,*) '*                                                   *'
-   WRITE(IU06,*) '*****************************************************'
-   CALL ABORT1
-END IF
-
-END SUBROUTINE SET_RADIATION_OUTPUT_FLAGS
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
@@ -712,51 +548,6 @@ END IF
 WRITE(IU06,*) '  '
 
 END SUBROUTINE PRINT_GRID_USER
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
-SUBROUTINE PRINT_RADIATION_USER
-
-INTEGER  :: I
-
-WRITE(IU06,'(''1'')')
-WRITE(IU06,*) ' USER INPUT PROG. PRINT_RADIATION_FILE:'
-WRITE(IU06,*) '  '
-IF (NOUTT.EQ.0) THEN
-   WRITE(IU06,*) ' START  DATE (FORMAT:YYYYMMDDHHMMSS) : ',CDATEA,             &
-&                ' END DATE :', CDATEE
-   WRITE(IU06,*) '  '
-   WRITE(IU06,*) ' OUTPUT EVERY ',IDELDO, ' SECONDS'
-ELSE
-   WRITE(IU06,*) ' GRIDS ARE PRINTED AT:'
-   DO I = 1, NOUTT
-      WRITE(IU06,'(5(1X,A14),/)') COUTT(I)
-   END DO
-END IF
-WRITE(IU06,*) '  '
-WRITE(IU06,*) ' INPUT FILE HANDLING:'
-WRITE(IU06,*) ' FILE ID IS ..................... ', FILE01
-WRITE(IU06,*) ' THE FIRST FILE DATE IS ......... ', CDTFILE
-IF (IDFILE.GT.0) THEN
-   WRITE(IU06,*) ' A NEW FILE WILL BE FETCHED EVERY ', IDFILE, ' SECONDS'
-ELSE
-   WRITE(IU06,*) ' A NEW FILE WILL NOT BE FETCHED'
-END IF
-WRITE(IU06,*) '  '
-WRITE(IU06,*) ' LIST OF OUTPUTS TO BE GENERATED:'
-WRITE(IU06,*) '  '
-DO I=1,NOUT_R
-   IF (CFLAG_R(I))  WRITE(IU06,'(1X,A50)') TITL_R(I)
-END DO
-WRITE(IU06,*) '  '
-IF (REGULAR) THEN
-   WRITE(IU06,*) ' REDUCED GRIDS ARE INTERPOLATED TO REGULAR GRIDS'
-ELSE
-   WRITE(IU06,*) ' REDUCED GRIDS ARE NOT INTERPOLATED TO REGULAR GRIDS'
-END IF
-WRITE(IU06,*) '  '
-
-END SUBROUTINE PRINT_RADIATION_USER
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
