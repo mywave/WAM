@@ -33,8 +33,8 @@
         </div>
       </div><!-- end banner -->
     
-    <h4>This git repository contains the new designed version of the wave/h4> 
-    <h4>model WAM Cycle 6 which is written in Fortran95 and MPI.</h4> 
+    <h3>This git repository contains the new designed version of the wave<h3> 
+    <h3>model WAM Cycle 6 which is written in Fortran95 and MPI.</h3> 
    
     <h4>In case of questions please contact :</h4> 
     <h4>Dr. Arno Behrens</h4> 
