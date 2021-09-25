@@ -2,7 +2,7 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>WAM</title>
+
     <link rel="stylesheet" href="stylesheets/styles.css">
     <link rel="stylesheet" href="stylesheets/pygment_trac.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
@@ -33,10 +33,10 @@
         </div>
       </div><!-- end banner -->
     
-This git repository contains the new designed version of the wave  
-model WAM Cycle 6 which is written in Fortran95 and MPI.  
+    <p>This git repository contains the new designed version of the wave</p> 
+    <p>model WAM Cycle 6 which is written in Fortran95 and MPI.</p> 
 
-In case of questions please contact :  
+    <p>In case of questions please contact :</p> 
 Dr. Arno Behrens  
 Helmholtz-Zentrum Hereon  
 Max-Planck-Str. 1  
