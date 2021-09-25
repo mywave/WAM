@@ -34,22 +34,16 @@
         </div>
       </div><!-- end banner -->
 
-    <div class="wrapper">
-      <nav>
-        <ul></ul>
-      </nav>
-      <section>
-        <p><strong>WAM<strong>
-<strong>====</strong></p>
+This git repository contains the new designed version of the wave
+model WAM Cycle 6 which is written in Fortran95 and MPI.
 
-<p>this respo</p>
-      </section>
-      <footer>
-        <p>Project maintained by <a href="https://github.com/mywave">mywave</a></p>
-        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></small></p>
-      </footer>
-    </div>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-    
-  </body>
-</html>
+In case of questions please contact :
+Dr. Arno Behrens
+Helmholtz-Zentrum Hereon
+Max-Planck-Str. 1
+21502 Geesthacht
+Germany
+mail : arno.behrens@hereon.de
+phone : +49 4152-871556
+
+   
