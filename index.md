@@ -33,17 +33,16 @@
         </div>
       </div><!-- end banner -->
     
-    <p>This git repository contains the new designed version of the wave<p> 
-    <p>model WAM Cycle 6 which is written in Fortran95 and MPI.</p> 
+    <h2>This git repository contains the new designed version of the wave<h2> 
+    <h2>model WAM Cycle 6 which is written in Fortran95 and MPI.</h2> 
    
-    <p>In case of questions please contact :</p> 
-    <p>Dr. Arno Behrens</p> 
-    <p>Helmholtz-Zentrum Hereon</p>  
-    <p>Max-Planck-Str. 1</p> 
-    <p>21502 Geesthacht</p>  
-    <p>Germany</p>  
-    <p>mail : arno.behrens@hereon.de</p>  
-    <p>phone : +49 4152-871556</p> 
+    <h2>In case of questions please contact :</h2> 
+    <h2>Dr. Arno Behrens</h2> 
+    <h2>Helmholtz-Zentrum Hereon</h2>  
+    <h2>Max-Planck-Str. 1</h2> 
+    <h2>21502 Geesthacht</h2>  
+    <h2>Germany</h2>  
+    <h2>mail : arno.behrens@hereon.de</h2>  
+    <h2>phone : +49 4152-871556</h2> 
     
     </body>
-</html>
